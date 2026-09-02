@@ -1,0 +1,1663 @@
+<title>Sonic Boom Propagation</title>
+<style>
+  /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:13px; line-height:1.5; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{
+    display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12);
+    flex:0 0 auto;
+  }
+  header h1{
+    font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; color:#e6edf6;
+  }
+  header h1 span{color:var(--cyan)}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+    padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel);
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;
+  }
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .row{display:flex; align-items:center; gap:8px}
+  .btns{display:flex; gap:6px}
+  .btns button{
+    flex:1; font-family:var(--mono); font-size:11px; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 4px; cursor:pointer; transition:.15s;
+  }
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#04060b}
+  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d{
+    position:absolute; top:12px; right:10px; width:272px; height:190px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.96);
+    backdrop-filter:blur(3px); z-index:3;
+  }
+  #inset3d canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d .cap{
+    position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+  #readouts{
+    position:absolute; top:206px; right:10px; bottom:8px; width:306px; z-index:3;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
+    backdrop-filter:blur(3px); padding:9px 12px; font-family:var(--mono);
+    overflow-y:auto;
+  }
+  #readouts h3{
+    font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 6px;
+  }
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:2px 10px; margin:0; font-size:10.5px}
+  #readouts dt{color:var(--dim); white-space:nowrap}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink)}
+  #readouts dd.hi{color:var(--amber)}
+  #readouts dd.warn{color:var(--red)}
+  #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+
+  #plots{
+    flex:0 0 168px; display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border-top:1px solid var(--line);
+  }
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+  .plot .cap{
+    position:absolute; left:10px; top:8px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+
+  #explain{
+    flex:0 0 auto; max-height:clamp(180px,26vh,300px); overflow-y:auto; border-top:1px solid var(--line);
+    background:var(--panel); padding:11px 16px 13px; display:grid;
+    grid-template-columns:repeat(5,1fr); gap:12px;
+  }
+  #explain .ex{
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px;
+    max-height:clamp(164px,24vh,280px); overflow-y:auto;
+  }
+  #explain .ex::-webkit-scrollbar{width:5px}
+  #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{
+    margin:0 0 5px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--cyan);
+  }
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+</style>
+
+<div id="app">
+  <header>
+    <h1>Sonic&nbsp;<span>Boom</span>&nbsp;Propagation</h1>
+    <div class="tabs" id="tabs">
+      <button data-s="accel" class="on">1 · Accelerating</button>
+      <button data-s="cruise">2 · Supersonic cruise</button>
+      <button data-s="booster">3 · Falcon&nbsp;9 booster</button>
+      <button data-s="lowboom">4 · Low‑boom X‑59</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Simulation</h2>
+        <div class="btns">
+          <button id="playBtn" class="play">▶ Play</button>
+          <button id="restartBtn">↻ Restart</button>
+        </div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.0×</span>
+          <input type="range" id="rate" min="0.15" max="5" step="0.05" value="1">
+        </label>
+        <label class="fld">Timeline <span class="v" id="progV">0.0 s</span>
+          <input type="range" id="prog" min="0" max="1" step="0.001" value="0">
+        </label>
+      </div>
+
+      <div class="grp" data-scen="accel cruise lowboom">
+        <h2>Aircraft</h2>
+        <label class="fld" data-scen="cruise lowboom">Mach number <span class="v" id="machV">1.80</span>
+          <input type="range" id="mach" min="0.6" max="3" step="0.01" value="1.8">
+        </label>
+        <label class="fld" data-scen="accel cruise lowboom">Altitude <span class="v" id="altV">12.0 km</span>
+          <input type="range" id="alt" min="6000" max="20000" step="100" value="12000">
+        </label>
+        <label class="fld" data-scen="accel">Final Mach <span class="v" id="mendV">2.20</span>
+          <input type="range" id="mend" min="1.2" max="3" step="0.01" value="2.2">
+        </label>
+        <label class="fld" data-scen="accel">Acceleration <span class="v" id="accV">1.0×</span>
+          <input type="range" id="acc" min="0.5" max="2.2" step="0.05" value="1">
+        </label>
+        <label class="fld">Effective length <span class="v" id="lenV">60 m</span>
+          <input type="range" id="len" min="15" max="90" step="1" value="60">
+        </label>
+      </div>
+
+      <div class="grp" data-scen="booster">
+        <h2>Booster entry</h2>
+        <label class="fld">Entry Mach <span class="v" id="bmV">6.0</span>
+          <input type="range" id="bm" min="3" max="8" step="0.1" value="6">
+        </label>
+        <label class="fld">Descent rate <span class="v" id="bdV">1.0×</span>
+          <input type="range" id="bd" min="0.5" max="2" step="0.05" value="1">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns">
+          <button id="panL">◂ Pan</button>
+          <button id="panR">Pan ▸</button>
+          <button id="recenter">⊙ Center</button>
+        </div>
+        <div class="hint">Drag the sky to pan the camera · double‑click to recenter.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Observer</h2>
+        <label class="fld">Lateral offset from track <span class="v" id="latV">0.0 km</span>
+          <input type="range" id="lat" min="-60" max="60" step="0.5" value="0">
+        </label>
+        <div class="hint">Drag the green marker along the ground to move it downrange. In the booster
+        case it starts at the landing pad, where the boom arrives within seconds of touchdown.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="oWf" checked> Spherical wavefronts</label>
+        <label class="chk"><input type="checkbox" id="oCone" checked> Analytic Mach cone</label>
+        <label class="chk"><input type="checkbox" id="oCarpet" checked> Boom carpet / sweep</label>
+        <label class="chk"><input type="checkbox" id="oAtm" checked> Atmosphere layers</label>
+      </div>
+    </aside>
+
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="main2d"></canvas>
+        <div id="inset3d">
+          <span class="cap">3D · Mach cone &amp; carpet (schematic)</span>
+          <canvas id="c3d"></canvas>
+        </div>
+        <div id="readouts">
+          <h3>Live readout</h3>
+          <dl id="rdl"></dl>
+        </div>
+      </div>
+      <div id="plots">
+        <div class="plot">
+          <span class="cap">Observer N‑wave</span>
+          <canvas id="cNwave"></canvas>
+        </div>
+        <div class="plot">
+          <span class="cap">Δp vs distance — this boom, at different ranges</span>
+          <canvas id="cAtten"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="explain">
+    <div class="ex">
+      <h4>Wavefronts &amp; the cone</h4>
+      <p>Every instant the vehicle radiates a <b>pressure pulse</b> that grows as a sphere at the
+      local sound speed <code>a</code>. Because the source keeps moving, successive pulses sit
+      <b>off‑centre</b> — packed ahead (Doppler), stretched behind.</p>
+      <p>At <code>M=1</code> the pulses stack up at the nose; above it their common tangent is the
+      <b>Mach cone</b>, half‑angle <code>μ = arcsin(1/M)</code> — faster ⇒ narrower. The many small
+      shocks a real airframe makes only <i>merge</i> into one N‑wave after kilometres of travel.</p>
+      <p>The cone trails the vehicle for <b>as long as it stays supersonic</b>, so the boom sweeps a
+      continuous strip along the ground — not a one‑off bang at Mach 1.</p>
+    </div>
+    <div class="ex">
+      <h4>What the observer hears</h4>
+      <p>Nothing until the cone sweeps past — then pressure jumps to <b>+Δp</b>, ramps through
+      ambient to <b>−Δp</b>, and snaps back: the <b>N‑wave</b>. Its two shocks are a <b>double
+      boom</b> once they're &gt;~100 ms apart, a single <b>crack</b> when closer.</p>
+      <p>A Falcon 9 booster returns tail‑first as a blunt, finned body: a base shock, a middle shock
+      (grid‑fin compression meeting a landing‑leg expansion), and a shock off the top — a <b>triple
+      boom</b> under ~1 s, arriving within seconds of touchdown.</p>
+      <p>Off to the side, Δp fades to zero at the edge of the <b>boom carpet</b>
+      (half‑width ≈ <code>2.6 × altitude</code>). Beyond it: silence.</p>
+    </div>
+    <div class="ex">
+      <h4>Intensity &amp; strength</h4>
+      <p>Ground Δp grows with the vehicle's <b>weight and cross‑section</b>, weakly with Mach, and
+      drops with altitude as <code>√(p_source·p_ground)</code>. Concorde ≈ <b>2 psf</b>; an F9
+      booster ≈ <b>2–7 psf</b> near the pad. A turn or hard acceleration <b>focuses</b> the cone into
+      a <b>U‑wave</b> 2–5× stronger (scenario 1).</p>
+      <p>Loudness is really set by the <b>equivalent‑area distribution</b> — how gradually lift and
+      volume build along the body. A long, slender, shaped nose (NASA's <b>X‑59</b>, scenario 4)
+      keeps the shocks separate: a <b>0.3 psf, 75 PLdB thump</b> vs Concorde's ~105 PLdB.</p>
+      <p class="cav">Sim caveats: the X‑59 thump shape is stylised (not CFD); its dashed
+      “conventional” curve is this same airframe unshaped, not Concorde; Mach &gt; 1.4 here is a
+      teaching device. Treat every figure as an engineering estimate, ±~2×.</p>
+    </div>
+    <div class="ex">
+      <h4>Attenuation with distance</h4>
+      <p>As it travels the N‑wave <b>ages</b>: <b>cylindrical spreading</b> (<code>r^−½</code> — the
+      cone is a line source, not a point) plus <b>nonlinear steepening loss</b> (<code>r^−¼</code>)
+      give <code>Δp ∝ r^−¾</code>, while the <b>duration grows</b> as <code>r^¼</code>. Absorption
+      also thickens the shock rise from ~1 ms to tens of ms — a crack becomes a rumble.</p>
+      <p>A shock only reaches the ground while its <b>horizontal trace speed</b> stays above the
+      local sound speed all the way down. Once the source is slower than <b>sea‑level</b> sound it
+      refracts upward — <b>Mach cut‑off</b> — which is why a decelerating booster falls quiet near
+      landing. Wind and turbulence shift where this happens.</p>
+    </div>
+    <div class="ex">
+      <h4>Reading the units</h4>
+      <p><b>Δp — pascals (Pa) or lb/ft² (psf).</b> The boom's <b>pressure</b> jump above still air
+      (~101 000 Pa). <code>1 psf ≈ 48 Pa</code>. ~50 Pa (1 psf) is a distant thud, ~100 Pa (2 psf)
+      rattles windows, &gt;~500 Pa (10 psf) can crack glass.</p>
+      <p><b>PLdB — perceived level, decibels.</b> How <b>loud and startling</b> it seems, not the raw
+      pressure. Logarithmic: <code>+10 ≈ twice as loud</code>. ~75 far rumble · ~95 loud boom · ~110
+      sharp crack.</p>
+      <p><b>T_N and rise — milliseconds.</b> The N‑wave's length and how fast the shock jumps. A
+      ~1 ms rise is a knife‑edge crack; tens of ms is a soft thud — same Δp, ~10–20 PLdB apart.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ============================================================ constants */
+const GAMMA=1.4, RSPEC=287.05, G0=9.80665, MAIR=0.0289644, RSTAR=8.3144598;
+const P0=101325, T0K=288.15;
+const A0=Math.sqrt(GAMMA*RSPEC*T0K);          // sea-level sound speed ~340.3 m/s
+const KR=1.9, KCAL=0.117, CT=1.0;             // boom scaling: KR ground reflection, KCAL fit to Concorde ≈ 100 Pa
+const PA_PER_PSF=47.880259;
+
+/* US Standard Atmosphere 1976 (geopotential km, base T, lapse K/km) */
+const LAYERS=[
+  {h:0,     T:288.15, L:-6.5},
+  {h:11000, T:216.65, L:0},
+  {h:20000, T:216.65, L:1.0},
+  {h:32000, T:228.65, L:2.8},
+  {h:47000, T:270.65, L:0},
+  {h:51000, T:270.65, L:-2.8},
+  {h:71000, T:214.65, L:-2.0},
+];
+// precompute base pressures
+(function(){
+  LAYERS[0].P=P0;
+  for(let i=1;i<LAYERS.length;i++){
+    const b=LAYERS[i-1], dh=LAYERS[i].h-b.h;
+    if(Math.abs(b.L)<1e-9){
+      LAYERS[i].P=b.P*Math.exp(-G0*MAIR*dh/(RSTAR*b.T));
+    }else{
+      const Ltop=b.T+b.L*dh/1000;
+      LAYERS[i].P=b.P*Math.pow(Ltop/b.T, -G0*MAIR/(RSTAR*b.L/1000));
+    }
+  }
+})();
+function atmo(z){
+  z=Math.max(0,Math.min(z,84000));
+  let i=0; while(i<LAYERS.length-1 && z>=LAYERS[i+1].h) i++;
+  const b=LAYERS[i], dh=z-b.h, L=b.L/1000;
+  const T=b.T+L*dh;
+  let P;
+  if(Math.abs(L)<1e-12) P=b.P*Math.exp(-G0*MAIR*dh/(RSTAR*b.T));
+  else P=b.P*Math.pow(T/b.T, -G0*MAIR/(RSTAR*L));
+  const rho=P*MAIR/(RSTAR*T);
+  return {T, P, rho, a:Math.sqrt(GAMMA*RSPEC*T)};
+}
+const soundSpeed=z=>atmo(z).a;
+const pressureAt=z=>atmo(z).P;
+
+/* ============================================================ helpers */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*t*(t*(t*6-15)+10);
+function keyf(pairs,x){
+  if(x<=pairs[0][0])return pairs[0][1];
+  for(let i=1;i<pairs.length;i++){
+    if(x<=pairs[i][0]){
+      const[x0,y0]=pairs[i-1],[x1,y1]=pairs[i];
+      return lerp(y0,y1,(x-x0)/(x1-x0));
+    }
+  }
+  return pairs[pairs.length-1][1];
+}
+function rot(x,y,ang){const c=Math.cos(ang),s=Math.sin(ang);return[x*c-y*s,x*s+y*c];}
+
+// ground overpressure directly beneath the source (no focus, no lateral carpet falloff) —
+// shared by the live physics and the peak-impact predictor so the two can't drift apart
+function nominalDp(hGen, mGen, len){
+  const mr = clamp((mGen-1)/0.4, 0.06, 1);                       // weak shocks near M=1
+  return KCAL*KR*Math.sqrt(pressureAt(hGen)*P0)
+       * Math.pow(Math.max(mGen*mGen-1,1e-4),0.125)
+       * Math.pow(len/hGen,0.75) * mr;
+}
+const plFrom=(dp,riseMs)=>clamp(100 + 20*Math.log10(Math.max(dp,1e-3)/50) - 8*Math.log10(riseMs/2), 40, 135);
+
+/* ============================================================ scenarios */
+const SCEN={
+  accel:{
+    name:'Accelerating', camFrac:0.40, runLen:15, mStart:0.72,
+  },
+  cruise:{
+    name:'Supersonic cruise', camFrac:0.40,
+  },
+  lowboom:{
+    name:'Low-boom (X-59)', camFrac:0.40,   // level flight; the ground signature is what differs
+  },
+  booster:{
+    name:'Falcon 9 booster', runLen:30, padX:0,
+    // altitude vs. normalised descent progress — lingers low so the terminal burn is slow
+    altKf:[[0,70000],[0.10,56000],[0.25,40000],[0.42,24000],[0.55,14000],[0.66,8000],[0.75,3600],[0.88,1000],[1,0]],
+    // downrange vs. progress — flies back from ~13 km downrange to the pad at x=0
+    downKf:[[0,13000],[0.35,7000],[0.62,3000],[0.85,600],[1,0]],
+  },
+};
+
+/* ============================================================ state */
+const S={
+  scen:'accel', playing:false, t:0, rate:1,
+  // controls
+  mach:1.8, alt:12000, mend:2.2, acc:1, len:60, bm:6, bd:1, lat:0,
+  ov:{wf:true,cone:true,carpet:true,atm:true},
+  // vehicle
+  v:{x:0,y:12000,vx:0,vy:0,spd:0,a:A0,M:0,mu:Math.PI/2,hGen:12000},
+  wf:[], lastEmit:-1,
+  obs:{x:0},          // world x of observer on ground
+  pan:0,             // user camera pan offset, metres
+  focus:{x:null,xMin:Infinity,tMin:0,locked:false},
+  res:null,           // computed observer result
+};
+
+// length of the "active" phase (acceleration / descent); cruise has no fixed phase
+function runLen(){
+  if(S.scen==='booster') return SCEN.booster.runLen/S.bd;
+  if(S.scen==='accel')   return SCEN.accel.runLen/S.acc;
+  return 0;
+}
+
+// altitude below which a descending booster's speed drops under the sea-level
+// sound speed — shocks made lower than this refract upward and never reach the ground
+function boosterCutoffAlt(){
+  for(let z=1200; z<52000; z+=200){ if(machForBoosterAlt(z)*soundSpeed(z) >= A0) return z; }
+  return 4000;
+}
+
+// total meaningful timeline: active phase + however long the boom needs to
+// propagate to the observer + a margin to watch the N-wave pass
+function simDuration(){
+  if(S.scen==='booster'){
+    const zc=boosterCutoffAlt();
+    const d=Math.abs(S.obs.x - SCEN.booster.padX);
+    const prop=Math.hypot(d,zc)/320;
+    return runLen() + Math.max(prop+10, 16);
+  }
+  const h=S.alt, af=soundSpeed(h);
+  const Mf = S.scen==='accel' ? S.mend : S.mach;
+  const base = S.scen==='accel' ? runLen() : 0;
+  if(Mf<=1.03) return base + 46;                 // subsonic: just watch the wavefronts
+  const vf=Mf*af, lag=h*Math.sqrt(Mf*Mf-1);      // ground boom trails the aircraft by `lag`
+  let xActive=0, tActive=0;
+  if(S.scen==='accel'){ tActive=runLen(); xActive=0.5*(SCEN.accel.mStart+Mf)*af*tActive; }
+  // the steady Mach cone reaches the observer after this...
+  const tCone=tActive + Math.max(0,(S.obs.x + lag - xActive)/vf);
+  // ...but the FIRST real wavefront is the one emitted at the start point, which then has to
+  // expand across the full slant distance — the binding constraint when the vehicle is high
+  const tFirst=tActive + Math.sqrt((S.obs.x-xActive)**2 + h*h)/af;
+  return clamp(Math.max(tCone, tFirst) + 12, base+6, 300);
+}
+
+// Pre-compute, from the current parameters alone, WHERE the loudest boom lands on the ground
+// and how strong it is there — before the run has played out.
+function peakImpact(){
+  const L=S.len;
+  if(S.scen==='booster'){
+    let zB=6000, sB=-1;                                  // altitude of the strongest ground-reaching shock
+    for(let z=2000; z<42000; z+=400){
+      const M=machForBoosterAlt(z);
+      if(M*soundSpeed(z) <= A0) continue;
+      const s=pressureAt(z)*Math.pow(Math.max(M*M-1,1e-3),0.125)*clamp((M-1)/0.4,0.06,1);
+      if(s>sB){ sB=s; zB=z; }
+    }
+    const M=machForBoosterAlt(zB);
+    const dp=nominalDp(zB, M, L)*1.35*0.55;              // scenK · (slant + horizontal falloff to the pad)
+    return {x:SCEN.booster.padX, dp, psf:dp/PA_PER_PSF, PLdB:plFrom(dp,1.6),
+      where:`at the pad (shock born ~${(zB/1000).toFixed(0)} km up)`};
+  }
+  if(S.scen==='accel'){
+    const h=S.alt, af=soundSpeed(h), rl=runLen(), N=600;
+    let x=0, tp=0, xgMin=Infinity, mMin=1, xM1=0, gotM1=false;
+    for(let i=0;i<=N;i++){
+      const t=rl*i/N, p=clamp(t/rl,0,1);
+      const M=lerp(SCEN.accel.mStart,S.mend,smooth(p)), v=M*af;
+      if(i>0) x += v*(t-tp); tp=t;
+      if(!gotM1 && M>=1){ gotM1=true; xM1=x; }
+      if(M>1.02){ const xg=x - h*Math.sqrt(M*M-1); if(xg<xgMin){ xgMin=xg; mMin=M; } }
+    }
+    if(!gotM1 || !isFinite(xgMin)) return {x:null, dp:0, psf:0, PLdB:0, where:'— stays subsonic'};
+    // the cones that converge on the caustic are the weak transonic ones just past M=1
+    const mF=Math.min(1.2, S.mend), mr=clamp((mF-1)/0.4,0.06,1);
+    const r0=h/Math.max(Math.sin(Math.asin(1/mF)),1e-3);
+    const slant=Math.max(Math.sqrt((xgMin-xM1)**2 + h*h), r0);   // longer path back to the focal line
+    let dp=nominalDp(h,mF,L)*Math.pow(r0/slant,0.75);
+    dp=Math.min((dp/mr)*lerp(mr,1,0.25)*2.2, 430);              // caustic gain, capped ~9 psf
+    return {x:xgMin, dp, psf:dp/PA_PER_PSF, PLdB:plFrom(dp,2),
+      where:`focal line, ~${((xM1-xgMin)/1000).toFixed(0)} km behind the M1 crossing`};
+  }
+  // cruise / low-boom: the peak is the whole strip directly under the flight path
+  if(S.mach<=1.03) return {x:null, dp:0, psf:0, PLdB:0, where:'— subsonic, no boom'};
+  const shaped=S.scen==='lowboom', loss=clamp((S.mach-1.4)/0.5,0,1);
+  const sk=shaped?lerp(0.24,0.85,loss):1;
+  const dp=nominalDp(S.alt, S.mach, L)*sk;
+  let pl=plFrom(dp, shaped?lerp(25,3,loss):1.7);
+  if(shaped) pl=clamp(pl - 6*(1-loss), 40, 135);
+  return {x:null, dp, psf:dp/PA_PER_PSF, PLdB:pl,
+    where:shaped?'under the track (a soft thump)':'under the flight path (carpet centreline)'};
+}
+
+/* ---- reset ---- */
+function resetSim(keepObs){
+  S.t=0; S.wf.length=0; S.lastEmit=-1; S.playing=false; S.pan=0; S._holdBase=null; S._arrivedAt=null; S._heardG=null; S._obsUserMoved=false;
+  S.focus={x:null,xMin:Infinity,tMin:0,locked:false};
+  S.res=null;
+  const c=SCEN[S.scen];
+  if(S.scen==='booster'){
+    const z=keyf(c.altKf,0), x=keyf(c.downKf,0);
+    S.v={x,y:z,vx:0,vy:0,spd:0,a:soundSpeed(z),M:S.bm,mu:Math.asin(1/S.bm),hGen:z};
+    if(!keepObs) S.obs.x=SCEN.booster.padX;   // default observer sits at the landing pad
+  }else if(S.scen==='cruise'||S.scen==='lowboom'){
+    const h=S.alt, a=soundSpeed(h), spd=S.mach*a;
+    S.v={x:0,y:h,vx:spd,vy:0,spd,a,M:S.mach,mu:S.mach>1?Math.asin(1/S.mach):Math.PI/2,hGen:h};
+    if(!keepObs) S.obs.x=2000;
+  }else{
+    const h=S.alt, a=soundSpeed(h), spd=SCEN.accel.mStart*a;
+    S.v={x:0,y:h,vx:spd,vy:0,spd,a,M:SCEN.accel.mStart,mu:Math.PI/2,hGen:h};
+    if(!keepObs) S.obs.x=9000;
+  }
+  playBtn.textContent='▶ Play';
+  syncProg();
+  draw();
+}
+
+/* ============================================================ vehicle update */
+function machForBoosterAlt(z){
+  // scripted Mach(altitude): hypersonic aloft, aerodynamically decelerating, still
+  // supersonic down to ~4 km (light empty stage + grid fins), then the landing burn
+  if(z>=55000) return S.bm;
+  if(z>=13000) return 1.7 + (S.bm-1.7)*((z-13000)/42000);
+  if(z>=3500)  return 1.03 + 0.67*((z-3500)/9500);
+  if(z>=1200)  return 0.62 + 0.41*((z-1200)/2300);
+  return 0.04 + 0.58*(z/1200);
+}
+function stepVehicle(dt){
+  const c=SCEN[S.scen];
+  if(S.scen==='cruise'||S.scen==='lowboom'){
+    const h=S.alt, a=soundSpeed(h), spd=S.mach*a;
+    S.v.x+=spd*dt; S.v.y=h;
+    S.v.vx=spd; S.v.vy=0; S.v.spd=spd; S.v.a=a; S.v.M=S.mach;
+    S.v.mu=S.mach>1?Math.asin(1/S.mach):Math.PI/2; S.v.hGen=h;
+  }else if(S.scen==='accel'){
+    const h=S.alt, a=soundSpeed(h);
+    const p=clamp(S.t/runLen(),0,1);
+    const M=lerp(SCEN.accel.mStart, S.mend, smooth(p));
+    const spd=M*a;
+    S.v.x+=spd*dt; S.v.y=h;
+    S.v.vx=spd; S.v.vy=0; S.v.spd=spd; S.v.a=a; S.v.M=M;
+    S.v.mu=M>1.0001?Math.asin(1/M):Math.PI/2; S.v.hGen=h;
+    // focus / caustic tracking: ground trace point of the trailing cone
+    if(M>1.02){
+      const xg=S.v.x - h*Math.sqrt(M*M-1);
+      if(!S.focus.locked){
+        if(xg<S.focus.xMin){ S.focus.xMin=xg; S.focus.tMin=S.t; }
+        else if(xg>S.focus.xMin+400){
+          S.focus.locked=true; S.focus.x=S.focus.xMin;
+          if(!S._obsUserMoved){ S.obs.x=S.focus.x; S._arrivedAt=null; S._heardG=null; }  // park the observer on the superboom
+        }
+      }
+    }
+  }else{ // booster
+    const p=clamp(S.t/runLen(),0,1);
+    const z=keyf(c.altKf,p), x=keyf(c.downKf,p);
+    const dtp=1/Math.max(runLen()*60,1);
+    const z2=keyf(c.altKf,Math.min(p+dtp,1)), x2=keyf(c.downKf,Math.min(p+dtp,1));
+    const a=soundSpeed(z), M=machForBoosterAlt(z), spd=M*a;
+    const dl=Math.hypot(x2-x, z2-z)||1;
+    S.v.vx=spd*(x2-x)/dl; S.v.vy=spd*(z2-z)/dl;
+    S.v.x=x; S.v.y=z; S.v.spd=spd; S.v.a=a; S.v.M=M;
+    S.v.mu=M>1.0001?Math.asin(1/M):Math.PI/2; S.v.hGen=z;
+  }
+}
+
+/* ============================================================ wavefronts */
+const DT_EMIT=0.22, WF_CAP=1300;
+function emit(){
+  if(S.t-S.lastEmit < DT_EMIT && S.lastEmit>=0) return;
+  S.lastEmit=S.t;
+  const boom = S.v.M>1 && (S.scen!=='booster' || S.v.spd>A0);
+  S.wf.push({x:S.v.x,y:S.v.y,t:S.t,a:S.v.a,M:S.v.M,spd:S.v.spd,mu:S.v.mu,boom});
+  if(S.wf.length>WF_CAP) S.wf.splice(0,S.wf.length-WF_CAP);
+}
+
+/* ============================================================ observer physics */
+function computeObserver(){
+  const O={x:S.obs.x,y:0};
+  const lat=S.lat*1000;
+  // scan boom wavefronts: `maxF` finds the first one to reach the observer (timing);
+  // `loudW` is the strongest one that has already arrived (sets Δp / character)
+  let maxF=-Infinity, sweepX=null, firstHitX=null, oldestBoomT=Infinity;
+  let loudW=null, loudS=-Infinity, tArrTrue=Infinity;
+  for(const w of S.wf){
+    if(!w.boom) continue;
+    const r=w.a*(S.t-w.t);
+    const d=Math.hypot(O.x-w.x, O.y-w.y);
+    const f=r-d;
+    if(f>maxF) maxF=f;
+    const ta=w.t + d/w.a;                 // when THIS wavefront's sphere reaches the observer
+    if(ta<tArrTrue) tArrTrue=ta;
+    if(f>=0){
+      // shock-strength proxy: ambient pressure × Mach term × weak-shock roll-off near M=1
+      const s = pressureAt(Math.abs(w.y)) * Math.pow(Math.max(w.M*w.M-1,1e-3),0.125) * clamp((w.M-1)/0.4,0.06,1);
+      if(s>loudS){ loudS=s; loudW=w; }
+    }
+    if(r>=Math.abs(w.y)){
+      const dx=Math.sqrt(r*r-w.y*w.y);
+      const cand = Math.abs((w.x+dx)-O.x) < Math.abs((w.x-dx)-O.x) ? w.x+dx : w.x-dx;
+      if(sweepX===null || Math.abs(cand-O.x) < Math.abs(sweepX-O.x)) sweepX=cand;
+      if(w.t<oldestBoomT){ oldestBoomT=w.t; firstHitX = (Math.abs(w.x+dx-O.x)<Math.abs(w.x-dx-O.x))?w.x+dx:w.x-dx; }
+    }
+  }
+  const arrived = maxF>=0;
+  const hasBoomWf = maxF>-Infinity;                 // a ground-reaching shock is in flight
+  const enRoute = !arrived && hasBoomWf;
+  // record the TRUE first-arrival time (not just "when we noticed"), so playing and
+  // scrubbing past the arrival give the same "boom vs. touchdown" and N-wave playhead
+  if(arrived && !S._arrivedAt) S._arrivedAt = Math.min(tArrTrue, S.t);
+  if(!arrived) { S._arrivedAt=null; S._heardG=null; }
+  // Let the heard boom build for a few seconds after first arrival (a caustic fills in from
+  // several cones), then LOCK its source so the signature settles instead of climbing forever.
+  // Moving the observer or rebuilding clears it (see rebuildTo / the drag handler).
+  if(arrived && loudW && (!S._heardG || S.t < S._arrivedAt + 2))
+    S._heardG = {a:loudW.a, M:loudW.M, spd:loudW.spd, mu:loudW.mu, y:loudW.y, x:loudW.x};
+
+  // Generating conditions = the locked source once arrived; before that, a signature is
+  // previewed only for STEADY flight (cruise / X-59), where the current vehicle state is a
+  // faithful stand-in. For the accelerating jet and the booster the source sweeps along the
+  // trajectory, so there is no single meaningful pre-arrival signature — show just the countdown.
+  const steady = S.scen==='cruise' || S.scen==='lowboom';
+  const g = arrived ? (S._heardG || loudW)
+          : (S.v.M>1 && steady) ? {a:S.v.a,M:S.v.M,spd:S.v.spd,mu:S.v.mu,y:S.v.hGen,x:S.v.x}
+          : null;
+
+  let R={scenName:SCEN[S.scen].name, M:S.v.M, spd:S.v.spd, a:S.v.a, mu:S.v.mu,
+         status:'', dp:0, psf:0, dpRaw:0, r:0, r0:0, hGen:S.v.hGen, mGen:S.v.M,
+         T_N:0, riseMs:0, PLdB:0, label:'—', dbl:false, triple:false, g1:0, g2:0,
+         shaped:false, dpConv:0, PLdBconv:0,
+         carpetHalf:0, lat:S.lat, inCarpet:true, cutoff:false,
+         countdown:null, passedAgo:null, sweepX, firstHitX, arrived};
+
+  // true Mach cut-off: nothing supersonic now AND no ground-reaching shock left aloft
+  const boosterCutoff = S.scen==='booster' && S.v.spd<=A0 && !arrived && !hasBoomWf && S.t>1;
+
+  if(!g && !arrived){
+    if(enRoute){
+      R.status='incoming';
+      R.countdown=Math.max(0,(-maxF)/A0);
+      if(S.scen==='booster') R.enRouteAloft=true;   // boom generated higher up, still descending
+    }else if(boosterCutoff){
+      R.status='MACH CUT‑OFF — refracts upward'; R.cutoff=true;
+    }else{
+      R.status = S.scen==='booster' ? (S.v.M>0.98?'transonic':'subsonic — no boom')
+                                    : (S.v.M>0.98?'M ≈ 1 — shock forming':'subsonic — no boom');
+    }
+    return R;
+  }
+
+  const mu=g.mu, mGen=g.M, vGen=g.spd, hGen=Math.max(Math.abs(g.y),300);
+  const gx = (g.x!=null) ? g.x : ((arrived&&loudW)?loudW.x:S.v.x);   // where the heard boom was generated
+  const carpetHalf=2.64*hGen;
+  const inCarpet=Math.abs(lat)<=carpetHalf;
+  const cf = inCarpet ? Math.cos(0.5*Math.PI*lat/carpetHalf) : 0;
+  // Propagation path = straight-line slant from where the heard boom was generated to the
+  // observer. For a normal observer this equals the Mach-cone slant hGen/sin(μ); for the
+  // acceleration FOCUS the observer sits well behind that, so the path is longer and the
+  // boom is more attenuated by spreading before the caustic gain is applied on top.
+  let r0, r;
+  const dSlant = Math.sqrt((O.x-gx)**2 + hGen*hGen + lat*lat);
+  if(S.scen==='booster'){
+    r0 = hGen;
+    r  = dSlant;
+  }else{
+    r0 = hGen/Math.max(Math.sin(mu),1e-3);
+    r  = Math.max(dSlant, r0);          // never shorter than the natural cone slant
+  }
+  const machRoll = clamp((mGen-1)/0.4, 0.06, 1);          // shocks near M=1 are weak
+  // low-boom (X-59): airframe shaping keeps the shocks from coalescing into an N-wave.
+  // Effective only near its M1.4 design point; it degrades toward a normal boom above ~M1.6.
+  const shaped = S.scen==='lowboom';
+  const shapeLoss = shaped ? clamp((mGen-1.4)/0.5, 0, 1) : 0;   // 0 = full shaping, 1 = lost
+  // tuned so the M1.4 design point lands on NASA's published X-59 figures:
+  // ~0.3 psf peak, ~75 PLdB thump (vs ~105 PLdB for a conventional boom)
+  const scenK = S.scen==='booster' ? 1.35
+              : shaped ? lerp(0.24, 0.85, shapeLoss)
+              : 1;
+  // nominalDp() uses the GEOMETRIC MEAN of ambient pressure at source and ground (not the
+  // source pressure alone, which over-weights altitude); scenK is the per-scenario factor
+  const dpRaw = nominalDp(hGen, mGen, S.len) * scenK;
+  let dp = dpRaw*Math.pow(r0/r,0.75)*cf;
+  if(S.scen==='booster'){                                  // fall off with horizontal distance from the source
+    dp *= 1/(1+Math.pow(Math.abs(O.x-gx)/6000,1.6));
+  }
+  const dpConv = shaped ? dp/Math.max(scenK,1e-3) : dp;    // what a conventional airframe would make
+
+  // acceleration superboom: a caustic where successive weak Mach cones converge. The gain is
+  // ray-convergence, only loosely tied to how weak each shock is, so partly relax the near-M=1
+  // roll-off and stack the classic ~×2–5 on top.
+  if(S.scen==='accel' && S.focus.x!==null && Math.abs(O.x-S.focus.x)<1500){
+    const near = 1 - Math.abs(O.x-S.focus.x)/1500;          // 1 on the focal line, 0 at the edge
+    const dpPlain = dp;                                     // the plain N-wave this spot would get
+    dp = Math.min((dp/machRoll) * lerp(machRoll, 1, 0.25*near) * lerp(1, 2.2, near), 430);  // cap ~9 psf
+    R.focused = true;
+    R.focusMult = dp / Math.max(dpPlain, 1e-6);
+  }
+
+  // N-wave duration: near-field ~ L/a at the source, then it STRETCHES with propagation as the
+  // shocks age — ∝ r^(1/4), referenced to ~10 km (roughly where it has matured into an N-wave).
+  const T_N0 = CT*(S.len/Math.max(g.a,1));
+  const T_N = T_N0 * Math.pow(Math.max(r/15000, 1), 0.25);
+  // a sharp N-wave rises in ~1-3 ms; a shaped low-boom signature ramps up over tens of ms
+  const riseMs = shaped ? lerp(25, 3, shapeLoss) + 0.01*(r/1000)
+                        : 1.5 + 0.02*(r/1000);
+  const plOf = d => clamp(100 + 20*Math.log10(Math.max(d,1e-3)/50) - 8*Math.log10(riseMs/2), 40, 135);
+  // shaped signatures are quieter than an N-wave of equal peak Δp (energy sits at low
+  // frequency, spread over time) — a credit the simple rise-time term can't fully capture
+  const PLdB = shaped ? clamp(plOf(dp) - 6*(1-shapeLoss), 40, 135) : plOf(dp);
+  const PLdBconv = shaped ? clamp(100 + 20*Math.log10(Math.max(dpConv,1e-3)/50), 40, 135) : PLdB;
+  const label = shaped ? (PLdB>92?'firm thump (shaping degraded)':'gentle sonic thump')
+              : PLdB>108?'sharp crack':PLdB>96?'loud boom':PLdB>82?'muffled thud':'distant rumble';
+  // aircraft: one N-wave, its bow+tail heard as a "double boom" past ~100 ms.
+  // Falcon 9: a TRIPLE boom — base shock, a middle shock where a grid-fin compression
+  // merges with a landing-leg expansion, and a rear shock off the top of the booster.
+  const triple = S.scen==='booster';
+  // shock separation ≈ body length / sound speed → the whole triple spans ~0.12–0.18 s
+  const gBase  = clamp(0.5*S.len/Math.max(vGen,1), 0.03, 0.09);
+  const g1 = triple ? gBase       : 0;      // base → fins/legs
+  const g2 = triple ? gBase*1.1   : 0;      // fins/legs → top
+  const dbl = !shaped && (triple || (T_N*1000>100));
+
+  Object.assign(R,{
+    dp, psf:dp/PA_PER_PSF, dpRaw, r, r0, hGen, mGen, mu,
+    T_N, riseMs, PLdB, label, dbl, triple, g1, g2, carpetHalf, inCarpet, cutoff:false,
+    shaped, dpConv, PLdBconv,
+  });
+
+  if(boosterCutoff){ R.cutoff=true; R.status='MACH CUT‑OFF — refracts upward'; R.dp=0; R.psf=0; }
+  else if(!inCarpet){ R.status='outside boom carpet — silent'; R.dp=0; R.psf=0; }
+  else if(arrived){
+    R.status='BOOM'; R.passedAgo = S.t-(S._arrivedAt||S.t);
+  }else if(Number.isFinite(maxF)){
+    R.countdown = Math.max(0, (-maxF)/Math.max(A0,1));
+    R.status='incoming';
+  }else{
+    R.status = S.v.M>1 ? 'supersonic — cone hasn’t reached here yet' : 'subsonic — no boom';
+  }
+  return R;
+}
+
+/* ============================================================ canvases */
+const main2d=document.getElementById('main2d'), g2=main2d.getContext('2d');
+const c3d=document.getElementById('c3d'), g3=c3d.getContext('2d');
+const cN=document.getElementById('cNwave'), gN=cN.getContext('2d');
+const cA=document.getElementById('cAtten'), gA=cA.getContext('2d');
+let DPR=1, W=0,H=0, W3=0,H3=0, WN=0,HN=0, WA=0,HA=0;
+function fit(cv,ctx){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.max(1,Math.round(r.width*DPR));
+  cv.height=Math.max(1,Math.round(r.height*DPR));
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return [r.width,r.height];
+}
+function resize(){
+  [W,H]=fit(main2d,g2);
+  [W3,H3]=fit(c3d,g3);
+  [WN,HN]=fit(cN,gN);
+  [WA,HA]=fit(cA,gA);
+  draw();
+}
+window.addEventListener('resize',resize);
+
+/* ---- world <-> screen for the 2D stage (isotropic so angles are true) ---- */
+let cam={s:1,x0:0,vmax:20000};
+function curVmax(){
+  if(S.scen==='booster') return 46000;                    // booster enters from above the top edge
+  return clamp(S.alt*1.30, 13000, 24000);                 // accel + cruise
+}
+function updateCam(){
+  const c=SCEN[S.scen];
+  const marginTop=18, marginBot=46;
+  cam.vmax=curVmax();
+  cam.s=(H-marginTop-marginBot)/cam.vmax;                  // px per metre
+  const wpp=W/cam.s;                                       // world metres across the view
+  const R=S.res;
+  let base;
+  if(R && R.arrived){
+    // freeze the frame the moment the boom lands, so the wavefronts expand on screen
+    if(S._holdBase==null) S._holdBase = S.obs.x - 0.5*wpp;
+    base = S._holdBase;
+  }else if(S.scen==='booster'){
+    S._holdBase=null;
+    base = SCEN.booster.padX - 0.42*wpp;                   // frame the landing pad
+  }else{
+    S._holdBase=null;
+    const acX = S.v.x - c.camFrac*wpp;                     // follow the aircraft
+    if(R && R.sweepX!=null){
+      // glide toward the observer as the boom approaches, so the arrival is on screen
+      const k = clamp(1 - Math.abs(R.sweepX - S.obs.x)/(0.55*wpp), 0, 1);
+      base = lerp(acX, S.obs.x - 0.5*wpp, k);
+    }else base = acX;
+  }
+  cam.x0 = base + S.pan;
+  cam.yBase=H-marginBot;
+}
+const sx=wx=>(wx-cam.x0)*cam.s;
+const sy=wy=>cam.yBase-wy*cam.s;
+
+/* ============================================================ 2D DRAW */
+function draw(){
+  updateCam();
+  S._peak = peakImpact();          // predicted loudest ground spot + level (from current params)
+  const c=SCEN[S.scen];
+
+  // sky gradient
+  const grd=g2.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,'#0a1428'); grd.addColorStop(0.55,'#0a0f1c'); grd.addColorStop(1,'#05070d');
+  g2.fillStyle=grd; g2.fillRect(0,0,W,H);
+
+  // atmosphere layers
+  if(S.ov.atm){
+    const marks = cam.vmax>40000
+      ? [0,11000,20000,32000,47000,71000]
+      : [0,3000,6000,9000,12000,16000,20000];
+    g2.font='10px '+getComputedStyle(document.body).getPropertyValue('--mono');
+    for(const z of marks){
+      if(z>cam.vmax) continue;
+      const y=sy(z);
+      g2.strokeStyle='rgba(120,150,190,.10)'; g2.lineWidth=1;
+      g2.beginPath(); g2.moveTo(0,y); g2.lineTo(W,y); g2.stroke();
+      const A=atmo(z);
+      g2.fillStyle='rgba(150,170,200,.45)';
+      g2.fillText(`${(z/1000).toFixed(0)} km   T ${A.T.toFixed(0)} K   a ${A.a.toFixed(0)} m/s`, 8, y-4);
+    }
+    // named bands
+    g2.fillStyle='rgba(150,170,200,.28)';
+    if(cam.vmax>40000){
+      band('TROPOSPHERE',5000); band('STRATOSPHERE',30000); band('MESOSPHERE',75000);
+    }else{
+      band('TROPOSPHERE',3500); band('TROPOPAUSE',12500); band('STRATOSPHERE',19000);
+    }
+    function band(t,z){ if(z<cam.vmax) g2.fillText(t, W-138, sy(z)-2); }
+  }
+
+  // ground
+  const gy=sy(0);
+  g2.fillStyle='#070b12'; g2.fillRect(0,gy,W,H-gy);
+  g2.strokeStyle='rgba(120,150,190,.35)'; g2.lineWidth=1.5;
+  g2.beginPath(); g2.moveTo(0,gy); g2.lineTo(W,gy); g2.stroke();
+  // ground ticks (km) — coarser when the view is wide
+  g2.fillStyle='rgba(150,170,200,.35)'; g2.font='9px '+cssMono();
+  const stepKm = cam.vmax>40000 ? 20 : 5;
+  const x0km=Math.floor(cam.x0/1000/stepKm)*stepKm;
+  for(let k=x0km;k*1000<cam.x0+W/cam.s;k+=stepKm){
+    const X=sx(k*1000); if(X<-40||X>W) continue;
+    g2.beginPath(); g2.moveTo(X,gy); g2.lineTo(X,gy+7); g2.stroke();
+    g2.fillText(k+' km', X+3, gy+16);
+  }
+
+  const R=S.res;
+
+  // Mach cut-off (booster): where this scripted descent's speed drops below sea-level sound speed
+  if(S.scen==='booster'){
+    const zc=boosterCutoffAlt();
+    const y=sy(zc);
+    g2.strokeStyle='rgba(248,113,113,.35)'; g2.setLineDash([5,5]); g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(0,y); g2.lineTo(W,y); g2.stroke(); g2.setLineDash([]);
+    g2.fillStyle='rgba(248,113,113,.6)'; g2.font='9px '+cssMono();
+    g2.fillText('≈ Mach cut‑off — from here down the descent is slower than sea‑level sound, so shocks refract away (wind & trajectory move this level)', 8, y-4);
+    // booster still above the top of the view
+    if(sy(S.v.y) < 4){
+      const X=clamp(sx(S.v.x)-90, 8, W-190);
+      g2.fillStyle='rgba(232,238,247,.7)'; g2.font='10px '+cssMono();
+      g2.fillText(`▲ booster at ${(S.v.y/1000).toFixed(0)} km — descending into view`, X, 13);
+    }
+  }
+
+  // boom carpet already swept (ground shading)
+  if(S.ov.carpet && R && R.firstHitX!=null && R.sweepX!=null && !R.cutoff){
+    const xa=sx(Math.min(R.firstHitX,R.sweepX)), xb=sx(Math.max(R.firstHitX,R.sweepX));
+    const lg=g2.createLinearGradient(xa,0,xb,0);
+    lg.addColorStop(0,'rgba(251,191,36,.02)'); lg.addColorStop(1,'rgba(251,191,36,.14)');
+    g2.fillStyle=lg; g2.fillRect(xa,gy,xb-xa,5);
+  }
+
+  // spherical wavefronts
+  if(S.ov.wf){
+    for(const w of S.wf){
+      const r=w.a*(S.t-w.t)*cam.s;
+      if(r<1 || r>2.6*W) continue;                    // skip pinpoints and giant faint arcs
+      const cx=sx(w.x), cy=sy(w.y);
+      if(cx+r<-20||cx-r>W+20||cy-r>H+20) continue;
+      const fadeRef=clamp(S.scen==='booster'?32:S.scen==='cruise'?22:runLen()+6, 12, 34);
+      const age=(S.t-w.t)/fadeRef;
+      const al=clamp(0.55-0.42*age,0.04,0.55);
+      if(w.boom){ g2.strokeStyle=`rgba(251,191,36,${al*1.2})`; g2.lineWidth=1.6; }
+      else{ g2.strokeStyle=`rgba(56,189,248,${al*0.95})`; g2.lineWidth=1.1; }
+      g2.beginPath(); g2.arc(cx,cy,r,0,Math.PI*2); g2.stroke();
+    }
+  }
+
+  // analytic Mach cone (aircraft scenarios)
+  if(S.ov.cone && S.scen!=='booster' && S.v.M>1.01){
+    const un=Math.hypot(S.v.vx,S.v.vy)||1;
+    const bx=-S.v.vx/un, by=-S.v.vy/un;   // trailing (world) direction
+    const L=8000;                          // metres
+    g2.strokeStyle='rgba(251,191,36,.55)'; g2.lineWidth=1.4;
+    for(const sgn of [1,-1]){
+      const [dx,dy]=rot(bx,by,sgn*S.v.mu); // world-space ray direction
+      g2.setLineDash([7,6]);
+      g2.beginPath();
+      g2.moveTo(sx(S.v.x), sy(S.v.y));
+      g2.lineTo(sx(S.v.x+dx*L), sy(S.v.y+dy*L));
+      g2.stroke();
+      g2.setLineDash([]);
+    }
+    g2.fillStyle='rgba(251,191,36,.9)'; g2.font='11px '+cssMono();
+    g2.fillText(`μ = ${(S.v.mu*180/Math.PI).toFixed(1)}°`, sx(S.v.x)+14, sy(S.v.y)+34);
+  }
+
+  // "sound barrier" glow near M=1 (accel)
+  if(S.scen==='accel' && S.v.M>0.965 && S.v.M<1.035){
+    const P=[sx(S.v.x),sy(S.v.y)];
+    const rad=26+40*(1-Math.abs(S.v.M-1)/0.035);
+    const rg=g2.createRadialGradient(P[0],P[1],2,P[0],P[1],rad);
+    rg.addColorStop(0,'rgba(255,255,255,.5)'); rg.addColorStop(.4,'rgba(251,191,36,.35)'); rg.addColorStop(1,'rgba(251,191,36,0)');
+    g2.fillStyle=rg; g2.beginPath(); g2.arc(P[0],P[1],rad,0,Math.PI*2); g2.fill();
+    g2.fillStyle='rgba(255,255,255,.85)'; g2.font='10px '+cssMono();
+    g2.fillText('SOUND BARRIER — wavefronts stack up at the nose', P[0]+18, P[1]-16);
+  }
+
+  // predicted loudest-impact marker (dashed) — accel only, where the spot isn't obvious
+  if(S.scen==='accel' && S._peak && S._peak.x!=null && S.focus.x==null){
+    const X=sx(S._peak.x), Y=gy;
+    g2.strokeStyle='rgba(248,113,113,.5)'; g2.setLineDash([3,3]); g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(X-13,Y); g2.lineTo(X+13,Y); g2.moveTo(X,Y-13); g2.lineTo(X,Y-1); g2.stroke();
+    g2.setLineDash([]);
+    g2.fillStyle='rgba(248,113,113,.75)'; g2.font='9px '+cssMono();
+    g2.fillText(`predicted loudest spot · ≈ ${S._peak.psf.toFixed(1)} psf · ${S._peak.PLdB.toFixed(0)} PLdB`, X+14, Y-6);
+  }
+  // superboom focus marker (accel) — the real one, once the caustic has formed
+  if(S.scen==='accel' && S.focus.x!=null){
+    const X=sx(S.focus.x), Y=gy;
+    g2.strokeStyle='rgba(248,113,113,.9)'; g2.lineWidth=1.5;
+    for(let i=0;i<8;i++){
+      const a=i/8*Math.PI*2;
+      g2.beginPath(); g2.moveTo(X,Y); g2.lineTo(X+Math.cos(a)*11,Y+Math.sin(a)*11); g2.stroke();
+    }
+    g2.fillStyle='rgba(248,113,113,.95)'; g2.font='10px '+cssMono();
+    g2.fillText('SUPERBOOM / focus — a U‑wave, Δp ×2–5', X+14, Y-8);
+  }
+
+  // Mach cut-off indication (booster)
+  if(R && R.cutoff){
+    const P=[sx(S.v.x),sy(S.v.y)];
+    g2.strokeStyle='rgba(248,113,113,.7)'; g2.setLineDash([4,4]); g2.lineWidth=1.3;
+    for(const sgn of [1,-1]){
+      g2.beginPath(); g2.moveTo(P[0],P[1]);
+      g2.quadraticCurveTo(P[0]+sgn*90, P[1]-30, P[0]+sgn*150, P[1]-160);
+      g2.stroke();
+    }
+    g2.setLineDash([]);
+    g2.fillStyle='rgba(248,113,113,.95)'; g2.font='11px '+cssMono();
+    g2.fillText('MACH CUT‑OFF — descent slower than sea‑level sound; rays refract upward, no ground boom', P[0]-10, P[1]-24);
+  }
+
+  // boom sweep point on ground
+  if(S.ov.carpet && R && R.sweepX!=null && !R.cutoff){
+    const X=sx(R.sweepX), Y=gy;
+    const pg=g2.createRadialGradient(X,Y,1,X,Y,16);
+    pg.addColorStop(0,'rgba(251,191,36,.95)'); pg.addColorStop(1,'rgba(251,191,36,0)');
+    g2.fillStyle=pg; g2.beginPath(); g2.arc(X,Y,16,0,Math.PI*2); g2.fill();
+    g2.fillStyle='rgba(251,191,36,.75)'; g2.font='9px '+cssMono();
+    g2.fillText('boom reaches ground here', X+14, Y+34);
+  }
+
+  // vehicle
+  drawVehicle(sx(S.v.x), sy(S.v.y));
+
+  // observer
+  drawObserver(sx(S.obs.x), gy, R);
+
+  // status flash
+  if(R && R.status==='BOOM' && R.passedAgo<0.5){
+    g2.fillStyle=`rgba(255,255,255,${0.28*(1-R.passedAgo/0.5)})`;
+    g2.fillRect(0,0,W,H);
+  }
+
+  drawInset3D();
+  drawNwave();
+  drawAtten();
+  updateReadouts();
+}
+function cssMono(){return getComputedStyle(document.body).getPropertyValue('--mono');}
+
+function drawVehicle(x,y){
+  g2.save(); g2.translate(x,y);
+  g2.fillStyle='#e8eef7';
+  if(S.scen==='booster'){
+    // a Falcon 9 booster falls and lands VERTICALLY — always upright, base at (x,y)
+    const bw=7, bh=34;
+    g2.fillRect(-bw/2,-bh,bw,bh);                       // body standing on its base
+    g2.beginPath(); g2.moveTo(-bw/2,-bh); g2.lineTo(0,-bh-5); g2.lineTo(bw/2,-bh); g2.fill(); // interstage taper
+    g2.fillRect(-bw/2-4,-bh+6,4,5); g2.fillRect(bw/2,-bh+6,4,5);   // grid fins
+    if(S.v.y<3500){                                     // landing legs deploy low
+      g2.strokeStyle='#e8eef7'; g2.lineWidth=1.6;
+      g2.beginPath();
+      g2.moveTo(-bw/2,-3); g2.lineTo(-bw/2-7,3);
+      g2.moveTo(bw/2,-3);  g2.lineTo(bw/2+7,3);
+      g2.stroke();
+    }
+    if(S.v.M<1.7 || S.v.y<45000){                       // entry / landing burn — plume points down
+      const pl=g2.createLinearGradient(0,0,0,32);
+      pl.addColorStop(0,'rgba(255,210,140,.98)'); pl.addColorStop(1,'rgba(255,120,60,0)');
+      g2.fillStyle=pl;
+      g2.beginPath(); g2.moveTo(-bw/2,0); g2.lineTo(0,30); g2.lineTo(bw/2,0); g2.closePath(); g2.fill();
+    }
+    g2.restore();
+    g2.fillStyle='rgba(232,238,247,.6)'; g2.font='10px '+cssMono();
+    if(S.v.M>0.12) g2.fillText(`M ${S.v.M.toFixed(2)}`, x+16, y-bh*0.6);
+    return;
+  }
+  // aircraft — dart pointed along the velocity vector
+  g2.rotate(Math.atan2(S.v.vy,S.v.vx));
+  if(S.scen==='lowboom'){
+    // long, slender, needle-nosed low-boom airframe
+    g2.beginPath();
+    g2.moveTo(22,0); g2.lineTo(-13,-3); g2.lineTo(-11,0); g2.lineTo(-13,3); g2.closePath(); g2.fill();
+    g2.beginPath(); g2.moveTo(-5,0); g2.lineTo(-12,-6); g2.lineTo(-7,0); g2.fill();   // tail
+  }else{
+    g2.beginPath();
+    g2.moveTo(14,0); g2.lineTo(-10,-4); g2.lineTo(-8,0); g2.lineTo(-10,4); g2.closePath(); g2.fill();
+    g2.beginPath(); g2.moveTo(-2,0); g2.lineTo(-9,-7); g2.lineTo(-4,0); g2.fill();
+  }
+  g2.restore();
+  g2.fillStyle='rgba(232,238,247,.55)'; g2.font='10px '+cssMono();
+  g2.fillText(`M ${S.v.M.toFixed(2)}`, x+16, y-6);
+}
+function drawObserver(x,y,R){
+  const on = R && (R.status==='BOOM');
+  g2.strokeStyle = on?'#fff':'#34d399'; g2.fillStyle = on?'rgba(255,255,255,.9)':'rgba(52,211,153,.9)';
+  g2.lineWidth=2;
+  g2.beginPath(); g2.arc(x,y-9,4,0,Math.PI*2); g2.fill();
+  g2.beginPath(); g2.moveTo(x,y-5); g2.lineTo(x,y); g2.moveTo(x-5,y); g2.lineTo(x+5,y); g2.stroke();
+  g2.fillStyle=on?'#fff':'rgba(52,211,153,.9)'; g2.font='9px '+cssMono();
+  g2.fillText(S.lat!==0?`observer (${S.lat>0?'+':''}${S.lat} km lat)`:'observer', x+9, y-6);
+  // ring pulse on boom
+  if(on && R.passedAgo<0.6){
+    g2.strokeStyle=`rgba(255,255,255,${0.7*(1-R.passedAgo/0.6)})`; g2.lineWidth=2;
+    g2.beginPath(); g2.arc(x,y-9,4+R.passedAgo*60,0,Math.PI*2); g2.stroke();
+  }
+}
+
+/* ============================================================ 3D INSET (hand-rolled) */
+let yaw=0.6, pitch=0.5, dragging3=false, lastM=null;
+c3d.parentElement.addEventListener('mousedown',e=>{dragging3=true;lastM=[e.clientX,e.clientY];});
+window.addEventListener('mouseup',()=>dragging3=false);
+window.addEventListener('mousemove',e=>{
+  if(!dragging3)return;
+  yaw+=(e.clientX-lastM[0])*0.01; pitch=clamp(pitch+(e.clientY-lastM[1])*0.006,0.12,1.2);
+  lastM=[e.clientX,e.clientY]; if(!S.playing) draw();
+});
+function drawInset3D(){
+  g3.clearRect(0,0,W3,H3);
+  g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
+  if(!S.playing) yaw+=0; else yaw+=0.004;
+  const cx=W3*0.5, cy=H3*0.62, sc=Math.min(W3,H3)*0.30;
+  const cy2=Math.cos(yaw), sy2=Math.sin(yaw), sp=Math.sin(pitch), cp=Math.cos(pitch);
+  const pr=(X,Y,Z)=>{ // X downrange, Y lateral, Z up  (normalised units)
+    const xe=X*cy2 - Y*sy2;
+    const ye=(X*sy2 + Y*cy2);
+    return [cx + xe*sc, cy - (Z*cp - ye*sp)*sc];
+  };
+  // ground grid
+  g3.strokeStyle='rgba(120,150,190,.16)'; g3.lineWidth=1;
+  for(let gx=-2;gx<=2;gx++){ const a=pr(gx,-2,0),b=pr(gx,2,0);
+    g3.beginPath();g3.moveTo(a[0],a[1]);g3.lineTo(b[0],b[1]);g3.stroke(); }
+  for(let gy=-2;gy<=2;gy++){ const a=pr(-2,gy,0),b=pr(2,gy,0);
+    g3.beginPath();g3.moveTo(a[0],a[1]);g3.lineTo(b[0],b[1]);g3.stroke(); }
+
+  const R=S.res;
+  const supersonic = S.v.M>1.01 && !(R&&R.cutoff);
+
+  // boom carpet (lateral gaussian) under the track
+  if(R && !R.cutoff && R.carpetHalf>0){
+    const halfN = clamp(R.carpetHalf/ (cam.vmax*0.9), 0.15, 1.9);
+    for(let i=0;i<26;i++){
+      const yy=-halfN + 2*halfN*(i/25);
+      const al=0.20*Math.cos(0.5*Math.PI*yy/halfN);
+      if(al<=0)continue;
+      const a=pr(-2,yy,0), b=pr(2,yy,0);
+      g3.strokeStyle=`rgba(251,191,36,${al})`; g3.lineWidth=2;
+      g3.beginPath();g3.moveTo(a[0],a[1]);g3.lineTo(b[0],b[1]);g3.stroke();
+    }
+    // cut-off edges
+    for(const s of [-1,1]){
+      const a=pr(-2,s*halfN,0),b=pr(2,s*halfN,0);
+      g3.strokeStyle='rgba(248,113,113,.55)';g3.setLineDash([4,3]);g3.lineWidth=1;
+      g3.beginPath();g3.moveTo(a[0],a[1]);g3.lineTo(b[0],b[1]);g3.stroke();g3.setLineDash([]);
+    }
+  }
+
+  // vehicle + Mach cone
+  const vh = clamp(S.v.y/(cam.vmax), 0.05, 1.0)*1.4;
+  const vx = clamp((S.v.x-cam.x0)/(W/cam.s) - 0.5, -1, 1)*1.6;
+  const vp=pr(vx,0,vh);
+  g3.fillStyle='#e8eef7'; g3.beginPath(); g3.arc(vp[0],vp[1],3,0,7); g3.fill();
+
+  if(supersonic){
+    const mu=S.v.mu;
+    // cone axis = -velocity direction; approximate in inset as trailing along -X, tilted by descent
+    const u=[S.v.vx,S.v.vy]; const un=Math.hypot(u[0],u[1])||1;
+    const axX=-u[0]/un, axZ=-u[1]/un; // in (downrange, up) plane
+    const rings=6, Lc=1.7;
+    for(let k=1;k<=rings;k++){
+      const d=Lc*k/rings, rad=d*Math.tan(mu);
+      g3.strokeStyle=`rgba(251,191,36,${0.5-0.05*k})`; g3.lineWidth=1;
+      g3.beginPath();
+      for(let j=0;j<=28;j++){
+        const th=j/28*Math.PI*2;
+        // ring centre
+        const cX=vx+axX*d, cZ=vh+axZ*d;
+        // ring in plane perpendicular to axis: basis (lateral Y) and (in-plane perp)
+        const pX=-axZ, pZ=axX;
+        const X=cX + Math.cos(th)*rad*pX;
+        const Y=Math.sin(th)*rad;
+        const Z=cZ + Math.cos(th)*rad*pZ;
+        const p=pr(X,Y,Math.max(Z,0));
+        j===0?g3.moveTo(p[0],p[1]):g3.lineTo(p[0],p[1]);
+      }
+      g3.stroke();
+    }
+  } else {
+    g3.fillStyle='rgba(248,113,113,.9)'; g3.font='9px '+cssMono();
+    g3.fillText(R&&R.cutoff?'MACH CUT‑OFF':'subsonic', vp[0]+7, vp[1]-6);
+  }
+
+  // observer dot on carpet
+  if(R){
+    const oyN = clamp(S.lat*1000/(cam.vmax*0.9), -1.9, 1.9);
+    const oxN = clamp((S.obs.x-cam.x0)/(W/cam.s) - 0.5, -1.9, 1.9)*1.6;
+    const op=pr(oxN,oyN,0);
+    g3.fillStyle = (R.status==='BOOM')?'#fff':'#34d399';
+    g3.beginPath(); g3.arc(op[0],op[1],3.2,0,7); g3.fill();
+  }
+}
+
+/* ============================================================ N-WAVE PLOT */
+function nwave(tau,T_N,rise){
+  if(tau<0||tau>T_N)return 0;
+  const tr=Math.max(rise,1e-4);
+  if(tau<tr) return tau/tr;
+  if(tau>T_N-tr) return -(T_N-tau)/tr;
+  return 1 - 2*(tau-tr)/(T_N-2*tr);
+}
+// shaped low-boom "thump": a gentle rounded hump (no sharp shocks), faint ripples from the
+// un-coalesced shocklets, and a soft rarefaction tail. Peak ~1, caller scales it down.
+function shapedSig(tau,dur,rise){
+  if(tau<=0||tau>=dur) return 0;
+  const u=tau/dur;
+  const rf=clamp(rise/dur,0.14,0.45);
+  const up = u<rf ? smooth(u/rf) : 1;
+  const dn = smooth(clamp((1-u)/0.4,0,1));
+  const ripple = 1 - 0.15*Math.cos(u*Math.PI*4);
+  const tail = u>0.7 ? -0.22*smooth(clamp((u-0.7)/0.3,0,1)) : 0;
+  return up*dn*ripple + tail;
+}
+function drawNwave(){
+  gN.clearRect(0,0,WN,HN);
+  gN.fillStyle='#070a12'; gN.fillRect(0,0,WN,HN);
+  const R=S.res;
+  const padL=44,padR=12,padT=38,padB=22;
+  const x0=padL, x1=WN-padR, mid=(padT+HN-padB)/2;
+  // axes
+  gN.strokeStyle='rgba(120,150,190,.18)'; gN.lineWidth=1;
+  gN.beginPath(); gN.moveTo(x0,padT); gN.lineTo(x0,HN-padB); gN.lineTo(x1,HN-padB); gN.stroke();
+  gN.strokeStyle='rgba(120,150,190,.25)'; gN.setLineDash([3,3]);
+  gN.beginPath(); gN.moveTo(x0,mid); gN.lineTo(x1,mid); gN.stroke(); gN.setLineDash([]);
+  gN.fillStyle='rgba(150,170,200,.5)'; gN.font='9px '+cssMono();
+  gN.fillText('pressure',6,padT+2); gN.fillText('ambient',x1-46,mid-4); gN.fillText('time →',x1-40,HN-8);
+
+  if(!R || R.dp<=0 || (!R.arrived && R.countdown==null)){
+    gN.fillStyle='rgba(150,170,200,.45)';
+    const msg = R&&R.cutoff ? 'Mach cut‑off — this shock refracts upward, never reaching the ground'
+              : R&&!R.inCarpet ? 'observer is outside the boom carpet — no primary boom here'
+              : R&&R.enRouteAloft ? `boom en route ≈ ${R.countdown.toFixed(0)} s  (generated higher up, still descending)`
+              : R&&R.countdown!=null ? `cone reaches the observer in ≈ ${R.countdown.toFixed(1)} s`
+              : 'no boom yet — waiting for the Mach cone to sweep past';
+    gN.fillText(msg, x0+8, mid-10);
+    return;
+  }
+  const T_N=R.T_N, rise=R.riseMs/1000;
+
+  // ---- low-boom: shaped "thump" drawn against the N-wave a conventional jet would make ----
+  if(R.shaped){
+    const dur=T_N*1.35, sp=dur*1.6, lead=0.06*sp;
+    const tp=t=>x0 + (t/sp)*(x1-x0), amp=mid-padT-6, pp=v=>mid - v*amp;
+    const fr=clamp(R.dp/Math.max(R.dpConv,1e-6), 0.02, 1);
+    gN.strokeStyle='rgba(120,150,190,.4)'; gN.setLineDash([3,3]); gN.lineWidth=1;
+    gN.beginPath();
+    for(let i=0;i<=240;i++){ const t=sp*i/240, v=nwave(t-lead,T_N,0.003);
+      const X=tp(t),Y=pp(v*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y); }
+    gN.stroke(); gN.setLineDash([]);
+    gN.fillStyle='rgba(120,150,190,.55)'; gN.font='8px '+cssMono();
+    gN.fillText("N‑wave a conventional jet would make", tp(sp*0.30), pp(0.9)-3);
+    gN.strokeStyle='rgba(52,211,153,.95)'; gN.lineWidth=2;
+    gN.beginPath();
+    for(let i=0;i<=300;i++){ const t=sp*i/300, v=shapedSig(t-lead,dur,rise)*fr;
+      const X=tp(t),Y=pp(v*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y); }
+    gN.stroke();
+    gN.fillStyle='rgba(52,211,153,.9)'; gN.font='9px '+cssMono();
+    gN.fillText("shaped “sonic thump”", tp(lead)+2, pp(fr*0.9)-4);
+    if(R.arrived){
+      const frac=clamp(R.passedAgo/2.6,0,1), X=tp(sp*frac);
+      gN.strokeStyle='rgba(255,255,255,.8)'; gN.lineWidth=1;
+      gN.beginPath(); gN.moveTo(X,padT); gN.lineTo(X,HN-padB); gN.stroke();
+      if(frac>=1){ gN.fillStyle='rgba(255,255,255,.55)'; gN.fillText('PASSED', x1-52, padT+2); }
+    }else{
+      gN.fillStyle='rgba(52,211,153,.8)';
+      gN.fillText(`thump in ≈ ${R.countdown.toFixed(1)} s`, x0+8, padT+2);
+    }
+    gN.fillStyle='rgba(150,170,200,.6)';
+    gN.fillText(`rise ≈ ${R.riseMs.toFixed(0)} ms · ${R.PLdB.toFixed(0)} PLdB thump   vs ~${R.PLdBconv.toFixed(0)} PLdB for the N‑wave`, x0+8, HN-8);
+    return;
+  }
+
+  // ---- acceleration superboom: a focused U-wave, not a clean N ----
+  if(R.focused){
+    const Tn=Math.max(T_N,0.12), dur=Tn*2.2, sp=dur*1.3, lead=0.05*sp;
+    const tp=t=>x0 + (t/sp)*(x1-x0), amp=mid-padT-8, pp=v=>mid - v*amp;
+    const gau=(u,c,w)=>Math.exp(-Math.pow((u-c)/w,2));
+    // faint ghost: the plain N this spot would get with no focus
+    const fr=R.focusMult>0?1/R.focusMult:0.33;
+    gN.strokeStyle='rgba(120,150,190,.35)'; gN.setLineDash([3,3]); gN.lineWidth=1;
+    gN.beginPath();
+    for(let i=0;i<=200;i++){ const t=sp*i/200, v=nwave(t-lead,Tn,0.003)*fr;
+      const X=tp(t),Y=pp(v*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y); }
+    gN.stroke(); gN.setLineDash([]);
+    gN.fillStyle='rgba(120,150,190,.5)'; gN.font='8px '+cssMono();
+    gN.fillText('plain N‑wave without the focus', tp(sp*0.32), pp(fr*0.9)-3);
+    // the focused U-wave: a peaked leading rise, rounded valley, second peak — the "U"
+    gN.strokeStyle='rgba(248,113,113,.95)'; gN.lineWidth=2;
+    gN.beginPath();
+    for(let i=0;i<=320;i++){
+      const t=sp*i/320, u=(t-lead)/dur;
+      let v=0;
+      if(u>0&&u<1){
+        const env=(u<0.05?smooth(u/0.05):1)*(u>0.9?smooth((1-u)/0.1):1);
+        v=env*(1.4*gau(u,0.13,0.10) + 0.85*gau(u,0.60,0.15) - 0.28*gau(u,0.40,0.13));
+      }
+      const X=tp(t),Y=pp(clamp(v,-1.15,1.55)*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y);
+    }
+    gN.stroke();
+    if(R.arrived){
+      const frac=clamp(R.passedAgo/2.6,0,1), X=tp(sp*frac);
+      gN.strokeStyle='rgba(255,255,255,.8)'; gN.lineWidth=1;
+      gN.beginPath(); gN.moveTo(X,padT); gN.lineTo(X,HN-padB); gN.stroke();
+      if(frac>=1){ gN.fillStyle='rgba(255,255,255,.55)'; gN.fillText('PASSED', x1-52, padT+2); }
+    }
+    gN.fillStyle='rgba(248,113,113,.9)'; gN.font='9px '+cssMono();
+    gN.fillText(`focused U‑wave ≈ ×${(R.focusMult||1).toFixed(1)} the plain N   ·   ${R.PLdB.toFixed(0)} PLdB`, x0+8, HN-8);
+    return;
+  }
+
+  // three overlapping sub-N-waves for the Falcon 9 (base / fins+legs / top); one for aircraft
+  const sub = R.triple ? [[0,1.0],[R.g1,0.5],[R.g1+R.g2,0.85]] : [[0,1.0]];
+  const tnSub = R.triple ? T_N*0.8 : T_N;
+  const lastOff = sub[sub.length-1][0];
+  const span = (lastOff + tnSub)*1.45;
+  const t2px = t=>x0 + (t/span)*(x1-x0);
+  const amp = (mid-padT-6);
+  const p2px = v=>mid - v*amp;
+
+  // ideal (sharp) — dashed faint
+  gN.strokeStyle='rgba(120,150,190,.35)'; gN.setLineDash([2,3]); gN.lineWidth=1;
+  plotWave(1e-4,0.35);
+  gN.setLineDash([]);
+  // actual (absorption-rounded) — solid amber
+  gN.strokeStyle='rgba(251,191,36,.95)'; gN.lineWidth=1.8;
+  plotWave(rise,1);
+
+  function plotWave(rz,alpha){
+    gN.globalAlpha=alpha;
+    gN.beginPath();
+    const N=300, lead=0.04*span;
+    for(let i=0;i<=N;i++){
+      const t=span*i/N;
+      let v=0;
+      for(const [off,w] of sub) v += w*nwave(t-lead-off, tnSub, rz);
+      const X=t2px(t), Y=p2px(clamp(v,-1.15,1.15)*0.9);
+      i===0?gN.moveTo(X,Y):gN.lineTo(X,Y);
+    }
+    gN.stroke(); gN.globalAlpha=1;
+  }
+
+  if(R.triple){                       // tick + label the three shocks
+    gN.fillStyle='rgba(150,170,200,.55)'; gN.font='8px '+cssMono();
+    const names=['base','fins+legs','top'];
+    sub.forEach(([off],k)=>{
+      const X=t2px(0.04*span+off);
+      gN.strokeStyle='rgba(120,150,190,.3)'; gN.beginPath(); gN.moveTo(X,padT); gN.lineTo(X,padT+7); gN.stroke();
+      gN.fillText(names[k], X-2, padT-2);
+    });
+  }
+
+  // playhead sweep after arrival (stretched for visibility)
+  if(R.arrived){
+    const PLAY=2.6;
+    const frac=clamp((R.passedAgo)/PLAY,0,1);
+    const X=t2px(span*frac);
+    gN.strokeStyle='rgba(255,255,255,.8)'; gN.lineWidth=1;
+    gN.beginPath(); gN.moveTo(X,padT); gN.lineTo(X,HN-padB); gN.stroke();
+    if(frac>=1){ gN.fillStyle='rgba(255,255,255,.55)'; gN.fillText('PASSED', x1-52, padT+2); }
+  }else{
+    gN.fillStyle='rgba(52,211,153,.8)';
+    gN.fillText(`boom in ≈ ${R.countdown.toFixed(1)} s`, x0+8, padT+2);
+  }
+
+  // labels
+  gN.fillStyle='rgba(251,191,36,.85)';
+  gN.fillText('+Δp', t2px(span*0.03)+2, p2px(0.9)-2);
+  gN.fillText('−Δp', t2px(T_N*0.95), p2px(-0.9)+10);
+  gN.fillStyle='rgba(150,170,200,.6)';
+  const kind = R.focused ? 'at a focus — the real signature is a U‑wave, not this N'
+             : R.triple ? `triple boom · spread ${((R.g1+R.g2)*1000).toFixed(0)} ms`
+             : R.dbl ? 'double boom' : 'single crack';
+  gN.fillText(`T_N ≈ ${(T_N*1000).toFixed(0)} ms   rise ≈ ${R.riseMs.toFixed(1)} ms   ·  ${kind}`, x0+8, HN-8);
+}
+
+/* ============================================================ ATTENUATION PLOT */
+function drawAtten(){
+  gA.clearRect(0,0,WA,HA);
+  gA.fillStyle='#070a12'; gA.fillRect(0,0,WA,HA);
+  const padL=46,padR=14,padT=38,padB=26;
+  const x0=padL,x1=WA-padR,y0=HA-padB,y1=padT;
+  gA.strokeStyle='rgba(120,150,190,.18)'; gA.lineWidth=1;
+  gA.beginPath(); gA.moveTo(x0,y1); gA.lineTo(x0,y0); gA.lineTo(x1,y0); gA.stroke();
+  gA.fillStyle='rgba(150,170,200,.5)'; gA.font='9px '+cssMono();
+  gA.fillText('Δp [Pa]',6,y1-6); gA.fillText('slant distance r →',x1-96,HA-9);
+
+  const R=S.res;
+  const haveData = !!(R && R.dpRaw>0);
+  if(!haveData){
+    gA.fillStyle='rgba(150,170,200,.4)';
+    gA.fillText('waiting for a boom — no overpressure data yet', x0+8, (y0+y1)/2);
+    return;
+  }
+  const rRef = R.r0>0?R.r0:8000;
+  const dpRef = R.dpRaw>0?R.dpRaw:120;
+  const rMin=Math.max(rRef*0.25,800), rMax=Math.min(rRef*12, 150000);   // don't draw past the carpet
+  const dpAt = r=>dpRef*Math.pow(rRef/r,0.75);
+  const lrMin=Math.log10(rMin), lrMax=Math.log10(rMax);
+  const dpTop=dpAt(rMin), dpBot=dpAt(rMax)*0.6;
+  const ldTop=Math.log10(dpTop), ldBot=Math.log10(Math.max(dpBot,0.5));
+  const X=r=>x0+(Math.log10(r)-lrMin)/(lrMax-lrMin)*(x1-x0);
+  const Y=d=>y0-(Math.log10(Math.max(d,0.3))-ldBot)/(ldTop-ldBot)*(y0-y1);
+
+  // grid + ticks
+  gA.fillStyle='rgba(150,170,200,.45)';
+  for(const rk of [1,3,10,30,100,300]){
+    const r=rk*1000; if(r<rMin||r>rMax)continue;
+    const px=X(r);
+    gA.strokeStyle='rgba(120,150,190,.10)';
+    gA.beginPath();gA.moveTo(px,y1);gA.lineTo(px,y0);gA.stroke();
+    gA.fillText(rk<1?rk*1000+' m':rk+' km', px-8, y0+13);
+  }
+  for(const dk of [1,3,10,30,100,300,1000]){
+    if(dk<Math.pow(10,ldBot)||dk>Math.pow(10,ldTop))continue;
+    const py=Y(dk);
+    gA.strokeStyle='rgba(120,150,190,.10)';
+    gA.beginPath();gA.moveTo(x0,py);gA.lineTo(x1,py);gA.stroke();
+    gA.fillText(dk+'',x0-32,py+3);
+  }
+
+  // reference slope: cylindrical spreading alone (r^-1/2), through (rRef, dpRef)
+  gA.strokeStyle='rgba(120,150,190,.35)'; gA.setLineDash([4,4]); gA.lineWidth=1;
+  gA.beginPath();
+  gA.moveTo(X(rMin), Y(dpRef*Math.pow(rRef/rMin,0.5)));
+  gA.lineTo(X(rMax), Y(dpRef*Math.pow(rRef/rMax,0.5)));
+  gA.stroke(); gA.setLineDash([]);
+  gA.fillStyle='rgba(120,150,190,.5)';
+  gA.fillText('r⁻¹ᐟ²  spreading only', X(rMin)+3, Y(dpRef*Math.pow(rRef/rMin,0.5))-3);
+
+  // main curve: spreading × nonlinear aging → r^-3/4
+  gA.strokeStyle='rgba(251,191,36,.95)'; gA.lineWidth=2;
+  gA.beginPath();
+  for(let i=0;i<=120;i++){
+    const r=Math.pow(10, lrMin+(lrMax-lrMin)*i/120);
+    const px=X(r), py=Y(dpAt(r));
+    i===0?gA.moveTo(px,py):gA.lineTo(px,py);
+  }
+  gA.stroke();
+  gA.fillStyle='rgba(251,191,36,.8)';
+  gA.fillText('r⁻³ᐟ⁴  + nonlinear aging', x1-146, y1-6);
+
+  // carpet edge — beyond this lateral the primary boom is gone
+  if(R.carpetHalf>0){
+    const rEdge=Math.hypot(rRef, R.carpetHalf);
+    if(rEdge>rMin && rEdge<rMax){
+      const px=X(rEdge);
+      gA.strokeStyle='rgba(248,113,113,.4)'; gA.setLineDash([2,3]); gA.lineWidth=1;
+      gA.beginPath(); gA.moveTo(px,y1); gA.lineTo(px,y0); gA.stroke(); gA.setLineDash([]);
+      gA.fillStyle='rgba(248,113,113,.55)'; gA.fillText('carpet edge', px-24, y0-4);
+    }
+  }
+
+  // observer marker
+  if(R && R.r>0 && R.dp>0){
+    const px=X(clamp(R.r,rMin,rMax)), py=Y(clamp(R.dp,Math.pow(10,ldBot),Math.pow(10,ldTop)));
+    gA.fillStyle=R.status==='BOOM'?'#fff':'#34d399';
+    gA.beginPath(); gA.arc(px,py,4,0,7); gA.fill();
+    gA.fillStyle='rgba(230,238,247,.9)';
+    gA.fillText(`${R.dp.toFixed(0)} Pa · ${R.psf.toFixed(2)} psf @ ${(R.r/1000).toFixed(1)} km`, x0+6, y0-6);
+  }
+}
+
+/* ============================================================ READOUTS */
+function readRow(k,v,cls,tip){
+  const t = tip ? ` title="${tip}"` : '';
+  return `<dt${t}>${k}</dt><dd class="${cls||''}"${t}>${v}</dd>`;
+}
+function updateReadouts(){
+  const R=S.res; if(!R){rdl.innerHTML='';return;}
+  const A=atmo(S.v.hGen);
+  const fresh = R.status==='BOOM' && R.passedAgo<3.5;
+  let statusCls = fresh?'warn':R.status==='BOOM'?'hi':R.cutoff?'warn':R.status==='incoming'?'ok':'';
+  let statusTxt = fresh?'▲ BOOM NOW'
+                 :R.status==='BOOM'?'boom received (see Δp)'
+                 :R.status==='incoming'?`incoming · ${R.countdown.toFixed(R.countdown<10?1:0)} s`
+                 :R.cutoff?'Mach cut‑off':R.status||'—';
+  let rows='';
+  const pk=S._peak;
+  if(pk && pk.dp>0){
+    rows+=readRow('⌖ Loudest spot', pk.where, '',
+      'Estimated up front from the current parameters — where the strongest boom lands on the ground and how loud it is there, before the run plays out');
+    rows+=readRow('   level there', `≈ ${pk.psf.toFixed(1)} psf · ${pk.PLdB.toFixed(0)} PLdB`,
+      pk.PLdB>108?'warn':'');
+    rows+='<div class="sep"></div>';
+  }
+  rows+=readRow('Scenario', SCEN[S.scen].name);
+  rows+=readRow('Mach M', R.M.toFixed(3), R.M>1?'hi':'');
+  rows+=readRow('Speed', (R.spd).toFixed(0)+' m/s');
+  rows+=readRow('Local a', A.a.toFixed(1)+' m/s');
+  if(S.scen==='booster') rows+=readRow('Boom made at',
+    R.hGen>400&&R.dp>0 ? `${(R.hGen/1000).toFixed(1)} km · M ${R.mGen.toFixed(2)}` : '—', '',
+    'Altitude and Mach at the point along the descent where the boom now reaching the ground was generated');
+  rows+=readRow('Mach angle μ',
+    S.v.M>1 ? (S.v.mu*180/Math.PI).toFixed(1)+'°'
+    : (S.scen==='booster'&&R.mGen>1&&R.dp>0 ? (R.mu*180/Math.PI).toFixed(1)+'° at source' : '—'),
+    '', 'μ = arcsin(1/M) — the one exact number here; everything else is an engineering estimate');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Observer', statusTxt, statusCls);
+  const dVeh=Math.sqrt((S.v.x-S.obs.x)**2 + S.v.y**2 + (S.lat*1000)**2);
+  rows+=readRow(S.scen==='booster'?'Observer → booster':'Observer → aircraft',
+    (dVeh/1000).toFixed(1)+' km', '',
+    "Straight-line distance to the vehicle's position right now — not the boom's path (see Propagation r)");
+  if(S.scen==='booster'){
+    const padDist=Math.abs(S.obs.x-SCEN.booster.padX), tLand=runLen();
+    rows+=readRow('Distance from pad', (padDist/1000).toFixed(1)+' km');
+    if(R.status==='BOOM'){
+      const lo=(S._arrivedAt||S.t)-tLand;
+      rows+=readRow('Boom vs. touchdown',
+        `≈ touchdown (${lo>=0?'+':'−'}${Math.abs(lo).toFixed(0)} s)`,
+        Math.abs(lo)<15?'ok':'',
+        'The last supersonic shocks are made near Mach 1, descending about as fast as sound, so they land within seconds of the booster. Real timing shifts with observer position and trajectory.');
+    }else{
+      rows+=readRow('Boom vs. touchdown', R.cutoff?'—':'≈ around touchdown', R.cutoff?'':'ok');
+    }
+  }
+  rows+=readRow('Peak Δp', R.dp>0?`${R.dp.toFixed(0)} Pa · ${R.psf.toFixed(2)} psf`:'—', R.dp>0?'hi':'',
+    'Overpressure: the pressure spike above still air (~101 000 Pa).  1 psf ≈ 48 Pa');
+  rows+=readRow('Propagation r', R.r>0?(R.r/1000).toFixed(1)+' km':'—', '',
+    'Slant distance the boom travelled from where it was generated to the observer');
+  rows+=readRow(R.shaped?'Signature length':'N‑wave T_N',
+    R.T_N>0?`${(R.T_N*1000).toFixed(0)} ms · rise ${R.riseMs.toFixed(R.shaped?0:1)}`:'—', '',
+    R.shaped
+      ? 'The shaped thump has no coalesced N and no true shock — this is its total length and the time it takes to rise to the peak (ms)'
+      : 'T_N = length of the N-wave; rise = how fast the front shock jumps (ms). It grows with propagation distance, so shorter rise = sharper crack');
+  rows+=readRow('Perceived', R.dp>0?`${R.PLdB.toFixed(0)} PLdB · ${R.label}`:'—',
+    R.dp>0?(R.shaped?'ok':R.PLdB>100?'warn':''):'',
+    'Perceived Level in decibels — how loud/startling it sounds, not the raw pressure. +10 ≈ twice as loud');
+  rows+=readRow('Boom shape',
+    R.dp<=0 ? '—'
+    : R.focused ? `focused U‑wave · ×${(R.focusMult||1).toFixed(1)} the plain N`
+    : R.shaped ? 'shaped — no coalesced N'
+    : R.triple ? `triple · ${((R.g1+R.g2)*1000).toFixed(0)} ms spread`
+    : R.dbl ? 'double boom' : 'single crack');
+  if(R.shaped && R.dp>0){
+    rows+=readRow('vs. plain N‑wave',
+      `${(R.dpConv/PA_PER_PSF).toFixed(1)} psf · +${(R.PLdBconv-R.PLdB).toFixed(0)} PLdB`,
+      'ok',
+      'What an unshaped airframe of the same size would put on the ground — the shaping buys this much reduction');
+  }
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Carpet ½‑width',
+    R.carpetHalf>0?`${(R.carpetHalf/1000).toFixed(1)} km${R.inCarpet?'':' · outside'}`:'—',
+    R.inCarpet?'':'warn',
+    'Half the width of the ground strip that gets a boom; the observer lateral offset sets how far off-centre you are');
+  rdl.innerHTML=rows;
+}
+
+/* ============================================================ LOOP */
+let lastTS=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dtReal=Math.min((ts-lastTS)/1000||0, 0.05); lastTS=ts;
+  if(S.playing){
+    const dt=dtReal*S.rate;
+    let sub=Math.ceil(dt/0.02), h=dt/sub;
+    for(let i=0;i<sub;i++){ S.t+=h; stepVehicle(h); emit(); }
+    // advance wavefront ages implicitly via S.t; cull far ones
+    if(S.wf.length>WF_CAP) S.wf.splice(0,S.wf.length-WF_CAP);
+    // the timeline runs until the boom has reached the observer and the N-wave has passed —
+    // but never stop while a boom is still on its way in (guards against a short estimate)
+    const endT = simDuration();
+    const boomPending = S.res && (S.res.status==='incoming' || (S.res.arrived && S.res.passedAgo<3)
+                                  || S.res.enRouteAloft);
+    if(S.t>=endT && !boomPending){ S.t=endT; S.playing=false; playBtn.textContent='▶ Play'; }
+    else if(S.t>=endT+40){ S.t=endT+40; S.playing=false; playBtn.textContent='▶ Play'; } // hard cap
+    syncProg();
+  }
+  S.res=computeObserver();
+  draw();
+}
+requestAnimationFrame(frame);
+
+/* ============================================================ UI WIRING */
+const $=id=>document.getElementById(id);
+const playBtn=$('playBtn'), rdl=$('rdl');
+function syncProg(){
+  const D=Math.max(simDuration(), S.t);   // grow if the run overran the estimate
+  $('prog').value=clamp(S.t/D,0,1);
+  $('progV').textContent=`${S.t.toFixed(1)} / ${D.toFixed(0)} s`;
+}
+playBtn.onclick=()=>{
+  S.playing=!S.playing;
+  playBtn.textContent=S.playing?'❚❚ Pause':'▶ Play';
+};
+$('restartBtn').onclick=()=>resetSim(true);
+$('prog').oninput=e=>{
+  S.playing=false; playBtn.textContent='▶ Play';
+  S.t=parseFloat(e.target.value)*simDuration();
+  rebuildTo(S.t);                  // rewind/fast-forward to t WITH its full wavefront trail
+  S.res=computeObserver(); draw(); syncProg();
+};
+// Rebuild the entire state at time `tt` by replaying kinematics AND the emission schedule
+// from t=0. Scrubbing the timeline then lands on a populated frame, not an empty one.
+function rebuildTo(tt){
+  S.wf.length=0; S.lastEmit=-1; S._arrivedAt=null; S._heardG=null; S._holdBase=null;
+  resetKinematicsTo(tt);
+}
+function resetKinematicsTo(tt){
+  S.focus={x:null,xMin:Infinity,tMin:0,locked:false};
+  if(S.scen==='cruise'||S.scen==='lowboom'){          // closed form — no need to integrate
+    const spd=S.mach*soundSpeed(S.alt), aE=soundSpeed(S.alt);
+    const mu=S.mach>1?Math.asin(1/S.mach):Math.PI/2, boom=S.mach>1;
+    for(let u=0;u<=tt;u+=DT_EMIT)
+      S.wf.push({x:spd*u,y:S.alt,t:u,a:aE,M:S.mach,spd,mu,boom});
+    if(S.wf.length>WF_CAP) S.wf.splice(0,S.wf.length-WF_CAP);
+    S.lastEmit=S.wf.length?S.wf[S.wf.length-1].t:-1;
+    S.t=tt; stepVehicle(0.0001); S.v.x=spd*tt;
+    return;
+  }
+  // scripted trajectories: re-run stepVehicle from 0 with small steps, emitting as it goes
+  S.t=0;
+  const c=SCEN[S.scen];
+  if(S.scen==='booster'){ S.v.x=keyf(c.downKf,0); S.v.y=keyf(c.altKf,0); }
+  else { S.v.x=0; S.v.y=S.alt; }
+  const h=1/60;
+  for(let u=0;u<tt;u+=h){ S.t=u; stepVehicle(h); emit(); }
+  S.t=tt; stepVehicle(0.0001);
+}
+// a parameter changed: rebuild the wavefront trail + kinematics consistently at the current time
+function reparam(){
+  S.wf.length=0; S.lastEmit=-1; S._arrivedAt=null; S._heardG=null;
+  resetKinematicsTo(S.t);
+  S.res=computeObserver();
+  if(!S.playing) draw();
+  syncProg();
+}
+
+/* sliders */
+function refreshSliderLabels(){
+  $('rateV').textContent=S.rate.toFixed(2)+'×';
+  $('machV').textContent=S.mach.toFixed(2);
+  $('altV').textContent=(S.alt/1000).toFixed(1)+' km';
+  $('mendV').textContent=S.mend.toFixed(2);
+  $('accV').textContent=S.acc.toFixed(2)+'×';
+  $('lenV').textContent=S.len.toFixed(0)+' m';
+  $('bmV').textContent=S.bm.toFixed(1);
+  $('bdV').textContent=S.bd.toFixed(2)+'×';
+  $('latV').textContent=(S.lat>0?'+':'')+S.lat.toFixed(1)+' km';
+}
+const nudge=()=>{ S.res=computeObserver(); if(!S.playing) draw(); syncProg(); };
+$('rate').oninput=e=>{S.rate=parseFloat(e.target.value);refreshSliderLabels();};
+$('mach').oninput=e=>{S.mach=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('alt').oninput=e=>{S.alt=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('mend').oninput=e=>{S.mend=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('acc').oninput=e=>{S.acc=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('len').oninput=e=>{S.len=parseFloat(e.target.value);refreshSliderLabels();nudge();};
+$('bm').oninput=e=>{S.bm=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('bd').oninput=e=>{S.bd=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('lat').oninput=e=>{S.lat=parseFloat(e.target.value);refreshSliderLabels();nudge();};
+
+/* overlays */
+$('oWf').onchange=e=>{S.ov.wf=e.target.checked;draw();};
+$('oCone').onchange=e=>{S.ov.cone=e.target.checked;draw();};
+$('oCarpet').onchange=e=>{S.ov.carpet=e.target.checked;draw();};
+$('oAtm').onchange=e=>{S.ov.atm=e.target.checked;draw();};
+
+/* tabs */
+document.querySelectorAll('#tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.scen=b.dataset.s;
+    document.querySelectorAll('[data-scen]').forEach(el=>{
+      el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+    });
+    // sensible per-scenario defaults
+    const D = ({
+      accel:  {rate:3,   alt:8000,  len:60},   // focus lands ~10 km behind; sound takes a while to get there
+      cruise: {rate:1,   alt:12000, len:60, mach:1.8},
+      lowboom:{rate:1,   alt:16800, len:32, mach:1.4},   // X-59 design point: M1.4, ~55 kft
+      booster:{rate:3.0},
+    })[S.scen] || {};
+    if(D.rate!=null) S.rate=D.rate;
+    if(D.alt !=null) S.alt =D.alt;
+    if(D.len !=null) S.len =D.len;
+    if(D.mach!=null) S.mach=D.mach;
+    ['rate','alt','len','mach'].forEach(id=>{ const e=$(id); if(e) e.value=S[id]; });
+    refreshSliderLabels();
+    resetSim(false);
+  };
+});
+
+/* 2D stage: drag the marker to move the observer, drag anywhere else to pan the camera */
+let dragMode=null, lastMx=0;
+main2d.addEventListener('mousedown',e=>{
+  const r=main2d.getBoundingClientRect();
+  const px=e.clientX-r.left, py=e.clientY-r.top;
+  lastMx=e.clientX;
+  dragMode = (Math.abs(px - sx(S.obs.x))<24 && py>cam.yBase-52) ? 'obs' : 'pan';
+  document.body.style.cursor = dragMode==='pan' ? 'grabbing' : 'ew-resize';
+});
+window.addEventListener('mousemove',e=>{
+  if(!dragMode)return;
+  const dx=e.clientX-lastMx; lastMx=e.clientX;
+  if(dragMode==='obs'){
+    const r=main2d.getBoundingClientRect();
+    S.obs.x = cam.x0 + (e.clientX-r.left)/cam.s;
+    S._arrivedAt=null; S._heardG=null; S._obsUserMoved=true;
+  }else{
+    S.pan -= dx/cam.s;                         // drag right → view slides right
+  }
+  S.res=computeObserver(); if(!S.playing)draw(); syncProg();
+});
+window.addEventListener('mouseup',()=>{ dragMode=null; document.body.style.cursor=''; });
+main2d.addEventListener('dblclick',()=>{ S.pan=0; if(!S.playing)draw(); });
+$('panL').onclick=()=>{ S.pan -= 0.16*(W/cam.s); if(!S.playing)draw(); };
+$('panR').onclick=()=>{ S.pan += 0.16*(W/cam.s); if(!S.playing)draw(); };
+$('recenter').onclick=()=>{ S.pan=0; if(!S.playing)draw(); };
+
+/* ============================================================ go */
+document.querySelectorAll('[data-scen]').forEach(el=>{
+  el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+});
+resize();
+document.querySelector('#tabs button.on').click();   // apply the starting scenario's defaults
+</script>

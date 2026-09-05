@@ -1,0 +1,1438 @@
+<title>Multi-Slit Diffraction &amp; the Grating</title>
+<style>
+  /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:13px; line-height:1.5; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{
+    display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12);
+    flex:0 0 auto;
+  }
+  header h1{
+    font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; color:#e6edf6;
+  }
+  header h1 span{color:var(--cyan)}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+    padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel);
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;
+  }
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .btns{display:flex; gap:6px}
+  .btns button{
+    flex:1; font-family:var(--mono); font-size:11px; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 4px; cursor:pointer; transition:.15s;
+  }
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#04060b}
+  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d{
+    position:absolute; top:12px; right:10px; width:272px; height:176px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.96);
+    backdrop-filter:blur(3px); z-index:3;
+  }
+  #inset3d canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d .cap{
+    position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+  #readouts{
+    position:absolute; top:192px; right:10px; bottom:8px; width:314px; z-index:3;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
+    backdrop-filter:blur(3px); padding:9px 12px; font-family:var(--mono);
+    overflow-y:auto;
+  }
+  #readouts h3{
+    font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 6px;
+  }
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:1px 10px; margin:0; font-size:10px}
+  #readouts dt{color:var(--dim); white-space:nowrap}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink)}
+  #readouts dd.hi{color:var(--amber)}
+  #readouts dd.warn{color:var(--red)}
+  #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+
+  #plots{
+    flex:0 0 168px; display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border-top:1px solid var(--line);
+  }
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+  .plot .cap{
+    position:absolute; left:10px; top:8px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+
+  #explain{
+    flex:0 0 auto; max-height:clamp(180px,26vh,300px); overflow-y:auto; border-top:1px solid var(--line);
+    background:var(--panel); padding:11px 16px 13px; display:grid;
+    grid-template-columns:repeat(5,1fr); gap:12px;
+  }
+  #explain .ex{
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px;
+    max-height:clamp(164px,24vh,280px); overflow-y:auto;
+  }
+  #explain .ex::-webkit-scrollbar{width:5px}
+  #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{
+    margin:0 0 5px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--cyan);
+  }
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+</style>
+
+<div id="app">
+  <header>
+    <h1>Multi&#8209;Slit&nbsp;<span>Diffraction</span></h1>
+    <div class="tabs" id="tabs">
+      <button data-s="single">1 · Single slit</button>
+      <button data-s="double">2 · Double slit</button>
+      <button data-s="grating" class="on">3 · Grating (N lines)</button>
+      <button data-s="subwave">4 · Sub‑wavelength d &lt; λ</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Simulation</h2>
+        <div class="btns">
+          <button id="playBtn" class="play">▶ Play</button>
+          <button id="restartBtn">↻ Restart</button>
+        </div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.00×</span>
+          <input type="range" id="rate" min="0.15" max="5" step="0.05" value="1">
+        </label>
+        <label class="fld">Timeline <span class="v" id="progV">0 fs</span>
+          <input type="range" id="prog" min="0" max="1" step="0.001" value="0">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>Aperture</h2>
+        <label class="fld" data-scen="grating subwave">Slits N <span class="v" id="nSlitsV">16</span>
+          <input type="range" id="nSlits" min="1" max="64" step="1" value="16">
+        </label>
+        <label class="fld" data-scen="double grating subwave">Slit spacing d <span class="v" id="dSpaceV">1.60 µm</span>
+          <input type="range" id="dSpace" min="0.3" max="12" step="0.05" value="1.6">
+        </label>
+        <label class="fld">Slit width a <span class="v" id="aWidthV">0.60 µm</span>
+          <input type="range" id="aWidth" min="0.1" max="6" step="0.05" value="0.6">
+        </label>
+        <div class="hint">Drag the aperture bar up/down to slide the slit stack. Slit width is
+        capped at 0.92 d — slits cannot overlap.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Light &amp; screen</h2>
+        <label class="fld">Wavelength λ (vacuum) <span class="v" id="lamV">650 nm</span>
+          <input type="range" id="lam" min="380" max="780" step="1" value="650">
+        </label>
+        <label class="fld">Screen distance L <span class="v" id="LdistV">1.00 m</span>
+          <input type="range" id="Ldist" min="0.2" max="3" step="0.05" value="1">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>Detector</h2>
+        <label class="fld">Angle θ <span class="v" id="detV">+23.9°</span>
+          <input type="range" id="det" min="-85" max="85" step="0.1" value="23.9">
+        </label>
+        <div class="hint">Drag the green detector along the far‑field arc, or nudge it here.
+        It reads the order number, angle and relative power at that direction.</div>
+      </div>
+
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns">
+          <button id="panL">◂ Pan</button>
+          <button id="panR">Pan ▸</button>
+          <button id="recenter">⊙ Center</button>
+        </div>
+        <div class="hint">Drag empty sky to pan · double‑click to recenter.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="oWav" checked> Huygens wavelets</label>
+        <label class="chk"><input type="checkbox" id="oEnv" checked> Single‑slit envelope</label>
+        <label class="chk"><input type="checkbox" id="oOrd" checked> Analytic order directions</label>
+        <label class="chk"><input type="checkbox" id="oPh" checked> Phasor chain at detector</label>
+      </div>
+    </aside>
+
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="main2d"></canvas>
+        <div id="inset3d">
+          <span class="cap">3D · plate, orders &amp; screen (schematic)</span>
+          <canvas id="c3d"></canvas>
+        </div>
+        <div id="readouts">
+          <h3>Live readout</h3>
+          <dl id="rdl"></dl>
+        </div>
+      </div>
+      <div id="plots">
+        <div class="plot">
+          <span class="cap">Screen · intensity vs position</span>
+          <canvas id="cScreen"></canvas>
+        </div>
+        <div class="plot">
+          <span class="cap">Line width vs N — log–log</span>
+          <canvas id="cWidth"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="explain">
+    <div class="ex">
+      <h4>Wavelets &amp; the pattern</h4>
+      <p>A plane wave hits the plate. Every open point of every slit becomes a <b>new circular
+      source</b> (Huygens) — that is all the picture draws. Far away, the wavelets from two
+      neighbouring slits arrive with a path difference <code>d·sinθ</code>.</p>
+      <p>Where that difference is a whole number of wavelengths they add: <code>d·sinθ = mλ</code>,
+      a <b>principal maximum</b> of order <code>m</code>. Where the N little arrows close into a
+      ring, they cancel and you get darkness.</p>
+      <p>The bright directions are the <b>envelope</b> of the drawn wavelets — nothing asserts them.
+      Switch the dashed order rays off and they are still there.</p>
+    </div>
+    <div class="ex">
+      <h4>What the detector reads</h4>
+      <p>Nothing at all until the light gets there — the plane wave has to cross to the plate, and
+      the wavelets then have to cross to you. Watch the countdown, then the pattern lights up.</p>
+      <p>Slide the detector and you trace the <b>screen curve</b> in the left plot: tall narrow
+      spikes at the orders, near‑black between them, all of it under a slowly sagging
+      <b>single‑slit envelope</b> set by the slit width <code>a</code>.</p>
+      <p>Power is printed as a <b>percentage of the centre</b>. In a null the reading is 0.0 %, not
+      a small peak — the wavelets really do cancel.</p>
+    </div>
+    <div class="ex">
+      <h4>More slits ⇒ sharper</h4>
+      <p>Adding slits does not just brighten the lines, it <b>narrows</b> them. Each principal
+      maximum has angular full width <code>≈ 0.886 λ/(N d cosθ)</code> — double N, halve the width.
+      Sweep the N slider and watch the right plot slide down its <code>1/N</code> slope.</p>
+      <p>That is why a grating is a spectrometer: two wavelengths <code>λ</code> and
+      <code>λ+Δλ</code> separate when <code>R = λ/Δλ = mN</code>. The <b>sodium D doublet</b> at
+      <b>589.0 / 589.6 nm</b> needs <code>R ≈ 982</code>, so <b>N ≳ 1000</b> illuminated lines at
+      m = 1 — a double slit can never do it, however bright.</p>
+    </div>
+    <div class="ex">
+      <h4>When the orders vanish</h4>
+      <p>An order only exists if <code>|mλ/d| &lt; 1</code> — you cannot bend light past 90°. Squeeze
+      the spacing below one wavelength and every order but <code>m = 0</code> is gone: the light goes
+      straight through, and the structure survives only as <b>evanescent</b> near‑field. That is the
+      whole idea behind wire‑grid polarisers and metasurfaces.</p>
+      <p>A <b>CD</b> has a track pitch of <b>1.6 µm</b>, so red light at 650 nm leaves it at
+      <code>asin(0.65/1.6) ≈ 23.9°</code> — that is the rainbow you see on the disc. A DVD's 0.74 µm
+      pitch throws red past 61°.</p>
+      <p class="cav">Model caveats: scalar Fraunhofer (far‑field) diffraction from an ideal
+      monochromatic plane wave at normal incidence. No polarisation, no obliquity factor, no
+      finite‑source or slit‑thickness effects; the stage is drawn at micrometre scale and the screen
+      distance is compressed. Treat side‑lobe levels as estimates, ±.</p>
+    </div>
+    <div class="ex">
+      <h4>Reading the units</h4>
+      <p><b>Nanometres (nm) — wavelength.</b> Visible light runs 380 nm (violet) to 780 nm (deep
+      red). A <b>human hair</b> is about 70 000 nm thick, so ~100 wavelengths of red fit across one.</p>
+      <p><b>Micrometres (µm) — slit spacing and width.</b> 1 µm = 1000 nm. A <b>CD</b> track pitch is
+      1.6 µm; a good ruled grating is 1200 lines/mm, i.e. <code>d = 0.83 µm</code>.</p>
+      <p><b>Degrees — diffraction angle.</b> <b>1°</b> is roughly a fingertip held at arm's length; the
+      full Moon is half a degree. A grating line 0.3° wide is a fifth of a Moon.</p>
+      <p><b>Per cent — relative power.</b> 100 % is the centre of the pattern; 10 % is a tenth as
+      bright, still obvious to the eye; 0.1 % looks black beside it.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ============================================================ constants */
+const C_VAC = 299792458;            // m/s
+const C_UMFS = 0.299792458;         // µm per femtosecond — the stage works in µm and fs
+const NM_PER_UM = 1000;
+const PA_HAIR_UM = 70;              // a human hair, µm (used only in prose)
+const P_CAP = 6000;                 // hard cap on aperture strip-sources (never blow up)
+const WF_CAP = 240;                 // FIFO cap on emitted wavelet ages
+const CD_PITCH_UM = 1.6;            // CD track pitch — the calibration anchor
+const NA_D1 = 589.0, NA_D2 = 589.6; // sodium doublet, nm
+
+/* ============================================================ medium model
+ * Air, not vacuum. Edlén's (1966) dispersion formula for standard air
+ * (15 °C, 101.325 kPa, 0.03 % CO2), σ = 1/λ in µm^-1:
+ *   (n-1)·1e8 = 8342.13 + 2406030/(130-σ²) + 15997/(38.9-σ²)
+ * Datum: n(589 nm) = 1.000277 — the textbook refractive index of air.
+ * Everything downstream uses the wavelength IN THE MEDIUM, λ_air = λ_vac/n.        */
+function airN(lamUmVac){
+  const s2 = 1/Math.max(lamUmVac*lamUmVac, 1e-6);
+  const n = 1 + 1e-8*(8342.13 + 2406030/Math.max(130-s2,1) + 15997/Math.max(38.9-s2,1));
+  return (isFinite(n) && n>1 && n<1.01) ? n : 1.000277;
+}
+
+/* ============================================================ helpers */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*t*(t*(t*6-15)+10);
+function keyf(pairs,x){
+  if(x<=pairs[0][0])return pairs[0][1];
+  for(let i=1;i<pairs.length;i++){
+    if(x<=pairs[i][0]){
+      const[x0,y0]=pairs[i-1],[x1,y1]=pairs[i];
+      return lerp(y0,y1,(x-x0)/(x1-x0));
+    }
+  }
+  return pairs[pairs.length-1][1];
+}
+function rot(x,y,ang){const c=Math.cos(ang),s=Math.sin(ang);return[x*c-y*s,x*s+y*c];}
+const sinc=x=>Math.abs(x)<1e-9?1:Math.sin(x)/x;
+const deg=r=>r*180/Math.PI, rad=d=>d*Math.PI/180;
+const asinC=x=>Math.asin(clamp(x,-1,1));
+
+/* ============================================================ scenarios */
+const SCEN={
+  single:  {name:'Single slit',       def:{nSlits:1,  dSpace:4.0, aWidth:2.0,  lam:633, Ldist:1.0, det:0,    rate:1}},
+  double:  {name:'Double slit',       def:{nSlits:2,  dSpace:6.0, aWidth:1.4,  lam:633, Ldist:1.5, det:6.1,  rate:1}},
+  grating: {name:'Grating (N lines)', def:{nSlits:16, dSpace:1.6, aWidth:0.6,  lam:650, Ldist:0.5, det:23.9, rate:1}},
+  subwave: {name:'Sub-wavelength',    def:{nSlits:8,  dSpace:0.40,aWidth:0.20, lam:650, Ldist:1.0, det:0,    rate:1}},
+};
+
+/* ============================================================ state */
+const S={
+  scen:'grating', playing:false, t:0, rate:1,
+  // controls
+  nSlits:16, dSpace:1.6, aWidth:0.6, lam:650, Ldist:1.0, det:23.9,
+  ov:{wav:true, env:true, ord:true, ph:true},
+  w:{front:0, cycles:0},        // plane-wave kinematic state
+  wf:[], lastEmit:-1,           // emission times (fs) of the Huygens wavelets — FIFO
+  yOff:0,                       // world y of the slit stack centre (draggable)
+  pan:0,                        // user camera pan, µm
+  res:null,                     // computed detector result
+  // transient caches (aperture-only quantities; cleared by reparam())
+  _peak:null, _curve:null, _widths:null, _der:null, _scr:null, _holdBase:null, _detUserMoved:false,
+};
+
+/* ============================================================ derived quantities */
+const lamVacUm = ()=>S.lam/NM_PER_UM;
+const lamUm    = ()=>lamVacUm()/airN(lamVacUm());        // wavelength in air — what diffracts
+const cMed     = ()=>C_UMFS/airN(lamVacUm());            // µm/fs in air
+const aEff     = ()=>Math.min(S.aWidth, 0.92*S.dSpace);  // slits may not overlap
+const dEff     = ()=>Math.max(S.dSpace, 1e-3);
+const period   = ()=>lamUm()/cMed();                     // optical period, fs
+// vertical world span of the stage: enough to show the lit part of the stack
+function curVmax(){
+  const stack = S.nSlits*dEff();
+  return clamp(Math.max(stack*1.25, 14*lamUm()), 8, 46);   // µm
+}
+const X0   = ()=>0.55*curVmax();     // where the plane wave starts, µm left of the plate
+const RFF  = ()=>0.45*curVmax();     // radius of the drawn far-field arc, µm
+const tAp  = ()=>X0()/cMed();                       // plane wave reaches the plate
+const tReady=()=>tAp()+RFF()/cMed();                // first wavelets reach the far-field arc
+// total meaningful timeline: light to the plate, light to the arc, then 60 optical cycles
+// of steady illumination so the interference pattern is fully established on screen
+function simDuration(){ return tReady() + 60*period(); }
+
+/* ---- the aperture, as an explicit list of strip sources -------------------
+ * The honest primitive: ONE PHASOR PER APERTURE STRIP. Each slit is cut into P
+ * equal strips; the far field is the sum of their phasors. P is picked so the
+ * strip sum sits within ~0.3 % of the continuous integral over the whole pattern.  */
+function srcFor(N, d, a){
+  let P = clamp(Math.round(24*a/Math.max(lamUm(),1e-6))+8, 12, 96);
+  while(N*P > P_CAP && P > 12) P = Math.max(12, P>>1);
+  const out = new Float64Array(N*P);
+  let k=0;
+  for(let j=0;j<N;j++){
+    const yc = (j-(N-1)/2)*d;
+    for(let p=0;p<P;p++) out[k++] = yc + (p+0.5-P/2)*(a/P);
+  }
+  return out;
+}
+let SRC = srcFor(16,1.6,0.6);
+function rebuildSources(){ SRC = srcFor(S.nSlits, dEff(), aEff()); }
+
+/* THE KERNEL — far-field intensity as the squared magnitude of a phasor sum over the
+ * aperture, normalised so I(0) = 1. Live physics, the plots, the peak finder and the
+ * up-front prediction all call THIS one function, so they cannot drift apart.        */
+function fieldWith(strips, th){
+  const n = strips.length;
+  if(!n) return 0;
+  const q = 2*Math.PI/Math.max(lamUm(),1e-9)*Math.sin(th);
+  let re=0, im=0;
+  for(let i=0;i<n;i++){ const ph=q*strips[i]; re+=Math.cos(ph); im+=Math.sin(ph); }
+  const I=(re*re+im*im)/(n*n);
+  return isFinite(I)?clamp(I,0,1.0000001):0;
+}
+const fieldI = th => fieldWith(SRC, th);
+// the analytic law, used ONLY as the dashed secondary overlay and for the envelope
+const envelopeI = th => Math.pow(sinc(Math.PI*aEff()*Math.sin(th)/lamUm()), 2);
+function gratingI(th, N){
+  const phi = 2*Math.PI*dEff()*Math.sin(th)/lamUm();
+  const s = Math.sin(phi/2);
+  if(Math.abs(s) < 1e-9) return 1;
+  return Math.pow(Math.sin(N*phi/2)/(N*s), 2);
+}
+const analyticI = th => gratingI(th, S.nSlits)*envelopeI(th);
+/* Deliberate harness hook — one namespaced object, and the only thing this file puts on
+ * `window`. It exposes the emergent kernel and the raw time state so an external checker can
+ * compare against its OWN reimplementation of the law rather than against the viz's analytic
+ * overlay, which would be circular. Nothing in the page itself reads it.                   */
+window.__vpz = {
+  I:      thDeg => fieldI(rad(thDeg)),
+  params: () => ({N:S.nSlits, d:dEff(), a:aEff(), lamVac:S.lam, lamMed:lamUm(), L:S.Ldist,
+                  tAp:tAp(), period:period(), tReady:tReady(), duration:simDuration(), settle:SETTLE}),
+  state:  () => ({t:S.t, wf:S.wf.length, arrived:arrivedCount(),
+                  ready:!!(S.res&&S.res.ready), ramp:S.res?S.res.ramp:0, I:S.res?S.res.I:0}),
+};
+
+/* ---- orders -------------------------------------------------------------
+ * The grating equation gives the CANDIDATE directions; a candidate only counts as an order
+ * if the emergent curve really peaks there. Two things kill one: the single-slit envelope
+ * putting a zero on it — a "missing order", which takes out every even order when a = d/2 —
+ * and grazing, past ~85°, where nothing usable leaves the plate. `orderList` is the single
+ * source of truth: the visible count, the stage rays, the 3-D inset and every order-angle
+ * readout are all filtered through it, so they cannot contradict each other.              */
+const GRAZE = Math.sin(rad(85));
+const EXTINCT = 1e-6;                        // relative intensity below which an order is gone
+const orderAngle = m => (Math.abs(m*lamUm()/dEff())<1 ? asinC(m*lamUm()/dEff()) : null);
+function orderList(){
+  const out=[];
+  if(S.nSlits<2) return out;
+  const L=lamUm(), d=dEff(), N=S.nSlits;
+  const mMax = Math.floor(d/L - 1e-9);
+  for(let m=-mMax;m<=mMax;m++){
+    const s=m*L/d;
+    if(Math.abs(s) >= GRAZE) continue;                    // grazing — not a usable order
+    const th=Math.asin(s), I=fieldI(th);
+    if(m!==0 && I<EXTINCT) continue;                      // missing order: an envelope zero sits here
+    // confirm the sampled pattern actually peaks here: step a third of the way to the first
+    // null on each side and require the centre to beat both shoulders
+    const w=0.35*L/(N*d);
+    if(m!==0 && !(I>fieldI(Math.asin(clamp(s-w,-1,1))) && I>fieldI(Math.asin(clamp(s+w,-1,1))))) continue;
+    out.push({m, th, I});
+  }
+  return out;
+}
+// Does order m survive at all?  'ok' · 'extinct' (envelope zero) · 'none' (|mλ/d| ≥ 1,
+// grazing, or no periodic structure to make orders with).
+function orderState(m, ords){
+  if(S.nSlits<2) return 'none';
+  const s=m*lamUm()/dEff();
+  if(Math.abs(s) >= GRAZE) return 'none';
+  return ords.some(o=>o.m===m) ? 'ok' : 'extinct';
+}
+// find the true maximum of the EMERGENT curve near order m: coarse scan of the main
+// lobe, then a golden-section refine. (The single-slit envelope pulls the peak a few
+// hundredths of a degree off d·sinθ = mλ — that pull is real, and it is what you see.)
+// Callers must check orderState first: with no order there, this search happily returns a
+// shoulder of the envelope, which is a number for a maximum that does not exist.
+function measuredOrderAngle(m){
+  const th0=orderAngle(m); if(th0===null || S.nSlits<2) return null;
+  const s0=Math.sin(th0), L=lamUm(), d=dEff(), N=S.nSlits;
+  const win=Math.min(3*L/(N*d), 0.4*L/d);
+  let lo=clamp(s0-win,-0.999,0.999), hi=clamp(s0+win,-0.999,0.999);
+  let bs=s0, bI=-1;
+  for(let i=0;i<=60;i++){
+    const s=lo+(hi-lo)*i/60, I=fieldI(Math.asin(s));
+    if(I>bI){ bI=I; bs=s; }
+  }
+  const step=(hi-lo)/60;
+  let a=Math.max(lo,bs-step), b=Math.min(hi,bs+step);
+  const gr=0.6180339887;
+  let c1=b-gr*(b-a), c2=a+gr*(b-a);
+  let f1=fieldI(Math.asin(c1)), f2=fieldI(Math.asin(c2));
+  for(let i=0;i<60;i++){
+    if(f1<f2){ a=c1; c1=c2; f1=f2; c2=a+gr*(b-a); f2=fieldI(Math.asin(c2)); }
+    else     { b=c2; c2=c1; f2=f1; c1=b-gr*(b-a); f1=fieldI(Math.asin(c1)); }
+  }
+  return Math.asin(clamp((a+b)/2,-1,1));
+}
+// angular FWHM of the central principal maximum, measured on the emergent curve.
+// Bisection is exact here: on [0, first null] the curve falls monotonically from 1.
+function fwhmRadWith(src, N){
+  const L=lamUm(), d=dEff(), a=aEff();
+  // brackets: the grating's first null (λ/Nd) and a point safely past the envelope's own
+  // half-maximum (which sits at 0.443 λ/a, its first null at λ/a — 0.75 lies between)
+  const hiG = N>1 ? asinC(clamp(L/(N*d),0,0.95)) : Math.PI/2;
+  const hiE = asinC(clamp(0.75*L/Math.max(a,1e-6),0,0.95));
+  let hi = Math.min(hiG, hiE, rad(85));
+  if(!(hi>0)) return NaN;
+  if(fieldWith(src,hi) > 0.5) return NaN;          // no half-max inside the visible range
+  let lo=0;
+  for(let i=0;i<60;i++){
+    const mid=(lo+hi)/2;
+    if(fieldWith(src,mid) > 0.5) lo=mid; else hi=mid;
+  }
+  return 2*(lo+hi)/2;
+}
+const fwhmRad = ()=>fwhmRadWith(SRC, S.nSlits);
+// classic peak-to-first-null half width, λ/(N d cosθ) — printed beside the true FWHM
+function nullHalfRad(){
+  if(S.nSlits<2) return NaN;
+  const x=lamUm()/(S.nSlits*dEff());
+  return x<1 ? asinC(x) : NaN;
+}
+
+/* Predict, up front and from the parameters alone, how many orders exist, where the
+ * outermost one lands, and which order is brightest — before any light has arrived.
+ * Reuses the same kernel (fieldI) as the live physics.                              */
+function peakImpact(ords){
+  if(!ords.length){
+    const w=fwhmRad();
+    return {n:0, outer:null, best:null, where: S.nSlits<2 ? 'single slit — one broad lobe, no orders'
+                                                          : 'no orders: d < λ, only m = 0 survives',
+            fwhm:w};
+  }
+  let best=ords[0], outer=ords[0];
+  for(const o of ords){
+    if(o.m!==0 && o.I>best.I) best=o;
+    if(Math.abs(o.th)>Math.abs(outer.th)) outer=o;
+  }
+  if(best.m===0) best=null;
+  return {n:ords.length, outer, best, fwhm:fwhmRad(),
+    where:`${ords.length} order${ords.length===1?'':'s'} · outermost m = ${outer.m>0?'+':''}${outer.m} at ≈ ${deg(outer.th).toFixed(1)}°`};
+}
+
+/* ---- caches -------------------------------------------------------------
+ * Everything here depends on the APERTURE alone (N, d, a, λ) — never on the clock or
+ * on where the detector sits — so it is computed once per parameter change and reused
+ * by the readout, both plots and the stage. reparam() clears it.                     */
+function derived(){
+  if(S._der) return S._der;
+  const ords=orderList();
+  // an order-angle readout is a {state, th} pair, never a bare number: a direction is only
+  // reported for an order that is actually there
+  const ordRow = m => {
+    const st=orderState(m, ords);
+    return st==='ok' ? {state:'ok', th:measuredOrderAngle(m)} : {state:st, th:null};
+  };
+  S._der={
+    orders: ords,
+    fwhm: fwhmRad(),
+    nullHalf: nullHalfRad(),
+    ord1: ordRow(1),
+    ord2: ordRow(2),
+    peak: peakImpact(ords),
+  };
+  return S._der;
+}
+// The drawn pattern is sampled uniformly in sinθ — the natural variable, in which every
+// principal maximum has the same width — then interpolated. Sampling is fine enough that
+// the drawn lobes are the computed pattern, not a smoothed cartoon.
+const CURVE_N=1600;
+function curve(){
+  if(S._curve) return S._curve;
+  const arr=new Float64Array(CURVE_N+1);
+  for(let i=0;i<=CURVE_N;i++) arr[i]=fieldWith(SRC, Math.asin(clamp(-1+2*i/CURVE_N,-1,1)));
+  S._curve=arr;
+  return arr;
+}
+function curveI(th){
+  const a=curve();
+  const x=clamp((Math.sin(th)+1)/2,0,1)*CURVE_N;
+  const i=Math.min(Math.floor(x),CURVE_N-1), f=x-i;
+  return a[i]*(1-f)+a[i+1]*f;
+}
+
+/* ---- how wide an angular slice the plots show ---------------------------
+ * Wide enough for every order that carries light, but never wider than the point where
+ * the single-slit envelope has fallen to ~1 % (sinθ = 1.43 λ/a) — past there the screen
+ * is black and the fringes would just alias.                                           */
+function viewTheta(){
+  const D=derived(), ords=D.orders, w=D.fwhm||rad(6);
+  let th = ords.length>1 ? Math.max(1.35*Math.abs(ords[ords.length-1].th), 1.6*w) : 2.6*w;
+  const env = asinC(clamp(1.43*lamUm()/Math.max(aEff(),1e-6), 0.05, 0.999));
+  th = Math.min(th, env);
+  if(!isFinite(th)||th<=0) th=rad(20);
+  return clamp(th, rad(4), rad(78));
+}
+/* the lived signal, sampled on the EXACT kernel across the screen the detector sweeps.
+   Cached: it changes only with the aperture, the wavelength or the screen distance.   */
+const SCR_N=720;
+function screenCurve(){
+  if(S._scr) return S._scr;
+  const thV=viewTheta(), yMax=S.Ldist*Math.tan(thV), arr=new Float64Array(SCR_N+1);
+  for(let i=0;i<=SCR_N;i++){
+    const yy=-yMax+2*yMax*i/SCR_N;
+    arr[i]=fieldI(Math.atan2(yy,S.Ldist));
+  }
+  S._scr={yMax, I:arr};
+  return S._scr;
+}
+
+/* ============================================================ reset */
+function resetSim(keepDet){
+  S.t=0; S.wf.length=0; S.lastEmit=-1; S.playing=false; S.pan=0;
+  S._holdBase=null; S._curve=null; S._widths=null; S._der=null; S._scr=null;
+  if(!keepDet) S._detUserMoved=false;
+  S.w={front:-X0(), cycles:0};
+  S.res=null;
+  rebuildSources();
+  playBtn.textContent='▶ Play';
+  syncProg();
+  draw();
+}
+
+/* ============================================================ wave update */
+// the illumination is a plane wave marching right at the speed of light in air
+function stepWave(dt){
+  S.w.front = -X0() + cMed()*S.t;
+  S.w.cycles = S.t/Math.max(period(),1e-9);
+}
+/* ============================================================ emission
+ * Each slit re-radiates a fresh circular wavelet once per optical period, starting the
+ * instant the plane wave lands on the plate. The schedule is a pure function of t, so
+ * scrubbing rebuilds exactly what playing would have produced.                        */
+function emit(){
+  const T=period(), t0=tAp();
+  if(S.t < t0) return;
+  if(S.lastEmit < t0-1e-9){ S.lastEmit=t0; S.wf.push(t0); }
+  let guard=0;
+  while(S.t-S.lastEmit >= T-1e-9 && guard++ < 4000){ S.lastEmit+=T; S.wf.push(S.lastEmit); }
+  if(S.wf.length>WF_CAP) S.wf.splice(0, S.wf.length-WF_CAP);
+}
+/* How many of the emitted wavelets have actually expanded out to the detector's arc. This
+ * is a scan of the wavefront ARRAY, not a formula in t: an empty or half-replayed array
+ * cannot produce a reading, which is what makes scrub-equals-play a real constraint rather
+ * than an identity. SETTLE full cycles have to land before the interference is established. */
+const SETTLE=16;
+function arrivedCount(){
+  const rff=RFF(), c=cMed();
+  let n=0;
+  for(const u of S.wf) if(c*(S.t-u) >= rff) n++;
+  return n;
+}
+
+/* ============================================================ the detector (kernel consumer)
+ * Returns one plain result object R, consumed by the readout and both plots. It
+ * distinguishes named states — "dark" (light has not reached the plate), "incoming"
+ * (wavelets in flight, with a countdown), "settling", "reading" — and never invents a
+ * power for a pattern that has not arrived.                                            */
+function computeDetector(){
+  const th=rad(S.det), D=derived();
+  const arrival = tAp() + RFF()/cMed();             // when the first wavelet crosses the arc
+  const R={
+    scenName:SCEN[S.scen].name, th, thDeg:S.det,
+    N:S.nSlits, d:dEff(), a:aEff(), lamVac:S.lam, lamMed:lamUm(), n:airN(lamVacUm()),
+    status:'', ready:false, ramp:0, I:0, mFrac:0, mNear:0, onPeak:false, onNull:false,
+    screenY:0, countdown:null, orders:D.orders, fwhm:D.fwhm, nullHalf:D.nullHalf,
+    ord1:D.ord1, ord2:D.ord2,
+    cycles:S.w.cycles, arrival, arrived:0, settle:SETTLE,
+  };
+  R.mFrac = dEff()*Math.sin(th)/lamUm();            // path difference in wavelengths
+  R.mNear = Math.round(R.mFrac);
+  R.screenY = S.Ldist*Math.tan(th);                 // metres on a flat screen at distance L
+  R.arrived = arrivedCount();
+  if(!S.wf.length || S.t < tAp()){
+    R.status='dark — the wave has not reached the plate';
+    R.countdown=Math.max(tAp()-S.t, 0);
+    return R;
+  }
+  if(R.arrived === 0){
+    // wavelets exist but none has crossed the arc yet — countdown for the oldest one
+    R.status='incoming';
+    R.countdown=Math.max((RFF()-cMed()*(S.t-S.wf[0]))/cMed(), 0);
+    return R;
+  }
+  // the interference builds as successive wavefronts land: the reading is a function of how
+  // much of the replayed wavelet train has actually got here
+  R.ramp = clamp(R.arrived/SETTLE, 0, 1);
+  R.ready = true;
+  R.Ifull = fieldI(th);                             // the settled far-field value
+  R.I = R.Ifull*R.ramp;                             // what is on the detector right now
+  R.onPeak = S.nSlits>1 && Math.abs(R.mFrac-R.mNear)<0.06 && R.Ifull>0.02;
+  R.onNull = R.Ifull < 1e-4;
+  R.status = R.ramp<1 ? 'settling — interference building' : 'reading';
+  return R;
+}
+
+/* ============================================================ canvases */
+const main2d=document.getElementById('main2d'), g2=main2d.getContext('2d');
+const c3d=document.getElementById('c3d'), g3=c3d.getContext('2d');
+const cS=document.getElementById('cScreen'), gS=cS.getContext('2d');
+const cWd=document.getElementById('cWidth'), gW=cWd.getContext('2d');
+let DPR=1, W=0,H=0, W3=0,H3=0, WS=0,HS=0, WW=0,HW=0;
+function fit(cv,ctx){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.max(1,Math.round(r.width*DPR));
+  cv.height=Math.max(1,Math.round(r.height*DPR));
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return [r.width,r.height];
+}
+function resize(){
+  [W,H]=fit(main2d,g2);
+  [W3,H3]=fit(c3d,g3);
+  [WS,HS]=fit(cS,gS);
+  [WW,HW]=fit(cWd,gW);
+  draw();
+}
+window.addEventListener('resize',resize);
+
+/* ---- world <-> screen for the 2D stage (isotropic so angles are true) ----
+ * World units are micrometres; x runs downstream, y is transverse. sx and sy share
+ * one scale, so a diffraction angle drawn on the stage IS the real angle.         */
+let cam={s:1,x0:0,vmax:20};
+function updateCam(){
+  cam.vmax=curVmax();
+  cam.s=H/cam.vmax;                       // px per µm
+  const wpp=W/cam.s;
+  const R=S.res;
+  let frac;
+  if(R && R.ready){
+    // freeze the framing the moment the pattern lands, so the wavelets visibly expand
+    if(S._holdBase==null) S._holdBase = -0.30*wpp;
+    cam.x0 = S._holdBase + S.pan;
+  }else{
+    S._holdBase=null;
+    // glide: start wide enough to see the incoming wave, ease in as it reaches the plate
+    const k = clamp(S.t/Math.max(tAp(),1e-6), 0, 1);
+    frac = lerp(0.46, 0.30, smooth(k));
+    cam.x0 = -frac*wpp + S.pan;
+  }
+  cam.yMid=H/2;
+}
+const sx=wx=>(wx-cam.x0)*cam.s;
+const sy=wy=>cam.yMid-wy*cam.s;
+function cssMono(){return getComputedStyle(document.body).getPropertyValue('--mono');}
+
+/* ============================================================ 2D DRAW */
+function draw(){
+  updateCam();
+  S._peak = derived().peak;     // predicted orders + brightest order, from parameters alone
+  const R=S.res;
+
+  const grd=g2.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,'#080d18'); grd.addColorStop(0.55,'#06090f'); grd.addColorStop(1,'#04060b');
+  g2.fillStyle=grd; g2.fillRect(0,0,W,H);
+
+  drawAngleGrid();
+  drawPlaneWave();
+  if(S.ov.wav) drawWavelets();          // the construction, drawn first and faint...
+  if(R && R.ready) drawLobes(R);        // ...and its emergent envelope on top
+  if(S.ov.env) drawEnvelope();
+  if(S.ov.ord) drawOrderRays();
+  drawAperture();
+  drawDetector(R);
+  if(S.ov.ph) drawPhasors(R);
+  drawStageLabels(R);
+
+  drawInset3D();
+  drawScreenPlot();
+  drawWidthPlot();
+  updateReadouts();
+}
+
+/* faint polar scaffolding: the far-field arc and its degree ticks */
+function drawAngleGrid(){
+  const cx=sx(0), cy=sy(S.yOff), r=RFF()*cam.s;
+  g2.strokeStyle='rgba(120,150,190,.16)'; g2.lineWidth=1;
+  g2.beginPath(); g2.arc(cx,cy,r,-Math.PI/2,Math.PI/2); g2.stroke();
+  g2.font='9px '+cssMono(); g2.fillStyle='rgba(150,170,200,.42)';
+  for(let a=-80;a<=80;a+=10){
+    const th=rad(a), x=cx+Math.cos(th)*r, y=cy-Math.sin(th)*r;
+    const x2=cx+Math.cos(th)*(r-6), y2=cy-Math.sin(th)*(r-6);
+    g2.strokeStyle='rgba(120,150,190,.16)';
+    g2.beginPath(); g2.moveTo(x2,y2); g2.lineTo(x,y); g2.stroke();
+    if(a%20===0 && x<W-30) g2.fillText((a>0?'+':'')+a+'°', x+4, y+3);
+  }
+  g2.fillStyle='rgba(150,170,200,.32)';
+  g2.fillText('FAR‑FIELD ARC — angles true, distance compressed (schematic radius)', 196, H-14);
+}
+
+/* the phenomenon: the intensity lobes, drawn straight from the phasor sum */
+function drawLobes(R){
+  const cx=sx(0), cy=sy(S.yOff), r=RFF()*cam.s, amp=R.ramp;
+  const NS=240, tv=Math.PI/2*0.97;
+  // soft directional fan — brightness is the emergent intensity in that direction
+  for(let i=0;i<=NS;i++){
+    const th=-tv+2*tv*i/NS, I=curveI(th);
+    const al=clamp(Math.pow(I,0.42)*0.55*amp, 0, 0.6);
+    if(al<0.015) continue;
+    g2.strokeStyle=`rgba(251,191,36,${al})`; g2.lineWidth=1.2;
+    g2.beginPath(); g2.moveTo(cx,cy);
+    g2.lineTo(cx+Math.cos(th)*r, cy-Math.sin(th)*r);
+    g2.stroke();
+  }
+  // crisp lobe outline: radius ∝ √I, so the drawn shape is the pattern itself
+  g2.strokeStyle=`rgba(251,191,36,${0.95*amp})`; g2.lineWidth=1.8;
+  g2.beginPath();
+  for(let i=0;i<=480;i++){
+    const th=-tv+2*tv*i/480, rr=r*Math.sqrt(curveI(th));
+    const x=cx+Math.cos(th)*rr, y=cy-Math.sin(th)*rr;
+    i?g2.lineTo(x,y):g2.moveTo(x,y);
+  }
+  g2.stroke();
+}
+function drawEnvelope(){
+  const cx=sx(0), cy=sy(S.yOff), r=RFF()*cam.s, tv=Math.PI/2*0.97;
+  g2.strokeStyle='rgba(120,150,190,.45)'; g2.setLineDash([4,4]); g2.lineWidth=1;
+  g2.beginPath();
+  for(let i=0;i<=200;i++){
+    const th=-tv+2*tv*i/200, rr=r*Math.sqrt(envelopeI(th));
+    const x=cx+Math.cos(th)*rr, y=cy-Math.sin(th)*rr;
+    i?g2.lineTo(x,y):g2.moveTo(x,y);
+  }
+  g2.stroke(); g2.setLineDash([]);
+  g2.fillStyle='rgba(120,150,190,.55)'; g2.font='9px '+cssMono();
+  g2.fillText('single‑slit envelope  sinc²(πa sinθ/λ)', cx+10, cy+r*0.62);
+}
+function drawOrderRays(){
+  const cx=sx(0), cy=sy(S.yOff), r=RFF()*cam.s;
+  const ords=derived().orders;
+  g2.font='10px '+cssMono();
+  for(const o of ords){
+    g2.strokeStyle=o.m===0?'rgba(251,191,36,.35)':'rgba(251,191,36,.30)';
+    g2.setLineDash([6,5]); g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(cx,cy);
+    g2.lineTo(cx+Math.cos(o.th)*r*1.06, cy-Math.sin(o.th)*r*1.06);
+    g2.stroke(); g2.setLineDash([]);
+    const lx=cx+Math.cos(o.th)*r*1.09, ly=cy-Math.sin(o.th)*r*1.09;
+    // label only the orders that carry light, so a coarse grating does not paper the stage
+    if(lx<W-26 && (Math.abs(o.m)<=2 || o.I>0.04)){
+      g2.fillStyle='rgba(251,191,36,.75)';
+      g2.fillText(`m=${o.m>0?'+':''}${o.m}`, lx+2, ly+3);
+    }
+  }
+  // the up-front prediction, on stage before any light arrives
+  const pk=S._peak;
+  if(pk && pk.best && !(S.res && S.res.ready)){
+    const x=cx+Math.cos(pk.best.th)*r*0.62, y=cy-Math.sin(pk.best.th)*r*0.62;
+    g2.strokeStyle='rgba(248,113,113,.6)'; g2.lineWidth=1; g2.setLineDash([3,3]);
+    g2.beginPath(); g2.arc(x,y,9,0,Math.PI*2); g2.stroke(); g2.setLineDash([]);
+    g2.fillStyle='rgba(248,113,113,.8)'; g2.font='9px '+cssMono();
+    g2.fillText(`predicted brightest order · m=${pk.best.m>0?'+':''}${pk.best.m} · ≈ ${(pk.best.I*100).toFixed(0)} %`, x+12, y-4);
+  }
+}
+function drawPlaneWave(){
+  const L=lamUm(), xf=Math.min(S.w.front, 0);
+  const left=cam.x0-2;
+  g2.lineWidth=1.1;
+  for(let k=0;k<260;k++){
+    const xw=xf-k*L;
+    if(xw<left) break;
+    if(xw>0) continue;
+    const al=clamp(0.30-0.0016*k, 0.05, 0.30);
+    g2.strokeStyle=`rgba(56,189,248,${al})`;
+    const X=sx(xw);
+    g2.beginPath(); g2.moveTo(X,0); g2.lineTo(X,H); g2.stroke();
+  }
+  if(S.t<tAp()){
+    const X=sx(S.w.front);
+    g2.fillStyle='rgba(56,189,248,.85)'; g2.font='10px '+cssMono();
+    g2.fillText('◂ plane wave incoming — nothing on the screen yet', Math.max(X-260,6), 22);
+  }
+}
+function drawWavelets(){
+  const half=cam.vmax/2+dEff();
+  const N=S.nSlits, d=dEff();
+  // keep the wavelet halo inside the far-field arc, and thin: with N slits each shedding a
+  // fresh circle every optical period the near field is a dense weave, and the point of the
+  // picture is the bright directions that come out of it, not the weave itself
+  const rMax=Math.min(RFF()*1.02, 22*lamUm())*cam.s;
+  g2.lineWidth=0.9;
+  for(const u of S.wf){
+    const r=cMed()*(S.t-u)*cam.s;
+    if(r<1.5 || r>rMax) continue;
+    const al=clamp(0.17-0.13*(r/rMax), 0.035, 0.17);
+    g2.strokeStyle=`rgba(251,191,36,${al})`;
+    for(let j=0;j<N;j++){
+      const yw=S.yOff+(j-(N-1)/2)*d;
+      if(Math.abs(yw-S.yOff)>half) continue;             // only the slits actually in view
+      const cx=sx(0), cy=sy(yw);
+      if(cx-r>W+20) continue;
+      g2.beginPath(); g2.arc(cx,cy,r,-Math.PI/2,Math.PI/2); g2.stroke();
+    }
+  }
+}
+function drawAperture(){
+  const N=S.nSlits, d=dEff(), a=aEff();
+  const X=sx(0), half=cam.vmax/2;
+  // opaque plate
+  g2.fillStyle='#141b2a'; g2.fillRect(X-3.5,0,7,H);
+  g2.strokeStyle='rgba(120,150,190,.45)'; g2.lineWidth=1;
+  g2.beginPath(); g2.moveTo(X-3.5,0); g2.lineTo(X-3.5,H); g2.moveTo(X+3.5,0); g2.lineTo(X+3.5,H); g2.stroke();
+  // slits, cut to true scale
+  for(let j=0;j<N;j++){
+    const yw=S.yOff+(j-(N-1)/2)*d;
+    if(Math.abs(yw-S.yOff)>half+d) continue;
+    const y1=sy(yw+a/2), y2=sy(yw-a/2);
+    const hpx=Math.max(y2-y1, 1.1);
+    g2.fillStyle='rgba(56,189,248,.85)';
+    g2.fillRect(X-3.5, y1, 7, hpx);
+  }
+  // dimension marks when the geometry is legible
+  const dpx=d*cam.s;
+  if(N>1 && dpx>18){
+    const yA=S.yOff+(0-(N-1)/2)*d, yB=yA+d;
+    const xk=X-16;
+    g2.strokeStyle='rgba(150,170,200,.5)'; g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(xk,sy(yA)); g2.lineTo(xk,sy(yB)); g2.stroke();
+    g2.fillStyle='rgba(150,170,200,.7)'; g2.font='9px '+cssMono();
+    g2.fillText(`d = ${d.toFixed(2)} µm`, xk-84, (sy(yA)+sy(yB))/2+3);
+  }
+  g2.fillStyle='rgba(56,189,248,.75)'; g2.font='10px '+cssMono();
+  g2.fillText(`${N} slit${N===1?'':'s'} · a = ${a.toFixed(2)} µm`, X+10, H-32);
+}
+function drawDetector(R){
+  const cx=sx(0), cy=sy(S.yOff), r=RFF()*cam.s, th=rad(S.det);
+  const x=cx+Math.cos(th)*r, y=cy-Math.sin(th)*r;
+  const hot = R && R.ready && R.I>0.35;
+  g2.strokeStyle='rgba(52,211,153,.35)'; g2.lineWidth=1;
+  g2.beginPath(); g2.moveTo(cx,cy); g2.lineTo(x,y); g2.stroke();
+  g2.fillStyle=hot?'rgba(255,255,255,.95)':'rgba(52,211,153,.92)';
+  g2.beginPath(); g2.arc(x,y,5,0,Math.PI*2); g2.fill();
+  g2.strokeStyle=hot?'#fff':'#34d399'; g2.lineWidth=2;
+  g2.beginPath(); g2.arc(x,y,8.5,0,Math.PI*2); g2.stroke();
+  g2.fillStyle=hot?'#fff':'rgba(52,211,153,.92)'; g2.font='10px '+cssMono();
+  const txt = R && R.ready ? `detector ${S.det.toFixed(1)}° · ${(R.I*100).toFixed(R.I<0.01?2:1)} %`
+                           : `detector ${S.det.toFixed(1)}°`;
+  const tx = x<W-190 ? x+13 : x-190;
+  g2.fillText(txt, tx, y-10);
+}
+/* the phasor chain — N little arrows head to tail at the detector's angle.
+   When the chain closes into a ring the detector is in a null. */
+function drawPhasors(R){
+  const N=Math.min(S.nSlits, 64);
+  const bw=168, bh=118, bx=12, by=H-bh-12;
+  g2.fillStyle='rgba(7,10,18,.88)'; g2.strokeStyle='rgba(27,36,54,1)'; g2.lineWidth=1;
+  g2.beginPath(); g2.roundRect ? g2.roundRect(bx,by,bw,bh,8) : g2.rect(bx,by,bw,bh);
+  g2.fill(); g2.stroke();
+  g2.fillStyle='rgba(74,85,104,1)'; g2.font='9px '+cssMono();
+  g2.fillText('PHASOR CHAIN AT DETECTOR', bx+9, by+14);
+  const phi = 2*Math.PI*dEff()*Math.sin(rad(S.det))/lamUm();
+  // walk the chain to find its extent, then scale it to the box
+  let px=0, py=0, minX=0, maxX=0, minY=0, maxY=0;
+  const pts=[[0,0]];
+  for(let j=0;j<N;j++){
+    px+=Math.cos(j*phi); py+=Math.sin(j*phi);
+    pts.push([px,py]);
+    minX=Math.min(minX,px); maxX=Math.max(maxX,px);
+    minY=Math.min(minY,py); maxY=Math.max(maxY,py);
+  }
+  const spanX=Math.max(maxX-minX,1e-6), spanY=Math.max(maxY-minY,1e-6);
+  const sc=Math.min((bw-34)/spanX, (bh-40)/spanY);
+  const ox=bx+17-minX*sc, oy=by+30-minY*sc;
+  g2.strokeStyle='rgba(251,191,36,.85)'; g2.lineWidth=1.3;
+  g2.beginPath();
+  pts.forEach(([qx,qy],i)=>{ const X=ox+qx*sc, Y=oy+qy*sc; i?g2.lineTo(X,Y):g2.moveTo(X,Y); });
+  g2.stroke();
+  // resultant
+  const rx=ox+px*sc, ry=oy+py*sc;
+  g2.strokeStyle=(Math.hypot(px,py)/N<0.05)?'rgba(248,113,113,.95)':'rgba(52,211,153,.95)';
+  g2.lineWidth=2;
+  g2.beginPath(); g2.moveTo(ox,oy); g2.lineTo(rx,ry); g2.stroke();
+  g2.fillStyle='rgba(150,170,200,.7)'; g2.font='9px '+cssMono();
+  const closed = Math.hypot(px,py)/N < 0.05;
+  g2.fillText(closed?'chain closes ⇒ dark':`resultant ${(Math.hypot(px,py)/N*100).toFixed(0)} %`, bx+9, by+bh-8);
+}
+function drawStageLabels(R){
+  g2.font='11px '+cssMono();
+  if(S.dSpace < lamUm() && S.nSlits>1){
+    g2.fillStyle='rgba(248,113,113,.9)';
+    g2.fillText('d < λ — NO DIFFRACTED ORDERS; only m = 0 leaves the plate', 14, 24);
+  }
+  if(R && !R.ready && R.countdown!=null && S.t>=tAp()){
+    g2.fillStyle='rgba(52,211,153,.9)';
+    g2.fillText(`WAVELETS IN FLIGHT — pattern in ≈ ${R.countdown.toFixed(1)} fs`, 14, 24);
+  }
+  if(R && R.ready && R.ramp<1){
+    g2.fillStyle='rgba(251,191,36,.9)';
+    g2.fillText('PATTERN SETTLING — interference building over a few cycles', 14, 24);
+  }
+}
+
+/* ============================================================ 3D INSET (hand-rolled) */
+let yaw=0.72, pitch=0.42, dragging3=false, lastM=null;
+c3d.parentElement.addEventListener('mousedown',e=>{dragging3=true;lastM=[e.clientX,e.clientY];});
+window.addEventListener('mouseup',()=>dragging3=false);
+window.addEventListener('mousemove',e=>{
+  if(!dragging3)return;
+  yaw+=(e.clientX-lastM[0])*0.01; pitch=clamp(pitch+(e.clientY-lastM[1])*0.006,0.10,1.15);
+  lastM=[e.clientX,e.clientY]; if(!S.playing) draw();
+});
+function drawInset3D(){
+  g3.clearRect(0,0,W3,H3);
+  g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
+  if(S.playing) yaw+=0.004;
+  const cx=W3*0.32, cy=H3*0.58, sc=Math.min(W3,H3)*0.34;
+  const cA=Math.cos(yaw), sA=Math.sin(yaw), sp=Math.sin(pitch), cp=Math.cos(pitch);
+  const pr=(X,Y,Z)=>{                       // X downstream, Y lateral, Z vertical
+    const xe=X*cA - Y*sA, ye=X*sA + Y*cA;
+    return [cx + xe*sc, cy - (Z*cp - ye*sp)*sc];
+  };
+  // the plate
+  g3.strokeStyle='rgba(120,150,190,.35)'; g3.lineWidth=1;
+  const plate=[[0,-1,-1],[0,1,-1],[0,1,1],[0,-1,1]];
+  g3.beginPath();
+  plate.forEach((p,i)=>{const q=pr(p[0],p[1],p[2]); i?g3.lineTo(q[0],q[1]):g3.moveTo(q[0],q[1]);});
+  g3.closePath(); g3.stroke();
+  // slit lines on the plate (vertical scratches)
+  const NS=Math.min(S.nSlits,24);
+  g3.strokeStyle='rgba(56,189,248,.75)'; g3.lineWidth=1.4;
+  for(let j=0;j<NS;j++){
+    const yy=NS===1?0:(-0.7+1.4*j/(NS-1));
+    const A=pr(0,yy,-0.9), B=pr(0,yy,0.9);
+    g3.beginPath(); g3.moveTo(A[0],A[1]); g3.lineTo(B[0],B[1]); g3.stroke();
+  }
+  // the screen, downstream
+  g3.strokeStyle='rgba(120,150,190,.28)';
+  const scr=[[2.3,-1.5,-1],[2.3,1.5,-1],[2.3,1.5,1],[2.3,-1.5,1]];
+  g3.beginPath();
+  scr.forEach((p,i)=>{const q=pr(p[0],p[1],p[2]); i?g3.lineTo(q[0],q[1]):g3.moveTo(q[0],q[1]);});
+  g3.closePath(); g3.stroke();
+  // diffracted beams and their spots
+  const ords=derived().orders;
+  const R=S.res, on = R && R.ready;
+  for(const o of ords){
+    const yy=2.3*Math.tan(o.th);
+    if(Math.abs(yy)>1.5) continue;
+    const A=pr(0,0,0), B=pr(2.3,yy,0);
+    const al=clamp(0.25+0.7*o.I,0.12,0.95)*(on?1:0.35);
+    g3.strokeStyle=`rgba(251,191,36,${al})`; g3.lineWidth=1.4;
+    g3.beginPath(); g3.moveTo(A[0],A[1]); g3.lineTo(B[0],B[1]); g3.stroke();
+    g3.fillStyle=`rgba(251,191,36,${al})`;
+    g3.beginPath(); g3.arc(B[0],B[1], 2+3.4*Math.sqrt(o.I), 0, Math.PI*2); g3.fill();
+  }
+  if(!ords.length){
+    const A=pr(0,0,0), B=pr(2.3,0,0);
+    g3.strokeStyle=`rgba(251,191,36,${on?0.85:0.3})`; g3.lineWidth=1.6;
+    g3.beginPath(); g3.moveTo(A[0],A[1]); g3.lineTo(B[0],B[1]); g3.stroke();
+  }
+  // detector marker on the screen
+  const dy=2.3*Math.tan(rad(S.det));
+  if(Math.abs(dy)<=1.5){
+    const q=pr(2.3,dy,0);
+    g3.fillStyle= (on&&R.I>0.35)?'#fff':'#34d399';
+    g3.beginPath(); g3.arc(q[0],q[1],3.2,0,Math.PI*2); g3.fill();
+  }
+  g3.fillStyle='rgba(150,170,200,.55)'; g3.font='9px '+cssMono();
+  g3.fillText(`${ords.length||'—'} order${ords.length===1?'':'s'}`, W3-56, H3-9);
+}
+
+/* ============================================================ SCREEN PLOT (the lived signal) */
+function drawScreenPlot(){
+  gS.clearRect(0,0,WS,HS);
+  gS.fillStyle='#070a12'; gS.fillRect(0,0,WS,HS);
+  const padL=44,padR=12,padT=32,padB=24;
+  const x0=padL,x1=WS-padR,y0=HS-padB,y1=padT;
+  gS.strokeStyle='rgba(120,150,190,.18)'; gS.lineWidth=1;
+  gS.beginPath(); gS.moveTo(x0,y1); gS.lineTo(x0,y0); gS.lineTo(x1,y0); gS.stroke();
+  gS.fillStyle='rgba(150,170,200,.5)'; gS.font='9px '+cssMono();
+  gS.fillText('I / I₀',6,y1-4);
+  gS.fillText(`position on screen at L = ${S.Ldist.toFixed(2)} m →`, x1-176, HS-7);
+
+  const R=S.res;
+  const SC=screenCurve(), yMax=SC.yMax;
+  const X=yy=>x0+(yy+yMax)/(2*yMax)*(x1-x0);
+  const Y=I=>y0-clamp(I,0,1)*(y0-y1);
+  // y grid
+  for(const lv of [0.25,0.5,0.75,1]){
+    const py=Y(lv);
+    gS.strokeStyle='rgba(120,150,190,.10)';
+    gS.beginPath(); gS.moveTo(x0,py); gS.lineTo(x1,py); gS.stroke();
+    gS.fillStyle='rgba(150,170,200,.42)';
+    gS.fillText((lv*100).toFixed(0)+'%', x0-30, py+3);
+  }
+  if(!R || !R.ready){
+    gS.fillStyle='rgba(150,170,200,.45)';
+    const msg = !R ? 'no pattern yet'
+      : S.t<tAp() ? `plane wave still crossing to the plate — ≈ ${R.countdown.toFixed(0)} fs`
+      : `wavelets in flight — the screen lights up in ≈ ${R.countdown.toFixed(1)} fs`;
+    gS.fillText(msg, x0+10, (y0+y1)/2);
+    return;
+  }
+  // the analytic law, dashed and secondary
+  gS.strokeStyle='rgba(120,150,190,.40)'; gS.setLineDash([3,3]); gS.lineWidth=1;
+  gS.beginPath();
+  for(let i=0;i<=200;i++){
+    const yy=-yMax+2*yMax*i/200, th=Math.atan2(yy,S.Ldist);
+    const px=X(yy), py=Y(envelopeI(th));
+    i?gS.lineTo(px,py):gS.moveTo(px,py);
+  }
+  gS.stroke(); gS.setLineDash([]);
+  gS.fillStyle='rgba(120,150,190,.5)';
+  gS.fillText('envelope', x0+8, Y(envelopeI(Math.atan2(-yMax*0.55,S.Ldist)))-4);
+  // the emergent curve — one phasor sum over the aperture per sample point
+  gS.strokeStyle='rgba(251,191,36,.95)'; gS.lineWidth=1.6;
+  gS.beginPath();
+  for(let i=0;i<=SCR_N;i++){
+    const px=X(-yMax+2*yMax*i/SCR_N), py=Y(SC.I[i]*R.ramp);
+    i?gS.lineTo(px,py):gS.moveTo(px,py);
+  }
+  gS.stroke();
+  // order ticks
+  gS.font='8px '+cssMono();
+  for(const o of R.orders){
+    const yy=S.Ldist*Math.tan(o.th);
+    if(Math.abs(yy)>yMax) continue;
+    const px=X(yy);
+    gS.strokeStyle='rgba(251,191,36,.30)';
+    gS.beginPath(); gS.moveTo(px,y0); gS.lineTo(px,y0-6); gS.stroke();
+    gS.fillStyle='rgba(251,191,36,.6)';
+    gS.fillText(`${o.m>0?'+':''}${o.m}`, px-4, y0+11);
+  }
+  // the detector's own position — the playhead of this trace
+  const dy=R.screenY;
+  if(Math.abs(dy)<=yMax){
+    const px=X(dy);
+    gS.strokeStyle='rgba(52,211,153,.85)'; gS.lineWidth=1;
+    gS.beginPath(); gS.moveTo(px,y1); gS.lineTo(px,y0); gS.stroke();
+    gS.fillStyle='#34d399';
+    gS.beginPath(); gS.arc(px, Y(R.I), 3.4, 0, Math.PI*2); gS.fill();
+  }
+  gS.fillStyle='rgba(150,170,200,.62)'; gS.font='9px '+cssMono();
+  gS.fillText(`detector at ${(dy*100).toFixed(1)} cm · ${(R.I*100).toFixed(R.I<0.01?2:1)} % of centre`, x0+8, HS-7);
+}
+
+/* ============================================================ WIDTH-vs-N PLOT */
+function widthPoints(){
+  if(S._widths) return S._widths;
+  const out=[];
+  for(const N of [1,2,8,32,128]){
+    const strips=srcFor(N,dEff(),aEff());
+    const w=fwhmRadWith(strips,N);
+    if(isFinite(w)) out.push({N, w});
+  }
+  S._widths=out;
+  return out;
+}
+function drawWidthPlot(){
+  gW.clearRect(0,0,WW,HW);
+  gW.fillStyle='#070a12'; gW.fillRect(0,0,WW,HW);
+  const padL=46,padR=14,padT=32,padB=24;
+  const x0=padL,x1=WW-padR,y0=HW-padB,y1=padT;
+  gW.strokeStyle='rgba(120,150,190,.18)'; gW.lineWidth=1;
+  gW.beginPath(); gW.moveTo(x0,y1); gW.lineTo(x0,y0); gW.lineTo(x1,y0); gW.stroke();
+  gW.fillStyle='rgba(150,170,200,.5)'; gW.font='9px '+cssMono();
+  gW.fillText('width [°]',6,y1-4); gW.fillText('number of slits N →', x1-108, HW-7);
+
+  const lnMin=0, lnMax=Math.log10(2048);
+  const dv=dEff(), L=lamUm();
+  const guide=N=>deg(0.8859*L/(N*dv));                 // asymptotic FWHM, degrees
+  const wTop=Math.max(guide(1), 90), wBot=Math.max(guide(2048), 1e-3);
+  const ldTop=Math.log10(wTop), ldBot=Math.log10(wBot);
+  const X=N=>x0+(Math.log10(Math.max(N,1))-lnMin)/(lnMax-lnMin)*(x1-x0);
+  const Y=w=>y0-(Math.log10(clamp(w,wBot,wTop))-ldBot)/(ldTop-ldBot)*(y0-y1);
+
+  gW.fillStyle='rgba(150,170,200,.42)'; gW.font='9px '+cssMono();
+  for(const N of [1,10,100,1000]){
+    const px=X(N);
+    gW.strokeStyle='rgba(120,150,190,.10)';
+    gW.beginPath(); gW.moveTo(px,y1); gW.lineTo(px,y0); gW.stroke();
+    gW.fillText(String(N), px-5, y0+12);
+  }
+  for(const w of [0.01,0.1,1,10]){
+    if(w<wBot||w>wTop) continue;
+    const py=Y(w);
+    gW.strokeStyle='rgba(120,150,190,.10)';
+    gW.beginPath(); gW.moveTo(x0,py); gW.lineTo(x1,py); gW.stroke();
+    gW.fillText(w<1?w.toFixed(2):w.toFixed(0), x0-32, py+3);
+  }
+  // reference slope 1: peak-to-first-null half width λ/(Nd cosθ)
+  gW.strokeStyle='rgba(120,150,190,.35)'; gW.setLineDash([4,4]); gW.lineWidth=1;
+  gW.beginPath(); gW.moveTo(X(1),Y(deg(L/dv))); gW.lineTo(X(2048),Y(deg(L/(2048*dv)))); gW.stroke();
+  gW.setLineDash([]);
+  gW.fillStyle='rgba(120,150,190,.5)';
+  gW.fillText('λ/(N d cosθ) — peak to first null', X(1)+5, Y(deg(L/dv))-4);
+  // reference slope 2: the true FWHM asymptote
+  gW.strokeStyle='rgba(251,191,36,.55)'; gW.lineWidth=1.4;
+  gW.beginPath(); gW.moveTo(X(1),Y(guide(1))); gW.lineTo(X(2048),Y(guide(2048))); gW.stroke();
+  gW.fillStyle='rgba(251,191,36,.75)';
+  gW.fillText('0.886 λ/(N d cosθ) — FWHM', X(24), Y(guide(24))+12);
+  // measured points, straight off the emergent kernel
+  for(const p of widthPoints()){
+    gW.fillStyle='rgba(251,191,36,.85)';
+    gW.beginPath(); gW.arc(X(p.N), Y(deg(p.w)), 2.6, 0, Math.PI*2); gW.fill();
+  }
+  // the sodium-doublet line: R = mN = λ/Δλ ≈ 982 at m = 1
+  const px=X(982);
+  gW.strokeStyle='rgba(248,113,113,.40)'; gW.setLineDash([2,3]);
+  gW.beginPath(); gW.moveTo(px,y1); gW.lineTo(px,y0); gW.stroke(); gW.setLineDash([]);
+  gW.fillStyle='rgba(248,113,113,.62)'; gW.font='8px '+cssMono();
+  gW.fillText('Na D doublet resolved (R = mN ≈ 982)', Math.min(px+4, x1-150), y1+9);
+  // where we are now
+  const wNow=derived().fwhm;
+  if(isFinite(wNow)){
+    gW.fillStyle='#34d399';
+    gW.beginPath(); gW.arc(X(S.nSlits), Y(deg(wNow)), 4.2, 0, Math.PI*2); gW.fill();
+    gW.fillStyle='rgba(230,238,247,.9)'; gW.font='9px '+cssMono();
+    gW.fillText(`N = ${S.nSlits} · FWHM ≈ ${deg(wNow).toFixed(3)}°`, x0+8, HW-7);
+  }else{
+    gW.fillStyle='rgba(150,170,200,.5)'; gW.font='9px '+cssMono();
+    gW.fillText('no half‑maximum inside ±85° at this setting', x0+8, HW-7);
+  }
+}
+
+/* ============================================================ READOUTS */
+function readRow(k,v,cls,tip){
+  const t = tip ? ` title="${tip}"` : '';
+  return `<dt${t}>${k}</dt><dd class="${cls||''}"${t}>${v}</dd>`;
+}
+function updateReadouts(){
+  const R=S.res; if(!R){rdl.innerHTML='';return;}
+  const pk=S._peak;
+  let rows='';
+  if(pk){
+    rows+=readRow('⌖ Orders predicted', pk.where, '',
+      'Worked out up front from N, d, a and λ alone — how many orders exist and where the outermost one lands, before any light has crossed the stage');
+    rows+=readRow('   brightest order',
+      pk.best ? `m = ${pk.best.m>0?'+':''}${pk.best.m} · ≈ ${(pk.best.I*100).toFixed(1)} % at ${deg(pk.best.th).toFixed(1)}°` : '—',
+      pk.best?'hi':'');
+    rows+='<div class="sep"></div>';
+  }
+  const statusCls = !R.ready ? (R.status==='incoming'?'ok':'') : (R.ramp<1?'ok':'hi');
+  const statusTxt = R.status==='incoming' ? `incoming · ${R.countdown.toFixed(1)} fs`
+                  : !R.ready ? `dark · wave arrives in ${R.countdown.toFixed(0)} fs`
+                  : R.ramp<1 ? 'settling' : 'reading';
+  rows+=readRow('Detector', statusTxt, statusCls);
+  rows+=readRow('Detector θ', `${S.det>0?'+':''}${S.det.toFixed(1)}°`, '',
+    'Direction from the aperture to the detector. Drag the green marker on the far-field arc to change it');
+  rows+=readRow('Detector order m',
+    S.nSlits<2 ? '—' : `${R.mFrac>=0?'+':''}${R.mFrac.toFixed(3)}${R.onPeak?' · principal max':''}`,
+    R.onPeak?'hi':'',
+    'The path difference between neighbouring slits, in wavelengths: m = d·sinθ/λ. Whole numbers are the bright orders — the one exact relation on this panel');
+  rows+=readRow('Detector power',
+    R.ready ? `${(R.I*100).toFixed(R.I<0.01?3:2)} %${R.onNull?' · null':''}` : '—',
+    R.ready ? (R.I>0.35?'hi':R.onNull?'warn':'') : '',
+    'Intensity at the detector as a percentage of the pattern centre. It stays “—” until the light has actually reached the arc');
+  rows+=readRow('Screen position',
+    R.ready ? `${(R.screenY*100).toFixed(2)} cm` : '—', '',
+    'Where this direction lands on a flat screen at distance L: y = L·tanθ');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Orders visible', S.nSlits<2 ? '—' : String(R.orders.length),
+    (S.nSlits>=2 && R.orders.length===1)?'warn':'',
+    'How many principal maxima leave the plate at all, counting m = 0. Orders with |mλ/d| ≥ 1 do not exist, and an order that lands on an envelope zero is missing');
+  // an order that is not there gets no angle: "—" if it cannot exist at all, "extinct" if
+  // the single-slit envelope has put a zero exactly on it (a/d = 1/m kills order m)
+  const ordTxt = o => o.state==='ok' && o.th!==null ? `${deg(o.th).toFixed(2)}°`
+                    : o.state==='extinct' ? '— extinct (envelope null)' : '—';
+  rows+=readRow('1st-order angle', ordTxt(R.ord1),
+    R.ord1.state==='ok'?'hi':R.ord1.state==='extinct'?'warn':'',
+    'Where the m = 1 principal maximum actually sits, read off the computed pattern. It exists only while λ < d and the single-slit envelope does not put a zero on it; when it does, this reads "extinct" instead of a direction');
+  rows+=readRow('2nd-order angle', ordTxt(R.ord2),
+    R.ord2.state==='extinct'?'warn':'',
+    'Same for m = 2. Set the slit width to half the spacing (a = d/2) and every even order is extinguished — the envelope zero lands exactly on it, so there is no maximum there to report');
+  rows+=readRow('Principal-max FWHM',
+    isFinite(R.fwhm) ? `${deg(R.fwhm).toFixed(3)}°` : '—', '',
+    'Full width at half maximum of the central bright line, measured on the computed pattern. It shrinks as 1/N — that is the whole point of a grating');
+  rows+=readRow('Peak to first null',
+    isFinite(R.nullHalf) ? `≈ ${deg(R.nullHalf).toFixed(3)}°` : '—', '',
+    'The classic half-width λ/(N d cosθ). The true FWHM is 0.886 × this');
+  const mMaxOrd = R.orders.length ? Math.max(...R.orders.map(o=>Math.abs(o.m))) : 0;
+  const Rres = mMaxOrd*S.nSlits;
+  rows+=readRow('Resolving power',
+    Rres>0 ? `R = mN = ${Rres} · Δλ ≈ ${(S.lam/Rres).toFixed(2)} nm` : '—',
+    Rres>=982?'ok':'',
+    'R = mN at the highest available order. Two wavelengths closer than Δλ = λ/R blur together; the sodium D lines at 589.0 / 589.6 nm need R ≈ 982');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Regime', SCEN[S.scen].name);
+  rows+=readRow('Slits N', String(S.nSlits));
+  rows+=readRow('Spacing d · width a',
+    `${S.nSlits>1?dEff().toFixed(2):'—'} · ${aEff().toFixed(2)} µm`, '',
+    'Centre-to-centre slit spacing and the open width of each slit, in micrometres (1 µm = 1000 nm)');
+  rows+=readRow('Wavelength λ', `${S.lam} nm vac · ${(R.lamMed*NM_PER_UM).toFixed(2)} nm air`, '',
+    "Vacuum wavelength and the slightly shorter wavelength inside air — it is the air value that diffracts");
+  rows+=readRow('Air index n', R.n.toFixed(6), '',
+    "Edlén's 1966 formula for standard air; n(589 nm) = 1.000277 is the textbook datum this model is pinned to");
+  rows+=readRow('d / λ', S.nSlits>1?(dEff()/R.lamMed).toFixed(3):'—', dEff()<R.lamMed?'warn':'',
+    'The one number that decides how many orders exist: an order m needs |mλ/d| < 1, so below d/λ = 1 only the straight-through m = 0 survives');
+  rows+=readRow('Wavefronts arrived',
+    R.ready ? `${R.arrived} of ${R.settle} · ${(R.ramp*100).toFixed(0)} % built`
+            : `0 of ${R.settle}`,
+    R.ready&&R.ramp>=1?'ok':'',
+    'How many of the emitted wavefronts have actually expanded out to the detector. The reading is scaled by this: a pattern built from half the wavelet train reads half as strong');
+  rdl.innerHTML=rows;
+}
+
+/* ============================================================ LOOP */
+const FS_PER_SEC=30;                 // femtoseconds of simulated time per real second at 1×
+let lastTS=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dtReal=Math.min((ts-lastTS)/1000||0, 0.05); lastTS=ts;
+  if(S.playing){
+    const dt=dtReal*S.rate*FS_PER_SEC;
+    const hMax=Math.max(period()/4, 1e-3);
+    let sub=Math.min(Math.ceil(dt/hMax), 400), h=dt/sub;
+    for(let i=0;i<sub;i++){ S.t+=h; stepWave(h); emit(); }
+    const endT=simDuration();
+    if(S.t>=endT){ S.t=endT; S.playing=false; playBtn.textContent='▶ Play'; }
+    syncProg();
+  }
+  S.res=computeDetector();
+  draw();
+}
+requestAnimationFrame(frame);
+
+/* ============================================================ UI WIRING */
+const $=id=>document.getElementById(id);
+const playBtn=$('playBtn'), rdl=$('rdl');
+function syncProg(){
+  const D=Math.max(simDuration(), S.t);
+  $('prog').value=clamp(S.t/D,0,1);
+  $('progV').textContent=`${S.t.toFixed(0)} / ${D.toFixed(0)} fs`;
+}
+playBtn.onclick=()=>{
+  S.playing=!S.playing;
+  playBtn.textContent=S.playing?'❚❚ Pause':'▶ Play';
+};
+$('restartBtn').onclick=()=>resetSim(true);
+$('prog').oninput=e=>{
+  S.playing=false; playBtn.textContent='▶ Play';
+  S.t=parseFloat(e.target.value)*simDuration();
+  rebuildTo(S.t);
+  S.res=computeDetector(); draw(); syncProg();
+};
+// Replay the deterministic emission schedule from t = 0 so that scrubbing to t lands on
+// exactly the frame playing to t would have produced. play(t) and scrub(t) must agree.
+function rebuildTo(tt){
+  S.wf.length=0; S.lastEmit=-1; S._holdBase=null;
+  S.t=tt; stepWave(0); emit();
+}
+// a parameter that changes the APERTURE: rebuild the sources and the cached curves
+function reparam(){
+  rebuildSources();
+  S._widths=null; S._curve=null; S._der=null; S._scr=null;
+  rebuildTo(S.t);
+  S.res=computeDetector();
+  if(!S.playing) draw();
+  syncProg();
+}
+// a parameter that only changes the READING: recompute and redraw
+const nudge=()=>{ S.res=computeDetector(); if(!S.playing) draw(); syncProg(); };
+
+/* sliders */
+function refreshSliderLabels(){
+  $('rateV').textContent=S.rate.toFixed(2)+'×';
+  $('nSlitsV').textContent=String(S.nSlits);
+  $('dSpaceV').textContent=S.dSpace.toFixed(2)+' µm';
+  $('aWidthV').textContent=aEff().toFixed(2)+' µm'+(aEff()<S.aWidth-1e-9?' (≤0.92 d)':'');
+  $('lamV').textContent=S.lam.toFixed(0)+' nm';
+  $('LdistV').textContent=S.Ldist.toFixed(2)+' m';
+  $('detV').textContent=(S.det>0?'+':'')+S.det.toFixed(1)+'°';
+}
+$('rate').oninput=e=>{S.rate=parseFloat(e.target.value);refreshSliderLabels();};
+$('nSlits').oninput=e=>{S.nSlits=Math.round(parseFloat(e.target.value));refreshSliderLabels();reparam();};
+$('dSpace').oninput=e=>{S.dSpace=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('aWidth').oninput=e=>{S.aWidth=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('lam').oninput=e=>{S.lam=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('Ldist').oninput=e=>{S.Ldist=parseFloat(e.target.value);refreshSliderLabels();S._scr=null;nudge();};
+$('det').oninput=e=>{S.det=parseFloat(e.target.value);S._detUserMoved=true;refreshSliderLabels();nudge();};
+
+/* overlays */
+$('oWav').onchange=e=>{S.ov.wav=e.target.checked;draw();};
+$('oEnv').onchange=e=>{S.ov.env=e.target.checked;draw();};
+$('oOrd').onchange=e=>{S.ov.ord=e.target.checked;draw();};
+$('oPh').onchange=e=>{S.ov.ph=e.target.checked;draw();};
+
+/* tabs — re-key everything, then reset */
+document.querySelectorAll('#tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.scen=b.dataset.s;
+    document.querySelectorAll('[data-scen]').forEach(el=>{
+      el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+    });
+    const D=SCEN[S.scen].def;
+    Object.keys(D).forEach(k=>{ S[k]=D[k]; });
+    ['rate','nSlits','dSpace','aWidth','lam','Ldist','det'].forEach(id=>{ const e=$(id); if(e) e.value=S[id]; });
+    refreshSliderLabels();
+    S.yOff=0; S._widths=null; S._scr=null;
+    resetSim(false);
+  };
+});
+
+/* 2D stage: drag the detector along the arc, drag the plate to slide the slit stack,
+   drag anywhere else to pan the camera */
+let dragMode=null, lastMx=0, lastMy=0;
+main2d.addEventListener('mousedown',e=>{
+  const r=main2d.getBoundingClientRect();
+  const px=e.clientX-r.left, py=e.clientY-r.top;
+  lastMx=e.clientX; lastMy=e.clientY;
+  const cx=sx(0), cy=sy(S.yOff), rr=RFF()*cam.s, th=rad(S.det);
+  const dx=px-(cx+Math.cos(th)*rr), dy=py-(cy-Math.sin(th)*rr);
+  if(Math.hypot(dx,dy)<22) dragMode='det';
+  else if(Math.abs(px-cx)<14) dragMode='plate';
+  else dragMode='pan';
+  document.body.style.cursor = dragMode==='pan'?'grabbing':'ns-resize';
+});
+window.addEventListener('mousemove',e=>{
+  if(!dragMode)return;
+  const r=main2d.getBoundingClientRect();
+  if(dragMode==='det'){
+    const cx=sx(0), cy=sy(S.yOff);
+    const px=e.clientX-r.left, py=e.clientY-r.top;
+    const a=Math.atan2(cy-py, Math.max(px-cx,1e-3));
+    S.det=clamp(deg(a), -85, 85);
+    $('det').value=S.det; S._detUserMoved=true;
+    refreshSliderLabels();
+  }else if(dragMode==='plate'){
+    S.yOff += (lastMy-e.clientY)/cam.s;
+    S.yOff = clamp(S.yOff, -cam.vmax, cam.vmax);
+  }else{
+    S.pan -= (e.clientX-lastMx)/cam.s;
+  }
+  lastMx=e.clientX; lastMy=e.clientY;
+  S.res=computeDetector(); if(!S.playing)draw(); syncProg();
+});
+window.addEventListener('mouseup',()=>{ dragMode=null; document.body.style.cursor=''; });
+main2d.addEventListener('dblclick',()=>{ S.pan=0; S.yOff=0; if(!S.playing)draw(); });
+$('panL').onclick=()=>{ S.pan -= 0.16*(W/cam.s); if(!S.playing)draw(); };
+$('panR').onclick=()=>{ S.pan += 0.16*(W/cam.s); if(!S.playing)draw(); };
+$('recenter').onclick=()=>{ S.pan=0; S.yOff=0; if(!S.playing)draw(); };
+
+/* ============================================================ go */
+document.querySelectorAll('[data-scen]').forEach(el=>{
+  el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+});
+resize();
+document.querySelector('#tabs button.on').click();   // first paint runs the tab-switch path
+</script>

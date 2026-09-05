@@ -1,0 +1,1197 @@
+<title>Gravitational Slingshot</title>
+<style>
+  /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:13px; line-height:1.5; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{
+    display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12);
+    flex:0 0 auto;
+  }
+  header h1{
+    font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; color:#e6edf6;
+  }
+  header h1 span{color:var(--cyan)}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+    padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel);
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;
+  }
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .btns{display:flex; gap:6px}
+  .btns button{
+    flex:1; font-family:var(--mono); font-size:11px; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 4px; cursor:pointer; transition:.15s;
+  }
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#04060b}
+  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d{
+    position:absolute; top:12px; right:10px; width:272px; height:190px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.96);
+    backdrop-filter:blur(3px); z-index:3;
+  }
+  #inset3d canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d .cap{
+    position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+  #readouts{
+    position:absolute; top:206px; right:10px; bottom:8px; width:306px; z-index:3;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
+    backdrop-filter:blur(3px); padding:9px 12px; font-family:var(--mono);
+    overflow-y:auto;
+  }
+  #readouts h3{
+    font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 6px;
+  }
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:2px 10px; margin:0; font-size:10.5px}
+  #readouts dt{color:var(--dim); white-space:nowrap}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink)}
+  #readouts dd.hi{color:var(--amber)}
+  #readouts dd.warn{color:var(--red)}
+  #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+
+  #plots{
+    flex:0 0 168px; display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border-top:1px solid var(--line);
+  }
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+  .plot .cap{
+    position:absolute; left:10px; top:8px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+
+  #explain{
+    flex:0 0 auto; max-height:clamp(180px,26vh,300px); overflow-y:auto; border-top:1px solid var(--line);
+    background:var(--panel); padding:11px 16px 13px; display:grid;
+    grid-template-columns:repeat(5,1fr); gap:12px;
+  }
+  #explain .ex{
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px;
+    max-height:clamp(164px,24vh,280px); overflow-y:auto;
+  }
+  #explain .ex::-webkit-scrollbar{width:5px}
+  #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{
+    margin:0 0 5px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--cyan);
+  }
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+</style>
+
+<div id="app">
+  <header>
+    <h1>Gravitational&nbsp;<span>Slingshot</span></h1>
+    <div class="tabs" id="tabs">
+      <button data-s="trailing" class="on">1 · Trailing pass</button>
+      <button data-s="leading">2 · Leading pass</button>
+      <button data-s="retro">3 · Retrograde arrival</button>
+      <button data-s="voyager">4 · Voyager&nbsp;2 at Jupiter</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Simulation</h2>
+        <div class="btns">
+          <button id="playBtn" class="play">▶ Play</button>
+          <button id="restartBtn">↻ Restart</button>
+        </div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.00×</span>
+          <input type="range" id="rate" min="0.15" max="5" step="0.05" value="1">
+        </label>
+        <label class="fld">Timeline <span class="v" id="progV">0 d</span>
+          <input type="range" id="prog" min="0" max="1" step="0.001" value="0">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>Aim the flyby</h2>
+        <label class="fld">Approach speed v∞ <span class="v" id="vinfV">9.0 km/s</span>
+          <input type="range" id="vinf" min="2" max="25" step="0.1" value="9">
+        </label>
+        <label class="fld">Impact parameter b <span class="v" id="bV">+12.0 R<sub>J</sub></span>
+          <input type="range" id="b" min="-30" max="30" step="0.5" value="12">
+        </label>
+        <label class="fld">Arrival direction α <span class="v" id="alphaV">90°</span>
+          <input type="range" id="alpha" min="60" max="180" step="1" value="90">
+        </label>
+        <label class="fld">Planet mass <span class="v" id="mpV">1.00 M<sub>J</sub></span>
+          <input type="range" id="mp" min="0.2" max="4" step="0.02" value="1">
+        </label>
+        <div class="hint">b&nbsp;&gt;&nbsp;0 passes the <b>trailing</b> edge (behind the planet) · b&nbsp;&lt;&nbsp;0 the
+        <b>leading</b> edge. Scrub to the encounter, then drag the green&nbsp;⌖ aim point across the planet.</div>
+      </div>
+
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns">
+          <button id="panL">◂ Pan</button>
+          <button id="panR">Pan ▸</button>
+          <button id="recenter">⊙ Center</button>
+        </div>
+        <div class="hint">Drag empty space to pan · double‑click to recenter. The camera dives with
+        the probe: wide on the Sun far out, tight on the planet at closest approach.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="oPath" checked> Integrated probe path</label>
+        <label class="chk"><input type="checkbox" id="oPf" checked> Path in the planet's frame</label>
+        <label class="chk"><input type="checkbox" id="oHyp" checked> Patched‑conic hyperbola</label>
+        <label class="chk"><input type="checkbox" id="oSoi" checked> Encounter sphere</label>
+        <label class="chk"><input type="checkbox" id="oVec" checked> Velocity vectors</label>
+      </div>
+    </aside>
+
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="main2d"></canvas>
+        <div id="inset3d">
+          <span class="cap">Velocity space (schematic)</span>
+          <canvas id="c3d"></canvas>
+        </div>
+        <div id="readouts">
+          <h3>Live readout</h3>
+          <dl id="rdl"></dl>
+        </div>
+      </div>
+      <div id="plots">
+        <div class="plot">
+          <span class="cap">Probe speed — Sun frame vs planet frame</span>
+          <canvas id="cSpeed"></canvas>
+        </div>
+        <div class="plot">
+          <span class="cap">Δv (Sun frame) vs where you aim</span>
+          <canvas id="cGain"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="explain">
+    <div class="ex">
+      <h4>The trick</h4>
+      <p>The probe falls into the planet's gravity well and climbs back out. It arrives at the well
+      with speed <code>w</code> relative to the planet and it leaves with <b>exactly that same
+      speed</b> — energy is conserved in the planet's frame. All the flyby does is <b>turn</b>
+      <code>w</code>, by <code>δ = 2·arcsin(1/e)</code>.</p>
+      <p>But the planet is <b>moving</b>, at 13.1 km/s. Your speed in the Sun's frame is
+      <code>v = v_planet + w</code>. Turn <code>w</code> so it points more nearly along
+      <code>v_planet</code> and that sum gets longer — you speed up ⇒ free Δv. Turn it the other way
+      and the sum shortens ⇒ you brake.</p>
+      <p>Nothing is free, of course: the probe pulls back on the planet just as hard, and Jupiter
+      loses exactly the momentum the probe gains — about one part in 10²⁵ of its orbit.</p>
+    </div>
+    <div class="ex">
+      <h4>What the probe measures</h4>
+      <p>Watch the two speed curves. The <b>green</b> one is what an observer riding on the planet
+      sees: it rises as the probe falls in, peaks at closest approach, and comes back down to
+      <b>the value it started at</b>. Nothing happened. The encounter is elastic.</p>
+      <p>The <b>amber</b> one is the same motion in the Sun's frame — and it <b>steps</b>. Same
+      probe, same instant, two frames, two different stories. The gain is real, and it is
+      frame‑dependent: it is momentum borrowed from the planet's orbit.</p>
+      <p>Between the two, read the <b>Frame check</b> row: it prints how far apart the planet‑frame
+      in and out speeds actually came out in the integration.</p>
+    </div>
+    <div class="ex">
+      <h4>Where you aim</h4>
+      <p>Two numbers set everything. <b>b</b>, the impact parameter, is how far off‑centre your
+      incoming line misses the planet: small b ⇒ a deep pass ⇒ a big turn <code>δ</code>. And the
+      <b>sign</b> of b picks the side.</p>
+      <p>Pass the <b>trailing</b> edge — the side the planet is retreating from — and the planet
+      tows you forward: <b>boost</b>. Pass the <b>leading</b> edge and it pulls you backwards:
+      <b>brake</b>. The right‑hand plot sweeps b across both sides at your current settings, so you
+      can see the whole aim curve before you fly it.</p>
+      <p>Aim too deep and you hit the planet — the red band on that plot. That, not physics, is the
+      real limit on how much a single flyby can buy you.</p>
+    </div>
+    <div class="ex">
+      <h4>Real missions</h4>
+      <p><b>Voyager 2 at Jupiter, July 1979.</b> Its speed relative to the Sun rose from about
+      <b>10 km/s</b> to about <b>25 km/s</b> across the encounter (NASA/JPL trajectory data) — a
+      ~15 km/s gain no rocket it could carry would have given it. That single pass put it on a
+      solar‑escape orbit; Saturn, Uranus and Neptune followed.</p>
+      <p><b>Parker Solar Probe</b> runs the trick backwards: seven <b>leading‑edge</b> Venus flybys,
+      each one <i>shedding</i> speed, to drop its perihelion inside 10 solar radii. <b>Cassini</b>
+      strung together Venus–Venus–Earth–Jupiter to reach Saturn.</p>
+      <p class="cav">Model caveats: the planet rides a perfect circular, coplanar orbit and the probe
+      is massless, so this is the circular restricted three‑body problem, not an ephemeris. The
+      Voyager preset reproduces the published speed change with a deeper ~4 R_J pass than the real
+      ~10 R_J, because the true approach was out of plane. The inset is a schematic. Treat every
+      figure as an engineering estimate, ±~10%.</p>
+    </div>
+    <div class="ex">
+      <h4>Reading the units</h4>
+      <p><b>km/s — speed.</b> Earth circles the Sun at 30 km/s, Jupiter at 13.1. A chemical upper
+      stage buys a deep‑space probe maybe 3–4 km/s of <b>propellant</b> budget in its whole life. So
+      <code>+10 km/s</code> from one flyby is worth roughly a decade of rocket you could never
+      launch — which is why every outer‑planet mission flies one.</p>
+      <p><b>MJ/kg — specific orbital energy.</b> <code>ε = v²/2 − GM☉/r</code>, energy per kilogram
+      of spacecraft. Negative ⇒ bound to the Sun. Zero ⇒ exactly escaping. Positive ⇒ gone. Jupiter
+      moved Voyager 2 from about −28 to +3 MJ/kg.</p>
+      <p><b>R_J — Jupiter radii, 71 492 km.</b> How close you skim. Aim at the trailing edge — the
+      side the planet is moving away from, so you are pushed from <b>behind</b> — and you gain; aim
+      ahead of it and you pay.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ============================================================ constants */
+const G      = 6.67430e-11;        // m³ kg⁻¹ s⁻²   Newtonian constant (CODATA 2018)
+const MSUN   = 1.98892e30;         // kg            solar mass
+const MJUP   = 1.89813e27;         // kg            Jupiter mass
+const RJUP   = 71.492e6;           // m             Jupiter equatorial radius
+const AORB   = 7.78479e11;         // m             Jupiter semi-major axis (5.2044 AU)
+const AU     = 1.495978707e11;     // m
+const DAY    = 86400;              // s
+const GMS    = G * MSUN;           // m³/s²         1.3275e20
+const OMEGA  = Math.sqrt(GMS / (AORB * AORB * AORB));   // rad/s  mean motion
+const VPL    = OMEGA * AORB;       // m/s           13 056 — Jupiter's orbital speed
+const VESC   = Math.sqrt(2 * GMS / AORB);               // m/s  18 468 — solar escape at 5.2 AU
+const THETA0 = 0.5 * Math.PI;      // rad           planet phase at t = 0
+const STEP_CAP = 900000;           // hard ceiling on integration steps per run
+const RUN_WALL = 22;               // s of wall clock for one full run at rate 1×
+
+/* ============================================================ medium: the Sun's field + the planet's circular orbit */
+// The planet is held on an exact circular Kepler orbit; the probe is massless.
+// That is the circular restricted three-body problem — the standard model for a flyby.
+const pPos = t => { const th = THETA0 + OMEGA * t; return [AORB * Math.cos(th), AORB * Math.sin(th)]; };
+const pVel = t => { const th = THETA0 + OMEGA * t; return [-VPL * Math.sin(th), VPL * Math.cos(th)]; };
+// Laplace sphere of influence, r_SOI = a·(m/M)^(2/5); we measure the encounter at a quarter of it,
+// where the planet outpulls the Sun's tidal term by >100× and the two-body conic is excellent.
+const soiOf  = mpJ => AORB * Math.pow(mpJ * MJUP / MSUN, 0.4);
+const rencOf = mpJ => 0.25 * soiOf(mpJ);
+
+/* ============================================================ helpers */
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const smooth = t => t * t * t * (t * (t * 6 - 15) + 10);
+function rot(x, y, ang){ const c = Math.cos(ang), s = Math.sin(ang); return [x * c - y * s, x * s + y * c]; }
+const fin = v => (typeof v === 'number' && isFinite(v));
+const kms = v => fin(v) ? (v / 1000).toFixed(2) + ' km/s' : '—';
+// planet-frame speeds get an extra digit: the claim being made about them is an equality
+const kms3 = v => fin(v) ? (v / 1000).toFixed(3) + ' km/s' : '—';
+const sgnk = v => fin(v) ? (v >= 0 ? '+' : '−') + Math.abs(v / 1000).toFixed(2) + ' km/s' : '—';
+
+/* ============================================================ the shared flyby kernel
+   One closed-form patched-conic solution, used by (a) the initial conditions, (b) the up-front
+   prediction printed before the run plays, (c) the analytic hyperbola overlay and (d) the
+   Δv-vs-b curve — so the prediction and the thing predicted can't drift apart. */
+function flyby(vinfMS, bRJ, mpJ, alphaDeg){
+  const mu = G * mpJ * MJUP;
+  const v  = Math.max(vinfMS, 50);
+  const a  = mu / (v * v);                       // |semi-major axis| of the hyperbola
+  const b  = bRJ * RJUP;
+  const e  = Math.sqrt(1 + (b / a) * (b / a));   // eccentricity from the aim offset alone
+  const rp = a * (e - 1);                        // periapsis distance
+  const delta = 2 * Math.asin(1 / Math.max(e, 1 + 1e-12));   // turn angle of w
+  const sgn = b >= 0 ? 1 : -1;                   // +1 trailing-edge pass, −1 leading-edge
+  const al  = alphaDeg * Math.PI / 180;
+  const win  = [v * Math.cos(al), v * Math.sin(al)];         // w_in, in planet-velocity axes
+  const wout = rot(win[0], win[1], -sgn * delta);            // the flyby only ROTATES it
+  const H = p => Math.hypot(p[0], p[1]);
+  const vin  = H([VPL + win[0],  win[1]]);
+  const vout = H([VPL + wout[0], wout[1]]);
+  return {
+    mu, a, e, rp, rpRJ: rp / RJUP, delta, sgn, al, vinf: v,
+    vin, vout, dv: vout - vin,
+    vperi: Math.sqrt(v * v + 2 * mu / Math.max(rp, 1e5)),
+    renc: rencOf(mpJ), soi: soiOf(mpJ),
+    hits: rp < 1.02 * RJUP,                      // aim point inside the planet
+    // the 1-D elastic limits: w fully aligned with / fully against the planet's motion
+    dvMax: (VPL + v) - vin,
+    dvMin: Math.abs(VPL - v) - vin,
+  };
+}
+
+/* ============================================================ scenarios (only the differences) */
+const SCEN = {
+  trailing: { name: 'Trailing pass — boost',  d: { vinf: 9,  b:  12, alpha:  90, mp: 1, rate: 1 } },
+  leading:  { name: 'Leading pass — brake',   d: { vinf: 9,  b: -12, alpha:  90, mp: 1, rate: 1 } },
+  retro:    { name: 'Retrograde arrival',     d: { vinf: 22, b:   8, alpha: 172, mp: 1, rate: 1 } },
+  voyager:  { name: 'Voyager 2 at Jupiter',   d: { vinf: 12, b:  11, alpha: 130, mp: 1, rate: 1 } },
+};
+
+/* ============================================================ state */
+const S = {
+  scen: 'trailing', playing: false, rate: 1,
+  // controls
+  vinf: 9000, b: 12, alpha: 90, mp: 1,
+  ov: { path: true, pf: true, hyp: true, soi: true, vec: true },
+  // run definition (rebuilt whenever a control changes)
+  pred: null, mu: 0, renc: 0, h: 1, N: 1, nEnc: 0, T: 1, K: 1, ic: null,
+  // integrator state
+  n: 0, x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0,
+  // recorded history
+  trail: [], pf: [], hist: [],
+  // encounter latches + transient caches
+  _in: null, _out: null, _tIn: 0, _tOut: 0, _inSph: false,
+  _rpMin: Infinity, _tPeri: 0, _jac0: 0, _jacLo: Infinity, _jacHi: -Infinity,
+  _acc: 0, _aimDrag: false, _blown: false,
+  pan: { x: 0, y: 0 },
+};
+const simT = () => S.n * S.h;
+
+/* ============================================================ derived quantities */
+// how long the run must be: in from four encounter-sphere radii, out to six — so the
+// "before" and "after" asymptotes both exist on screen, whatever the approach speed.
+function spanFor(p){
+  const tPre = 4 * p.renc / p.vinf, tPost = 6 * p.renc / p.vinf;
+  return { tPre, T: tPre + tPost };
+}
+// fixed step, small enough to resolve periapsis: a fixed fraction of the local orbital
+// period there. Clamped so a grazing aim can never explode the step count.
+function stepFor(p, T){
+  const Tperi = 2 * Math.PI * Math.max(p.rp, RJUP) / Math.max(p.vperi, 1);
+  let h = clamp(0.0015 * Tperi, 12, 200);
+  return Math.max(h, T / STEP_CAP);
+}
+function accel(x, y, t){
+  const rs = Math.max(Math.hypot(x, y), 1e8);
+  const p = pPos(t);
+  const dx = x - p[0], dy = y - p[1];
+  const d = Math.max(Math.hypot(dx, dy), 0.5 * RJUP);   // softened: the sim degrades, never throws
+  const ks = -GMS / (rs * rs * rs), kp = -S.mu / (d * d * d);
+  return [ks * x + kp * dx, ks * y + kp * dy];
+}
+// Jacobi constant of the circular restricted problem — the quantity that IS conserved here
+// (the probe's own orbital energy is not: the potential it moves in is time-dependent).
+function jacobi(x, y, vx, vy, t){
+  const rs = Math.max(Math.hypot(x, y), 1e8), p = pPos(t);
+  const d = Math.max(Math.hypot(x - p[0], y - p[1]), 0.5 * RJUP);
+  return 2 * OMEGA * (x * vy - y * vx) - (vx * vx + vy * vy) + 2 * (GMS / rs + S.mu / d);
+}
+// Read the incoming and outgoing ASYMPTOTES off one planet-relative state, by forming the
+// two-body orbital elements. This is what "speed before / speed after" means in patched conics:
+// the well's depth at the measuring point is taken back out.
+function asymptotes(x, y, vx, vy, t){
+  const P = pPos(t), V = pVel(t);
+  const rx = x - P[0], ry = y - P[1], wx = vx - V[0], wy = vy - V[1];
+  const d = Math.max(Math.hypot(rx, ry), 1e5), w2 = wx * wx + wy * wy;
+  const eps = w2 / 2 - S.mu / d;                       // planet-relative specific energy
+  if (!(eps > 0)) return null;                         // captured: no asymptote exists
+  const winf = Math.sqrt(2 * eps);
+  const L = rx * wy - ry * wx, sig = L >= 0 ? 1 : -1;
+  const c = w2 / S.mu - 1 / d, rv = (rx * wx + ry * wy) / S.mu;
+  const ex = c * rx - rv * wx, ey = c * ry - rv * wy;
+  const e = Math.hypot(ex, ey);
+  if (!(e > 1) || !fin(e)) return null;
+  const del = 2 * Math.asin(1 / e);
+  const ph = [ex / e, ey / e];                         // periapsis direction
+  const hin  = rot(ph[0], ph[1], sig * (Math.PI / 2 - del / 2));
+  const hout = rot(ph[0], ph[1], sig * (Math.PI / 2 + del / 2));
+  const rHel = Math.max(Math.hypot(x, y), 1e8);
+  const mk = hat => {
+    const vX = V[0] + winf * hat[0], vY = V[1] + winf * hat[1];
+    const sp = Math.hypot(vX, vY);
+    const eps2 = sp * sp / 2 - GMS / rHel;             // heliocentric specific energy
+    const Lz = x * vY - y * vX;
+    const aa = eps2 < 0 ? -GMS / (2 * eps2) : Infinity;
+    const ee = Math.sqrt(Math.max(0, 1 + 2 * eps2 * Lz * Lz / (GMS * GMS)));
+    return { sp, eps: eps2, a: aa, e: ee, vx: vX, vy: vY };
+  };
+  return { winf, e, delta: del, rp: (S.mu / (2 * eps)) * (e - 1), t,
+           inn: mk(hin), out: mk(hout) };
+}
+
+/* ============================================================ build / reset a run */
+function buildRun(){
+  const p = flyby(S.vinf, S.b, S.mp, S.alpha);
+  S.pred = p; S.mu = p.mu; S.renc = p.renc;
+  const sp = spanFor(p);
+  S.h = stepFor(p, sp.T);
+  S.nEnc = Math.max(1, Math.round(sp.tPre / S.h));
+  S.N = Math.max(S.nEnc + 2, Math.round(sp.T / S.h));
+  S.T = S.N * S.h;
+  S.K = Math.max(1, Math.ceil(S.N / 900));
+  // state at closest approach, from the closed form...
+  const tEnc = S.nEnc * S.h;
+  const PV = pVel(tEnc), PP = pPos(tEnc), ang = Math.atan2(PV[1], PV[0]);
+  const uh = rot(Math.cos(p.al), Math.sin(p.al), ang);          // w_in direction, inertial
+  const vh = rot(uh[0], uh[1], -p.sgn * p.delta / 2);           // velocity at periapsis
+  const rh = rot(vh[0], vh[1], p.sgn * Math.PI / 2);            // periapsis position direction
+  // If the aim point lies inside the planet there is no flyby to build. Fly the surface-grazing
+  // version of the same approach instead, so the incoming numbers stay physical; the integration
+  // then meets the surface and freezes there, and every "after" reads ⚠ impact.
+  const rpUse = Math.max(p.rp, RJUP);
+  const vpUse = Math.sqrt(p.vinf * p.vinf + 2 * p.mu / rpUse);
+  const st = { x: PP[0] + rpUse * rh[0], y: PP[1] + rpUse * rh[1],
+               vx: PV[0] + vpUse * vh[0], vy: PV[1] + vpUse * vh[1] };
+  // ...then run the SAME leapfrog backwards to t = 0. Velocity-Verlet is time-reversible,
+  // so integrating forward from the result lands back on this encounter.
+  let ax = accel(st.x, st.y, tEnc), a0 = ax[0], a1 = ax[1];
+  const dt = -S.h;
+  for (let i = 0; i < S.nEnc; i++){
+    st.vx += a0 * dt / 2; st.vy += a1 * dt / 2;
+    st.x  += st.vx * dt;  st.y  += st.vy * dt;
+    const A = accel(st.x, st.y, tEnc + (i + 1) * dt);
+    a0 = A[0]; a1 = A[1];
+    st.vx += a0 * dt / 2; st.vy += a1 * dt / 2;
+  }
+  S.ic = { x: st.x, y: st.y, vx: st.vx, vy: st.vy };
+  // exposed so an external checker can re-integrate exactly this problem independently
+  window.__ic = { x: st.x, y: st.y, vx: st.vx, vy: st.vy, t0: 0,
+                  GMS, mu: S.mu, AORB, OMEGA, THETA0, T: S.T, h: S.h, tEnc, N: S.N };
+  rewind();
+}
+function rewind(){
+  S.n = 0;
+  S.x = S.ic.x; S.y = S.ic.y; S.vx = S.ic.vx; S.vy = S.ic.vy;
+  const A = accel(S.x, S.y, 0); S.ax = A[0]; S.ay = A[1];
+  S.trail.length = 0; S.pf.length = 0; S.hist.length = 0;
+  S._in = null; S._out = null; S._inSph = false; S._tIn = 0; S._tOut = 0;
+  S._rpMin = Infinity; S._tPeri = 0; S._blown = false; S._hit = false;
+  S._jac0 = jacobi(S.x, S.y, S.vx, S.vy, 0); S._jacLo = S._jac0; S._jacHi = S._jac0;
+  record();
+}
+function record(){
+  const t = simT(), P = pPos(t);
+  const dx = S.x - P[0], dy = S.y - P[1], d = Math.hypot(dx, dy);
+  if (d < S._rpMin){ S._rpMin = d; S._tPeri = t; }
+  // aimed inside the planet: the flyby ends at the surface. Freeze there rather than let the
+  // probe whip through a softened core and print an invented "after".
+  if (d <= RJUP) S._hit = true;
+  if (!S._inSph && d < S.renc){ S._inSph = true; S._in = asymptotes(S.x, S.y, S.vx, S.vy, t); S._tIn = t; }
+  if (S._inSph && !S._out && d > S.renc){ S._out = asymptotes(S.x, S.y, S.vx, S.vy, t); S._tOut = t; }
+  const j = jacobi(S.x, S.y, S.vx, S.vy, t);
+  if (fin(j)){ if (j < S._jacLo) S._jacLo = j; if (j > S._jacHi) S._jacHi = j; }
+  if (S.n % S.K === 0){
+    const V = pVel(t);
+    S.trail.push(S.x, S.y);
+    S.pf.push(dx, dy);
+    S.hist.push(t, Math.hypot(S.vx, S.vy), Math.hypot(S.vx - V[0], S.vy - V[1]));
+  }
+}
+function stepOnce(){
+  const h = S.h;
+  S.vx += S.ax * h / 2; S.vy += S.ay * h / 2;
+  S.x  += S.vx * h;     S.y  += S.vy * h;
+  S.n++;
+  const A = accel(S.x, S.y, simT()); S.ax = A[0]; S.ay = A[1];
+  S.vx += S.ax * h / 2; S.vy += S.ay * h / 2;
+  if (!fin(S.x) || !fin(S.vx)){ S._blown = true; S.x = S.ic.x; S.y = S.ic.y; S.vx = S.ic.vx; S.vy = S.ic.vy; }
+  record();
+}
+// Land on step n. Going backwards replays the deterministic schedule from 0, so scrubbing the
+// timeline gives exactly the frame playing to that step would have given.
+function setStep(n){
+  n = clamp(Math.round(n), 0, S.N);
+  if (n < S.n) rewind();
+  let guard = 0;
+  while (S.n < n && !S._hit && guard++ < STEP_CAP + 10) stepOnce();
+}
+const rebuildTo = t => setStep(t / S.h);
+
+/* ============================================================ canvases */
+const main2d = document.getElementById('main2d'), g2 = main2d.getContext('2d');
+const c3d = document.getElementById('c3d'), g3 = c3d.getContext('2d');
+const cS = document.getElementById('cSpeed'), gS = cS.getContext('2d');
+const cG = document.getElementById('cGain'),  gG = cG.getContext('2d');
+let DPR = 1, W = 0, H = 0, W3 = 0, H3 = 0, WS = 0, HS = 0, WG = 0, HG = 0;
+function fit(cv, ctx){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = cv.getBoundingClientRect();
+  cv.width  = Math.max(1, Math.round(r.width  * DPR));
+  cv.height = Math.max(1, Math.round(r.height * DPR));
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return [r.width, r.height];
+}
+function resize(){
+  [W, H]   = fit(main2d, g2);
+  [W3, H3] = fit(c3d, g3);
+  [WS, HS] = fit(cS, gS);
+  [WG, HG] = fit(cG, gG);
+  draw();
+}
+window.addEventListener('resize', resize);
+const cssMono = () => getComputedStyle(document.body).getPropertyValue('--mono');
+
+/* ---- world <-> screen, isotropic so angles are true: a drawn turn IS the real turn angle ---- */
+let cam = { s: 1, cx: 0, cy: 0, span: AORB };
+// The camera is a director: it opens framed on the approach corridor, dives to the encounter
+// through closest approach, then — once past periapsis — pulls out to the whole heliocentric
+// orbit so the *changed* Sun-frame orbit is the reveal, not the preamble. `u` (1 far, 0 at
+// periapsis) drives the zoom; the sunward drift is gated on the span actually being wide, so
+// the framing can never disagree with the zoom.
+function updateCam(){
+  const P = pPos(simT());
+  const d = Math.max(Math.hypot(S.x - P[0], S.y - P[1]), 1e6);
+  const u = smooth(clamp(Math.log(d / (0.12 * S.renc)) / Math.log(40), 0, 1));
+  const near = clamp(24 * Math.max(S.pred.rp, RJUP), 22 * RJUP, 0.8 * S.renc);
+  // widest framing: the approach corridor coming in; the whole orbit only after closest approach
+  const post = S._inSph ? smooth(clamp((simT() - S._tPeri) / (2.4 * S.renc / S.pred.vinf), 0, 1)) : 0;
+  const far  = lerp(6 * S.renc, 2.6 * AORB, post);
+  cam.span = Math.exp(lerp(Math.log(near), Math.log(far), u));
+  cam.s = (H - 30) / cam.span;
+  // centre on the planet/probe until the view is genuinely orbit-wide, then slide to the Sun
+  const fx = lerp(P[0], S.x, 0.4), fy = lerp(P[1], S.y, 0.4);
+  const toSun = smooth(clamp((cam.span / AORB - 0.15) / 0.6, 0, 1));
+  cam.cx = lerp(fx, 0, toSun);
+  cam.cy = lerp(fy, 0, toSun);
+}
+// pan is a screen-pixel offset, applied here so one drag moves the view the same amount at
+// every zoom level (storing it in world metres made a pan done far out meaningless up close)
+const sx = wx => W / 2 + (wx - cam.cx) * cam.s + S.pan.x;
+const sy = wy => H / 2 - (wy - cam.cy) * cam.s + S.pan.y;
+
+/* ============================================================ 2D DRAW */
+function draw(){
+  if (!S.pred) return;
+  updateCam();
+  const t = simT(), P = pPos(t), V = pVel(t), p = S.pred;
+
+  // sunlight falls off — a real radial gradient, painted explicitly
+  g2.fillStyle = '#04060b'; g2.fillRect(0, 0, W, H);
+  const sunX = sx(0), sunY = sy(0);
+  const gr = g2.createRadialGradient(sunX, sunY, 0, sunX, sunY, Math.max(W, H) * 1.1);
+  gr.addColorStop(0, 'rgba(251,191,36,.20)');
+  gr.addColorStop(0.18, 'rgba(120,110,90,.055)');
+  gr.addColorStop(1, 'rgba(8,12,24,0)');
+  g2.fillStyle = gr; g2.fillRect(0, 0, W, H);
+  const gv = g2.createLinearGradient(0, 0, 0, H);
+  gv.addColorStop(0, 'rgba(12,20,40,.55)'); gv.addColorStop(1, 'rgba(4,6,12,.55)');
+  g2.fillStyle = gv; g2.fillRect(0, 0, W, H);
+
+  g2.font = '9px ' + cssMono();
+
+  // heliocentric distance rings (only while the view is wide enough to mean anything)
+  if (cam.span > 0.4 * AORB){
+    for (let k = 1; k <= 8; k++){
+      const R = k * AU;
+      g2.strokeStyle = 'rgba(120,150,190,.09)'; g2.lineWidth = 1;
+      g2.beginPath(); g2.arc(sunX, sunY, R * cam.s, 0, 7); g2.stroke();
+      if (k % 2 === 0 && R * cam.s < Math.max(W, H)){
+        g2.fillStyle = 'rgba(150,170,200,.30)';
+        g2.fillText(k + ' AU', sunX + R * cam.s + 4, sunY - 3);
+      }
+    }
+    // the planet's own orbit
+    g2.strokeStyle = 'rgba(56,189,248,.22)'; g2.setLineDash([4, 5]);
+    g2.beginPath(); g2.arc(sunX, sunY, AORB * cam.s, 0, 7); g2.stroke(); g2.setLineDash([]);
+  }
+
+  // the Sun
+  if (cam.span > 0.05 * AORB){
+    const rr = Math.max(3, Math.min(14, 0.02 * AORB * cam.s));
+    const sg = g2.createRadialGradient(sunX, sunY, 0, sunX, sunY, rr * 3.2);
+    sg.addColorStop(0, 'rgba(251,191,36,.95)'); sg.addColorStop(1, 'rgba(251,191,36,0)');
+    g2.fillStyle = sg; g2.beginPath(); g2.arc(sunX, sunY, rr * 3.2, 0, 7); g2.fill();
+    g2.fillStyle = '#fde68a'; g2.beginPath(); g2.arc(sunX, sunY, rr, 0, 7); g2.fill();
+    if (cam.span > 0.5 * AORB){
+      g2.fillStyle = 'rgba(251,191,36,.75)'; g2.fillText('SUN', sunX + rr + 5, sunY + 3);
+    }
+  }
+
+  const px = sx(P[0]), py = sy(P[1]);
+
+  // encounter sphere — where we call the flyby begun and ended
+  if (S.ov.soi){
+    const rs = S.renc * cam.s;
+    if (rs > 3 && rs < 40 * Math.max(W, H)){
+      g2.strokeStyle = 'rgba(167,139,250,.35)'; g2.setLineDash([3, 4]); g2.lineWidth = 1;
+      g2.beginPath(); g2.arc(px, py, rs, 0, 7); g2.stroke(); g2.setLineDash([]);
+      if (rs > 60){
+        g2.fillStyle = 'rgba(167,139,250,.6)';
+        g2.fillText('ENCOUNTER SPHERE · ¼ of the sphere of influence', px - rs + 6, py - rs + 12);
+      }
+    }
+  }
+
+  // the integrated path — this is the emergent object; everything analytic is a dashed overlay
+  if (S.ov.path && S.trail.length > 3){
+    g2.strokeStyle = 'rgba(251,191,36,.75)'; g2.lineWidth = 1.6;
+    g2.beginPath();
+    for (let i = 0; i < S.trail.length; i += 2){
+      const X = sx(S.trail[i]), Y = sy(S.trail[i + 1]);
+      if (i === 0) g2.moveTo(X, Y); else g2.lineTo(X, Y);
+    }
+    g2.stroke();
+  }
+
+  // the same motion redrawn in the planet's frame, anchored on the planet: the hyperbola,
+  // built out of the integration rather than asserted
+  if (S.ov.pf && S.pf.length > 3 && S.renc * cam.s > 12){
+    g2.strokeStyle = 'rgba(52,211,153,.55)'; g2.lineWidth = 1.2; g2.setLineDash([2, 3]);
+    g2.beginPath();
+    for (let i = 0; i < S.pf.length; i += 2){
+      const X = px + S.pf[i] * cam.s, Y = py - S.pf[i + 1] * cam.s;
+      if (i === 0) g2.moveTo(X, Y); else g2.lineTo(X, Y);
+    }
+    g2.stroke(); g2.setLineDash([]);
+  }
+
+  // the analytic patched-conic hyperbola — secondary, dashed, toggleable
+  if (S.ov.hyp && S.renc * cam.s > 12 && !p.hits) drawConic(px, py, p, t);
+
+  // the aim line and the draggable aim point
+  drawAim(px, py, p, t);
+
+  // the planet
+  const prR = Math.max(3, RJUP * cam.s);
+  const pg = g2.createRadialGradient(px, py, 0, px, py, prR * 2.4);
+  pg.addColorStop(0, 'rgba(56,189,248,.55)'); pg.addColorStop(1, 'rgba(56,189,248,0)');
+  g2.fillStyle = pg; g2.beginPath(); g2.arc(px, py, prR * 2.4, 0, 7); g2.fill();
+  g2.fillStyle = '#7dd3fc'; g2.beginPath(); g2.arc(px, py, prR, 0, 7); g2.fill();
+  g2.strokeStyle = 'rgba(255,255,255,.35)'; g2.lineWidth = 1; g2.stroke();
+  g2.fillStyle = 'rgba(125,211,252,.85)';
+  g2.fillText('JUPITER', px + prR + 6, py - prR - 2);
+
+  // the probe
+  const qx = sx(S.x), qy = sy(S.y);
+  g2.fillStyle = '#fbbf24';
+  g2.beginPath(); g2.arc(qx, qy, 3.6, 0, 7); g2.fill();
+  g2.strokeStyle = 'rgba(251,191,36,.35)'; g2.lineWidth = 1;
+  g2.beginPath(); g2.arc(qx, qy, 8, 0, 7); g2.stroke();
+  if (Math.hypot(qx - px, qy - py) > 46){
+    g2.fillStyle = 'rgba(251,191,36,.9)'; g2.fillText('PROBE', qx + 10, qy - 11);
+  }
+
+  // velocity vectors, drawn at a fixed pixels-per-km/s so the triangle is readable at any zoom
+  if (S.ov.vec){
+    const K = 34 / 10000;   // px per (m/s)
+    arrow(qx, qy, V[0] * K, -V[1] * K, 'rgba(56,189,248,.9)', 'v_planet', 12);
+    arrow(qx, qy, S.vx * K, -S.vy * K, 'rgba(251,191,36,.95)', 'v — Sun frame', -6);
+    arrow(qx + V[0] * K, qy - V[1] * K, (S.vx - V[0]) * K, -(S.vy - V[1]) * K,
+          'rgba(52,211,153,.9)', 'w — planet frame', 24);
+  }
+  drawLegend(p);
+
+  // stage events — short, shouty, anchored to the thing
+  let ev = null, evc = 'rgba(251,191,36,.95)';
+  if (p.hits || S._hit){ ev = '⚠ AIM INSIDE THE PLANET — this pass hits the surface, there is no flyby'; evc = 'rgba(248,113,113,.95)'; }
+  else if (S._out && t >= S._tOut){
+    const dv = S._out.out.sp - (S._in ? S._in.inn.sp : NaN);
+    ev = 'FLYBY COMPLETE — ' + sgnk(dv) + ' in the Sun frame, 0 in the planet frame';
+    evc = dv >= 0 ? 'rgba(52,211,153,.95)' : 'rgba(248,113,113,.95)';
+  }
+  else if (S._inSph && Math.abs(t - S._tPeri) < 3 * S.K * S.h)
+    ev = 'CLOSEST APPROACH — ' + (S._rpMin / RJUP).toFixed(2) + ' R_J';
+  else if (S._inSph) ev = 'INSIDE THE ENCOUNTER SPHERE — the planet now rules the motion';
+  else if (S.n > 0) ev = 'CRUISING IN — the flyby has not begun; no "after" exists yet';
+  if (ev){
+    g2.font = '11px ' + cssMono(); g2.fillStyle = evc;
+    g2.fillText(ev, 14, H - 14);
+  }
+  g2.font = '9px ' + cssMono(); g2.fillStyle = 'rgba(150,170,200,.45)';
+  g2.fillText('view ' + (cam.span > 0.3 * AORB ? (cam.span / AU).toFixed(2) + ' AU' :
+              (cam.span / RJUP).toFixed(0) + ' R_J') + ' tall · isotropic, so drawn angles are true',
+              14, H - 30);
+
+  drawInset();
+  drawSpeed();
+  drawGain();
+  updateReadouts();
+}
+function arrow(x, y, dx, dy, col, label, off){
+  const L = Math.hypot(dx, dy); if (!(L > 2)) return;
+  g2.strokeStyle = col; g2.fillStyle = col; g2.lineWidth = 1.6;
+  g2.beginPath(); g2.moveTo(x, y); g2.lineTo(x + dx, y + dy); g2.stroke();
+  const a = Math.atan2(dy, dx), hx = x + dx, hy = y + dy;
+  g2.beginPath(); g2.moveTo(hx, hy);
+  g2.lineTo(hx - 7 * Math.cos(a - 0.4), hy - 7 * Math.sin(a - 0.4));
+  g2.lineTo(hx - 7 * Math.cos(a + 0.4), hy - 7 * Math.sin(a + 0.4));
+  g2.closePath(); g2.fill();
+  g2.font = '9px ' + cssMono();
+  g2.fillText(label, hx + 5, hy + (off || -3));
+}
+// the closed-form hyperbola from the shared kernel, drawn in the planet's frame
+function drawConic(px, py, p, t){
+  const PV = pVel(S.nEnc * S.h), ang = Math.atan2(PV[1], PV[0]);
+  const uh = rot(Math.cos(p.al), Math.sin(p.al), ang);
+  const vh = rot(uh[0], uh[1], -p.sgn * p.delta / 2);
+  const rh = rot(vh[0], vh[1], p.sgn * Math.PI / 2);
+  const phi = Math.atan2(rh[1], rh[0]);                 // periapsis direction, inertial
+  const nuMax = Math.acos(-1 / p.e) * 0.985;
+  g2.strokeStyle = 'rgba(56,189,248,.55)'; g2.lineWidth = 1; g2.setLineDash([5, 4]);
+  g2.beginPath();
+  for (let i = 0; i <= 160; i++){
+    const nu = -nuMax + 2 * nuMax * i / 160;
+    const r = p.a * (p.e * p.e - 1) / (1 + p.e * Math.cos(nu));
+    if (!(r > 0) || r > 60 * S.renc) continue;
+    const th = phi + p.sgn * nu;
+    const X = px + r * Math.cos(th) * cam.s, Y = py - r * Math.sin(th) * cam.s;
+    if (i === 0) g2.moveTo(X, Y); else g2.lineTo(X, Y);
+  }
+  g2.stroke(); g2.setLineDash([]);
+}
+// where you aim: the offset line through the planet, perpendicular to the incoming asymptote
+let aimScreen = null;
+function drawAim(px, py, p, t){
+  const PV = pVel(S.nEnc * S.h), ang = Math.atan2(PV[1], PV[0]);
+  const uh = rot(Math.cos(p.al), Math.sin(p.al), ang);
+  const nh = rot(uh[0], uh[1], Math.PI / 2);             // +b direction
+  const bm = S.b * RJUP;
+  const ax = px + nh[0] * bm * cam.s, ay = py - nh[1] * bm * cam.s;
+  aimScreen = { x: ax, y: ay, nx: nh[0], ny: nh[1], px, py };
+  if (S.renc * cam.s < 8) return;
+  const ext = clamp(34 * RJUP * cam.s, 30, Math.max(W, H));
+  g2.strokeStyle = 'rgba(52,211,153,.25)'; g2.lineWidth = 1; g2.setLineDash([2, 4]);
+  g2.beginPath();
+  g2.moveTo(px + nh[0] * ext, py - nh[1] * ext);
+  g2.lineTo(px - nh[0] * ext, py + nh[1] * ext);
+  g2.stroke(); g2.setLineDash([]);
+  g2.strokeStyle = p.hits ? 'rgba(248,113,113,.95)' : 'rgba(52,211,153,.95)'; g2.lineWidth = 1.6;
+  g2.beginPath(); g2.arc(ax, ay, 7, 0, 7); g2.stroke();
+  g2.beginPath(); g2.moveTo(ax - 11, ay); g2.lineTo(ax + 11, ay);
+  g2.moveTo(ax, ay - 11); g2.lineTo(ax, ay + 11); g2.stroke();
+}
+// one legend block, so nothing has to be captioned where it is drawn and pile up on the planet
+function drawLegend(p){
+  const x = 14, y0 = 18, dy = 14;
+  const items = [
+    ['rgba(251,191,36,.85)', 'solid',  'integrated path — the probe in the Sun’s frame'],
+    ['rgba(52,211,153,.6)',  'dot',    'the same motion in the planet’s frame'],
+    ['rgba(56,189,248,.6)',  'dash',   'patched‑conic hyperbola · δ = ' + (p.delta * 180 / Math.PI).toFixed(1) + '°'],
+    [p.hits ? 'rgba(248,113,113,.95)' : 'rgba(52,211,153,.95)', 'aim',
+      '⌖ aim · b = ' + (S.b >= 0 ? '+' : '−') + Math.abs(S.b).toFixed(1) + ' R_J · ' +
+      (S.b >= 0 ? 'trailing edge' : 'leading edge')],
+  ];
+  g2.font = '9px ' + cssMono();
+  items.forEach((it, i) => {
+    const y = y0 + i * dy;
+    g2.strokeStyle = it[0]; g2.fillStyle = it[0]; g2.lineWidth = 1.6;
+    if (it[1] === 'aim'){
+      g2.beginPath(); g2.arc(x + 9, y - 3, 4, 0, 7); g2.stroke();
+    } else {
+      g2.setLineDash(it[1] === 'dot' ? [2, 3] : it[1] === 'dash' ? [5, 4] : []);
+      g2.beginPath(); g2.moveTo(x, y - 3); g2.lineTo(x + 18, y - 3); g2.stroke();
+      g2.setLineDash([]);
+    }
+    g2.fillText(it[2], x + 24, y);
+  });
+}
+
+/* ============================================================ INSET — velocity space (schematic) */
+function drawInset(){
+  const p = S.pred;
+  g3.clearRect(0, 0, W3, H3);
+  g3.fillStyle = '#070a12'; g3.fillRect(0, 0, W3, H3);
+  const cx = W3 * 0.30, cy = H3 * 0.62;
+  const full = VPL + p.vinf;
+  const sc = (Math.min(W3 * 0.62, H3 * 0.72)) / Math.max(full, 1);
+  // drawn in axes where the planet's velocity points right — it rotates in reality
+  const A = S._in ? S._in.inn : { vx: null }, B = S._out ? S._out.out : { vx: null };
+  const w = S._in ? S._in.winf : (S._out ? S._out.winf : p.vinf);
+  const tipx = cx + VPL * sc, tipy = cy;
+  // the circle of every possible outcome: |w| is fixed, only its direction changes
+  g3.strokeStyle = 'rgba(52,211,153,.45)'; g3.setLineDash([3, 3]); g3.lineWidth = 1;
+  g3.beginPath(); g3.arc(tipx, tipy, w * sc, 0, 7); g3.stroke(); g3.setLineDash([]);
+  const av = (dx, dy, col, lw) => {
+    g3.strokeStyle = col; g3.fillStyle = col; g3.lineWidth = lw;
+    g3.beginPath(); g3.moveTo(cx, cy); g3.lineTo(cx + dx, cy + dy); g3.stroke();
+    const a = Math.atan2(dy, dx);
+    g3.beginPath(); g3.moveTo(cx + dx, cy + dy);
+    g3.lineTo(cx + dx - 6 * Math.cos(a - 0.4), cy + dy - 6 * Math.sin(a - 0.4));
+    g3.lineTo(cx + dx - 6 * Math.cos(a + 0.4), cy + dy - 6 * Math.sin(a + 0.4));
+    g3.closePath(); g3.fill();
+  };
+  av(VPL * sc, 0, 'rgba(56,189,248,.9)', 1.6);
+  const al = p.al, delta = p.delta * p.sgn;
+  const drawW = (phi, col, lw, tag) => {
+    const dx = w * sc * Math.cos(phi), dy = -w * sc * Math.sin(phi);
+    g3.strokeStyle = col; g3.lineWidth = lw;
+    g3.beginPath(); g3.moveTo(tipx, tipy); g3.lineTo(tipx + dx, tipy + dy); g3.stroke();
+    av(VPL * sc + dx, dy, col, lw);
+    g3.fillStyle = col; g3.font = '9px ' + cssMono();
+    g3.fillText(tag, cx + VPL * sc + dx + 4, cy + dy - 3);
+  };
+  drawW(al, 'rgba(148,163,184,.75)', 1.1, 'in ' + (p.vin / 1000).toFixed(1));
+  drawW(al - delta, 'rgba(251,191,36,.95)', 1.8, 'out ' + (p.vout / 1000).toFixed(1));
+  g3.fillStyle = 'rgba(56,189,248,.8)'; g3.font = '9px ' + cssMono();
+  g3.fillText('v_planet ' + (VPL / 1000).toFixed(1), cx + 6, cy + 13);
+  g3.fillStyle = 'rgba(52,211,153,.8)';
+  g3.fillText('|w| = ' + (w / 1000).toFixed(1) + ' km/s — fixed', 8, H3 - 8);
+  g3.fillStyle = 'rgba(120,140,170,.6)';
+  g3.fillText('both tips sit on one circle', 8, H3 - 19);
+  g3.fillText('v = v_planet + w', W3 - 96, H3 - 8);
+}
+
+/* ============================================================ PLOT 1 — the lived signal */
+function drawSpeed(){
+  gS.clearRect(0, 0, WS, HS); gS.fillStyle = '#070a12'; gS.fillRect(0, 0, WS, HS);
+  const L = 42, R = 8, Tp = 30, B = 20;
+  const w = Math.max(10, WS - L - R), h = Math.max(10, HS - Tp - B);
+  // Scale to the ASYMPTOTIC speeds, not the periapsis spike: the point of this panel is the
+  // step between before and after, and a 50 km/s spike would flatten it into nothing.
+  // The spike is drawn clipped against the top and its true peak is printed there.
+  let vmax = Math.max(S.pred.vin, S.pred.vout, S.pred.vinf + VPL, VESC);
+  if (S._in)  vmax = Math.max(vmax, S._in.inn.sp, S._in.winf);
+  if (S._out) vmax = Math.max(vmax, S._out.out.sp, S._out.winf);
+  vmax *= 1.30;
+  let peak = 0;
+  for (let i = 0; i < S.hist.length; i += 3) peak = Math.max(peak, S.hist[i + 1], S.hist[i + 2]);
+  const X = t => L + w * clamp(t / S.T, 0, 1);
+  const Y = v => Tp + h * (1 - clamp(v / vmax, 0, 1));
+  gS.font = '9px ' + cssMono();
+  // grid
+  gS.strokeStyle = 'rgba(120,150,190,.10)'; gS.lineWidth = 1;
+  for (let k = 0; k <= 4; k++){
+    const v = vmax * k / 4, y = Y(v);
+    gS.beginPath(); gS.moveTo(L, y); gS.lineTo(L + w, y); gS.stroke();
+    gS.fillStyle = 'rgba(150,170,200,.45)';
+    gS.fillText((v / 1000).toFixed(0), 6, y + 3);
+  }
+  gS.fillStyle = 'rgba(150,170,200,.45)';
+  gS.fillText('km/s', 6, Tp + 9);
+  gS.fillText('0 → ' + (S.T / DAY).toFixed(0) + ' d', L + w - 66, HS - 6);
+  // the encounter window
+  if (S._in){
+    const x0 = X(S._tIn), x1 = X(S._out ? S._tOut : simT());
+    gS.fillStyle = 'rgba(167,139,250,.10)'; gS.fillRect(x0, Tp, Math.max(1, x1 - x0), h);
+  }
+  // solar escape line
+  gS.strokeStyle = 'rgba(248,113,113,.35)'; gS.setLineDash([4, 4]);
+  gS.beginPath(); gS.moveTo(L, Y(VESC)); gS.lineTo(L + w, Y(VESC)); gS.stroke(); gS.setLineDash([]);
+  gS.fillStyle = 'rgba(248,113,113,.6)'; gS.fillText('solar escape at 5.2 AU', L + 4, Y(VESC) - 3);
+  // the two curves
+  const curve = (idx, col, lw) => {
+    gS.strokeStyle = col; gS.lineWidth = lw; gS.beginPath();
+    for (let i = 0; i < S.hist.length; i += 3){
+      const x = X(S.hist[i]), y = Y(S.hist[i + idx]);
+      if (i === 0) gS.moveTo(x, y); else gS.lineTo(x, y);
+    }
+    gS.stroke();
+  };
+  curve(2, 'rgba(52,211,153,.9)', 1.5);      // planet frame
+  curve(1, 'rgba(251,191,36,.95)', 1.8);     // Sun frame
+  // the claim, drawn: |w| in and out are the same level
+  if (S._in){
+    gS.strokeStyle = 'rgba(52,211,153,.45)'; gS.setLineDash([2, 3]);
+    gS.beginPath(); gS.moveTo(L, Y(S._in.winf)); gS.lineTo(L + w, Y(S._in.winf)); gS.stroke();
+    gS.setLineDash([]);
+    gS.fillStyle = 'rgba(52,211,153,.75)';
+    gS.fillText('|w| in = |w| out', L + w - 74, Y(S._in.winf) - 4);
+  }
+  if (S._out){
+    gS.strokeStyle = 'rgba(251,191,36,.4)'; gS.setLineDash([2, 3]);
+    gS.beginPath(); gS.moveTo(L, Y(S._out.out.sp)); gS.lineTo(L + w, Y(S._out.out.sp)); gS.stroke();
+    gS.setLineDash([]);
+  }
+  // now marker
+  gS.strokeStyle = 'rgba(200,220,255,.30)'; gS.lineWidth = 1;
+  gS.beginPath(); gS.moveTo(X(simT()), Tp); gS.lineTo(X(simT()), Tp + h); gS.stroke();
+  if (peak > vmax){
+    gS.fillStyle = 'rgba(200,220,255,.55)';
+    gS.fillText('peak ' + (peak / 1000).toFixed(0) + ' km/s at closest approach — off scale',
+                clamp(X(S._tPeri) + 5, L, L + w - 210), Tp + 10);
+  }
+  gS.fillStyle = 'rgba(251,191,36,.9)'; gS.fillText('■ Sun frame — steps', L + 4, HS - 6);
+  gS.fillStyle = 'rgba(52,211,153,.9)'; gS.fillText('■ planet frame — returns', L + 116, HS - 6);
+}
+
+/* ============================================================ PLOT 2 — Δv against where you aim */
+function drawGain(){
+  gG.clearRect(0, 0, WG, HG); gG.fillStyle = '#070a12'; gG.fillRect(0, 0, WG, HG);
+  const L = 44, R = 8, Tp = 30, B = 20;
+  const w = Math.max(10, WG - L - R), h = Math.max(10, HG - Tp - B);
+  const BMAX = 30;
+  const pts = [];
+  let lo = 0, hi = 0, hitLo = 0, hitHi = 0;
+  for (let i = 0; i <= 160; i++){
+    const bb = -BMAX + 2 * BMAX * i / 160;
+    const q = flyby(S.vinf, bb, S.mp, S.alpha);
+    if (q.hits){ hitLo = Math.min(hitLo, bb); hitHi = Math.max(hitHi, bb); pts.push([bb, null]); continue; }
+    lo = Math.min(lo, q.dv); hi = Math.max(hi, q.dv);
+    pts.push([bb, q.dv]);
+  }
+  const p = S.pred;
+  hi = Math.max(hi, p.dvMax, 1000); lo = Math.min(lo, p.dvMin, -1000);
+  const pad = 0.12 * (hi - lo); hi += pad; lo -= pad;
+  const X = bb => L + w * (bb + BMAX) / (2 * BMAX);
+  const Y = d => Tp + h * (1 - (d - lo) / Math.max(hi - lo, 1));
+  gG.font = '9px ' + cssMono();
+  gG.strokeStyle = 'rgba(120,150,190,.10)';
+  for (let k = 0; k <= 4; k++){
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    gG.beginPath(); gG.moveTo(L, y); gG.lineTo(L + w, y); gG.stroke();
+    gG.fillStyle = 'rgba(150,170,200,.45)';
+    gG.fillText((v / 1000).toFixed(0), 6, y + 3);
+  }
+  gG.fillStyle = 'rgba(150,170,200,.45)';
+  gG.fillText('Δv km/s', 6, Tp + 9);
+  gG.fillText('−30', L - 6, HG - 6); gG.fillText('b (R_J)', L + w / 2 - 18, HG - 6);
+  gG.fillText('+30', L + w - 12, HG - 6);
+  // zero line and the forbidden band
+  gG.strokeStyle = 'rgba(200,220,255,.22)';
+  gG.beginPath(); gG.moveTo(L, Y(0)); gG.lineTo(L + w, Y(0)); gG.stroke();
+  if (hitHi > hitLo){
+    gG.fillStyle = 'rgba(248,113,113,.14)';
+    gG.fillRect(X(hitLo), Tp, Math.max(2, X(hitHi) - X(hitLo)), h);
+    gG.fillStyle = 'rgba(248,113,113,.65)';
+    gG.fillText('hits', X((hitLo + hitHi) / 2) - 9, Tp + 12);
+  }
+  // the 1-D elastic limits from the shared kernel
+  gG.strokeStyle = 'rgba(248,113,113,.45)'; gG.setLineDash([4, 4]);
+  gG.beginPath(); gG.moveTo(L, Y(p.dvMax)); gG.lineTo(L + w, Y(p.dvMax)); gG.stroke();
+  gG.beginPath(); gG.moveTo(L, Y(p.dvMin)); gG.lineTo(L + w, Y(p.dvMin)); gG.stroke();
+  gG.setLineDash([]);
+  gG.fillStyle = 'rgba(248,113,113,.7)';
+  gG.fillText('elastic limit  v_out = v_p + |w|', L + 4, Y(p.dvMax) - 3);
+  // the curve
+  gG.strokeStyle = 'rgba(251,191,36,.95)'; gG.lineWidth = 1.8; gG.beginPath();
+  let pen = false;
+  for (const [bb, d] of pts){
+    if (d === null){ pen = false; continue; }
+    const x = X(bb), y = Y(d);
+    if (!pen){ gG.moveTo(x, y); pen = true; } else gG.lineTo(x, y);
+  }
+  gG.stroke();
+  // the current aim
+  const cx = X(clamp(S.b, -BMAX, BMAX)), cy = Y(clamp(p.dv, lo, hi));
+  gG.strokeStyle = 'rgba(52,211,153,.95)'; gG.lineWidth = 1.5;
+  gG.beginPath(); gG.arc(cx, cy, 5, 0, 7); gG.stroke();
+  gG.beginPath(); gG.moveTo(cx, Tp); gG.lineTo(cx, Tp + h); gG.globalAlpha = .3; gG.stroke();
+  gG.globalAlpha = 1;
+  gG.fillStyle = 'rgba(52,211,153,.9)';
+  gG.fillText('you: ' + sgnk(p.dv), Math.min(cx + 8, L + w - 74), Math.max(cy - 7, Tp + 10));
+  gG.fillStyle = 'rgba(150,170,200,.5)';
+  gG.fillText('leading ◂ brake', L + 4, Tp + h - 4);
+  gG.fillText('boost ▸ trailing', L + w - 82, Tp + h - 4);
+}
+
+/* ============================================================ READOUTS */
+function readRow(k, v, cls, tip){
+  const t = tip ? ' title="' + tip + '"' : '';
+  return '<dt' + t + '>' + k + '</dt><dd class="' + (cls || '') + '"' + t + '>' + v + '</dd>';
+}
+function orbitWord(o){
+  if (!o || !fin(o.eps)) return '—';
+  if (o.eps >= 0) return 'hyperbolic · e ' + o.e.toFixed(2) + ' — unbound';
+  return 'ellipse · a ' + (o.a / AU).toFixed(2) + ' AU · e ' + o.e.toFixed(2);
+}
+function updateReadouts(){
+  const p = S.pred, t = simT(), P = pPos(t);
+  const d = Math.hypot(S.x - P[0], S.y - P[1]);
+  const V = pVel(t);
+  const spHel = Math.hypot(S.vx, S.vy), spPl = Math.hypot(S.vx - V[0], S.vy - V[1]);
+  const A = S._in, Bo = S._out;
+  const dv = (A && Bo) ? Bo.out.sp - A.inn.sp : NaN;
+  const wdiff = (A && Bo) ? 100 * Math.abs(Bo.winf - A.winf) / Math.max(A.winf, 1) : NaN;
+  const drift = 100 * (S._jacHi - S._jacLo) / Math.max(Math.abs(S._jac0), 1e-9);
+  let rows = '';
+
+  // up-front prediction, from the parameters alone, before the run plays out
+  rows += readRow('⌖ Predicted Δv', p.hits ? '⚠ impact' : '≈ ' + sgnk(p.dv),
+    p.hits ? 'warn' : (p.dv >= 0 ? 'ok' : 'warn'),
+    'Computed from the current sliders by the closed-form patched-conic kernel — before the integration runs. The same kernel draws the dashed hyperbola and the Δv-vs-b curve.');
+  rows += readRow('   predicted periapsis',
+    '≈ ' + p.rpRJ.toFixed(2) + ' R_J · ' + (S.b >= 0 ? 'trailing' : 'leading'),
+    p.hits ? 'warn' : '');
+  rows += '<div class="sep"></div>';
+
+  rows += readRow('Probe → planet',
+    d > 3 * RJUP ? (d / 1e9).toFixed(3) + ' ×10⁶ km' : (d / RJUP).toFixed(2) + ' R_J');
+  rows += readRow('Heliocentric speed', kms(spHel), 'hi',
+    'The probe’s speed in the Sun’s frame right now — the number that decides where it can go next');
+  rows += readRow('Planet-frame speed', kms(spPl), 'ok',
+    'Speed relative to Jupiter right now: |v − v_planet|. It rises as the probe falls in and falls back as it climbs out');
+  rows += '<div class="sep"></div>';
+
+  // nothing downstream of the encounter exists until the probe has actually left the sphere —
+  // and nothing at all exists if it hit the planet on the way in
+  const gated = v => (A && Bo && !S._hit) ? v : (S._hit ? '⚠ impact' : '—');
+  rows += readRow('Speed in (Sun)', A ? kms(A.inn.sp) : '—', '',
+    'Heliocentric speed on the incoming asymptote, read off the two-body elements at the moment the probe crossed into the encounter sphere');
+  rows += readRow('Speed out (Sun)', gated(Bo ? kms(Bo.out.sp) : '—'), 'hi',
+    'Heliocentric speed on the outgoing asymptote. It stays "—" until the probe has actually left the encounter sphere — there is no "after" before the flyby happens');
+  rows += readRow('Δv (Sun)', gated(sgnk(dv)),
+    fin(dv) ? (dv >= 0 ? 'ok' : 'warn') : '',
+    'Speed out minus speed in, in the Sun’s frame. Positive = the flyby paid; negative = it charged you');
+  rows += readRow('Speed in (planet)', A ? kms3(A.winf) : '—', '',
+    '|w| on the incoming asymptote — the approach speed at infinity relative to Jupiter');
+  rows += readRow('Speed out (planet)', gated(Bo ? kms3(Bo.winf) : '—'), '',
+    '|w| on the outgoing asymptote. The whole point: it equals the incoming value');
+  rows += readRow('Frame check',
+    fin(wdiff) ? '|w| same to ' + wdiff.toFixed(3) + '%' : '—',
+    fin(wdiff) ? (wdiff < 1 ? 'ok' : 'warn') : '',
+    'How far apart the measured in and out planet-frame speeds actually came out. Exactly zero in the two-body limit; the residue is the Sun’s pull during the pass');
+  rows += '<div class="sep"></div>';
+
+  rows += readRow('Closest approach',
+    fin(S._rpMin) && S._rpMin < 50 * S.renc ? (S._rpMin / RJUP).toFixed(2) + ' R_J' : '—', '',
+    'Smallest planet-relative distance reached so far by the integration — compare it with the predicted periapsis above');
+  rows += readRow('Turn angle δ',
+    A ? (A.delta * 180 / Math.PI).toFixed(1) + '°' : '≈ ' + (p.delta * 180 / Math.PI).toFixed(1) + '°', '',
+    'δ = 2·arcsin(1/e) — how far the flyby rotates w. The one exact number here; everything else is an engineering estimate');
+  rows += readRow('Orbit after', gated(Bo ? orbitWord(Bo.out) : '—'),
+    (Bo && Bo.out.eps >= 0) ? 'hi' : '');
+  rows += readRow('Orbit energy ε',
+    A ? ((A.inn.eps / 1e6).toFixed(1) + (Bo ? ' → ' + (Bo.out.eps / 1e6).toFixed(1) : '') + ' MJ/kg') : '—',
+    '', 'Specific orbital energy about the Sun, ε = v²/2 − GM☉/r. Negative = bound, positive = leaving for good');
+  rows += readRow('Integrator drift',
+    fin(drift) ? drift.toFixed(4) + ' %' : '—', drift < 0.1 ? 'ok' : 'warn',
+    'Spread in the Jacobi constant over the run so far. That is the invariant of this problem — the probe’s own energy is NOT conserved, which is exactly why a slingshot works');
+  rows += '<div class="sep"></div>';
+  rows += readRow('Regime', SCEN[S.scen].name);
+  rows += readRow('Planet', 'Jupiter · ' + S.mp.toFixed(2) + ' M_J');
+  rows += readRow('Planet speed', kms(VPL), '',
+    'v_planet = √(GM☉/a) on a circular orbit at 5.204 AU — the momentum reservoir the flyby borrows from');
+  if (S._blown) rows += readRow('Note', 'clamped', 'warn');
+  rdl.innerHTML = rows;
+}
+
+/* ============================================================ LOOP */
+let lastTS = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dtReal = Math.min((ts - lastTS) / 1000 || 0, 0.05); lastTS = ts;
+  if (S.playing){
+    // wall-clock seconds → simulated seconds, so one run always takes ~RUN_WALL/rate to watch
+    S._acc += dtReal * S.rate * (S.T / RUN_WALL);
+    let k = Math.floor(S._acc / S.h);
+    S._acc -= k * S.h;
+    k = Math.min(k, 200000);
+    for (let i = 0; i < k && S.n < S.N && !S._hit; i++) stepOnce();
+    if (S.n >= S.N || S._hit){ S.playing = false; playBtn.textContent = '▶ Play'; S._acc = 0; }
+    syncProg();
+  }
+  draw();
+}
+
+/* ============================================================ UI WIRING */
+const $ = id => document.getElementById(id);
+const playBtn = $('playBtn'), rdl = $('rdl');
+function syncProg(){
+  $('prog').value = clamp(S.n / Math.max(S.N, 1), 0, 1);
+  $('progV').textContent = (simT() / DAY).toFixed(1) + ' / ' + (S.T / DAY).toFixed(0) + ' d';
+}
+playBtn.onclick = () => { S.playing = !S.playing; playBtn.textContent = S.playing ? '❚❚ Pause' : '▶ Play'; };
+$('restartBtn').onclick = () => { rewind(); S._acc = 0; syncProg(); draw(); };
+$('prog').oninput = e => {
+  S.playing = false; playBtn.textContent = '▶ Play'; S._acc = 0;
+  rebuildTo(parseFloat(e.target.value) * S.T);     // replay the deterministic schedule from t = 0
+  syncProg(); draw();
+};
+// a parameter changed the trajectory: rebuild the whole run, then land on the same fraction
+function reparam(){
+  const f = clamp(S.n / Math.max(S.N, 1), 0, 1);
+  buildRun();
+  setStep(f * S.N);
+  syncProg(); draw();
+}
+function refreshSliderLabels(){
+  $('rateV').textContent  = S.rate.toFixed(2) + '×';
+  $('vinfV').textContent  = (S.vinf / 1000).toFixed(1) + ' km/s';
+  $('bV').innerHTML       = (S.b >= 0 ? '+' : '−') + Math.abs(S.b).toFixed(1) + ' R<sub>J</sub> · ' +
+                            (S.b >= 0 ? 'trailing' : 'leading');
+  $('alphaV').textContent = S.alpha.toFixed(0) + '°';
+  $('mpV').innerHTML      = S.mp.toFixed(2) + ' M<sub>J</sub>';
+}
+$('rate').oninput  = e => { S.rate = parseFloat(e.target.value); refreshSliderLabels(); };
+$('vinf').oninput  = e => { S.vinf = parseFloat(e.target.value) * 1000; refreshSliderLabels(); reparam(); };
+$('b').oninput     = e => { S.b = parseFloat(e.target.value); refreshSliderLabels(); reparam(); };
+$('alpha').oninput = e => { S.alpha = parseFloat(e.target.value); refreshSliderLabels(); reparam(); };
+$('mp').oninput    = e => { S.mp = parseFloat(e.target.value); refreshSliderLabels(); reparam(); };
+
+$('oPath').onchange = e => { S.ov.path = e.target.checked; draw(); };
+$('oPf').onchange   = e => { S.ov.pf   = e.target.checked; draw(); };
+$('oHyp').onchange  = e => { S.ov.hyp  = e.target.checked; draw(); };
+$('oSoi').onchange  = e => { S.ov.soi  = e.target.checked; draw(); };
+$('oVec').onchange  = e => { S.ov.vec  = e.target.checked; draw(); };
+
+document.querySelectorAll('#tabs button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('on'));
+    btn.classList.add('on');
+    S.scen = btn.dataset.s;
+    const D = SCEN[S.scen].d;
+    S.vinf = D.vinf * 1000; S.b = D.b; S.alpha = D.alpha; S.mp = D.mp; S.rate = D.rate;
+    $('vinf').value = D.vinf; $('b').value = D.b; $('alpha').value = D.alpha;
+    $('mp').value = D.mp; $('rate').value = D.rate;
+    refreshSliderLabels();
+    S.pan.x = 0; S.pan.y = 0; S.playing = false; playBtn.textContent = '▶ Play'; S._acc = 0;
+    buildRun(); syncProg(); draw();
+  };
+});
+
+/* the stage is directly manipulable: drag the ⌖ aim point to re-aim, drag elsewhere to pan */
+let dragMode = null, lastM = null;
+main2d.addEventListener('mousedown', e => {
+  const r = main2d.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  lastM = [e.clientX, e.clientY];
+  const grabbable = aimScreen && S.renc * cam.s > 8;
+  dragMode = (grabbable && Math.hypot(mx - aimScreen.x, my - aimScreen.y) < 18) ? 'aim' : 'pan';
+  document.body.style.cursor = dragMode === 'pan' ? 'grabbing' : 'crosshair';
+});
+window.addEventListener('mousemove', e => {
+  if (!dragMode) return;
+  if (dragMode === 'aim' && aimScreen){
+    const r = main2d.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    // project the cursor onto the aim line: that projection IS the impact parameter
+    const bm = ((mx - aimScreen.px) * aimScreen.nx + (aimScreen.py - my) * aimScreen.ny) / cam.s;
+    S.b = clamp(Math.round(bm / RJUP * 2) / 2, -30, 30);
+    $('b').value = S.b; refreshSliderLabels(); reparam();
+  } else {
+    S.pan.x += e.clientX - lastM[0];
+    S.pan.y += e.clientY - lastM[1];
+    draw();
+  }
+  lastM = [e.clientX, e.clientY];
+});
+window.addEventListener('mouseup', () => { dragMode = null; document.body.style.cursor = ''; });
+main2d.addEventListener('dblclick', () => { S.pan.x = 0; S.pan.y = 0; draw(); });
+$('panL').onclick = () => { S.pan.x += 0.22 * W; draw(); };
+$('panR').onclick = () => { S.pan.x -= 0.22 * W; draw(); };
+$('recenter').onclick = () => { S.pan.x = 0; S.pan.y = 0; draw(); };
+
+/* ============================================================ go */
+buildRun();
+resize();
+requestAnimationFrame(frame);
+document.querySelector('#tabs button.on').click();   // first paint runs the same path as a tab switch
+</script>

@@ -151,3 +151,21 @@ phenomenon-specific rows so the new viz still has **all** of:
 
 Name every new check `A#/B#/C#/M#`, give it a threshold in the same table form, and implement
 the A/B/C ones in `verify.mjs`.
+
+## 7. Adapted harnesses already in this collection
+
+Each visualization below has its own copy of `verify.mjs`, adapted per §6 (generic `A1–A5`,
+`B4`, `B5`, `C5`, `C6` kept at their original assertions and thresholds; phenomenon rows
+replaced). This file's own tables above describe `sonic-boom.html`, the reference piece —
+they are left as that example, not overwritten per-viz; each piece's own `*.SELFCHECK.md`
+carries its adapted check table instead.
+
+| Visualization | Adapted harness | Self-check record |
+|---|---|---|
+| `sonic-boom.html` | `verify.mjs` (this skill's own copy) | — (the reference piece) |
+| `diffraction-grating.html` | `verify-diffraction-grating.mjs` | `../../../diffraction-grating.SELFCHECK.md` |
+| `gravitational-slingshot.html` | `verify-gravitational-slingshot.mjs` | `../../../gravitational-slingshot.SELFCHECK.md` |
+| `sofar-sound-channel.html` | `verify-sofar-sound-channel.mjs` | `../../../sofar-sound-channel.SELFCHECK.md` |
+
+To run one, swap the harness file in the Step 2 docker command:
+`-v "$PWD/.claude/skills/verify-physics-viz/verify-<name>.mjs":/home/pptruser/verify.mjs:ro`.

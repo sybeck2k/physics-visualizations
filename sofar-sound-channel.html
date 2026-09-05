@@ -1,0 +1,1285 @@
+<title>SOFAR Sound Channel</title>
+<style>
+  /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:13px; line-height:1.5; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{
+    display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12);
+    flex:0 0 auto;
+  }
+  header h1{
+    font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; color:#e6edf6;
+  }
+  header h1 span{color:var(--cyan)}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+    padding:7px 11px; border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel);
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;
+  }
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .btns{display:flex; gap:6px}
+  .btns button{
+    flex:1; font-family:var(--mono); font-size:11px; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 4px; cursor:pointer; transition:.15s;
+  }
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#04060b}
+  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d{
+    position:absolute; top:12px; right:10px; width:272px; height:190px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.96);
+    backdrop-filter:blur(3px); z-index:3;
+  }
+  #inset3d canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d .cap{
+    position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+  #readouts{
+    position:absolute; top:206px; right:10px; bottom:8px; width:306px; z-index:3;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
+    backdrop-filter:blur(3px); padding:9px 12px; font-family:var(--mono);
+    overflow-y:auto;
+  }
+  #readouts h3{
+    font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 6px;
+  }
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:2px 10px; margin:0; font-size:10.5px}
+  #readouts dt{color:var(--dim); white-space:nowrap}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink)}
+  #readouts dd.hi{color:var(--amber)}
+  #readouts dd.warn{color:var(--red)}
+  #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+
+  #plots{
+    flex:0 0 168px; display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border-top:1px solid var(--line);
+  }
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+  .plot .cap{
+    position:absolute; left:10px; top:8px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+
+  #explain{
+    flex:0 0 auto; max-height:clamp(180px,26vh,300px); overflow-y:auto; border-top:1px solid var(--line);
+    background:var(--panel); padding:11px 16px 13px; display:grid;
+    grid-template-columns:repeat(5,1fr); gap:12px;
+  }
+  #explain .ex{
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px;
+    max-height:clamp(164px,24vh,280px); overflow-y:auto;
+  }
+  #explain .ex::-webkit-scrollbar{width:5px}
+  #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{
+    margin:0 0 5px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--cyan);
+  }
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+</style>
+
+<div id="app">
+  <header>
+    <h1>SOFAR&nbsp;<span>Sound</span>&nbsp;Channel</h1>
+    <div class="tabs" id="tabs">
+      <button data-s="deepchannel" class="on">1 · Deep channel</button>
+      <button data-s="surfaceduct">2 · Surface duct</button>
+      <button data-s="doubleduct">3 · Double duct</button>
+      <button data-s="arctic">4 · Arctic</button>
+      <button data-s="shadow">5 · Shadow zone</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Simulation</h2>
+        <div class="btns">
+          <button id="playBtn" class="play">▶ Play</button>
+          <button id="restartBtn">↻ Restart</button>
+        </div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.0×</span>
+          <input type="range" id="rate" min="0.15" max="5" step="0.05" value="1">
+        </label>
+        <label class="fld">Timeline <span class="v" id="progV">0.0 s</span>
+          <input type="range" id="prog" min="0" max="1" step="0.001" value="0">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>Source &amp; hydrophone</h2>
+        <label class="fld">Source depth <span class="v" id="srcV">1300 m</span>
+          <input type="range" id="src" min="10" max="4500" step="10" value="1300">
+        </label>
+        <label class="fld">Launch fan half-width <span class="v" id="fanV">12.0°</span>
+          <input type="range" id="fan" min="1" max="20" step="0.5" value="12">
+        </label>
+        <label class="fld">Hydrophone range <span class="v" id="rngV">300 km</span>
+          <input type="range" id="rng" min="5" max="500" step="1" value="300">
+        </label>
+        <label class="fld">Hydrophone depth <span class="v" id="rcvdV">1300 m</span>
+          <input type="range" id="rcvd" min="10" max="4900" step="10" value="1300">
+        </label>
+        <div class="hint">Drag the green hydrophone anywhere in the water · drag the cyan
+        source up and down.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Sound-speed profile</h2>
+        <label class="fld" data-scen="deepchannel doubleduct shadow">Channel axis depth <span class="v" id="axisV">1300 m</span>
+          <input type="range" id="axis" min="500" max="2500" step="10" value="1300">
+        </label>
+        <label class="fld" data-scen="deepchannel doubleduct shadow">Channel strength ε <span class="v" id="epsV">7.37 ×10⁻³</span>
+          <input type="range" id="eps" min="0" max="14" step="0.01" value="7.37">
+        </label>
+        <label class="fld" data-scen="surfaceduct">Mixed-layer depth <span class="v" id="mldV">120 m</span>
+          <input type="range" id="mld" min="20" max="300" step="5" value="120">
+        </label>
+        <div class="btns"><button id="cpReset">↺ Reset profile drags</button></div>
+        <div class="hint">Drag the five cyan handles on the <b>c(z)</b> panel at the left of the
+        stage to sculpt the profile by hand. ε&nbsp;→&nbsp;0 flattens the channel away.</div>
+      </div>
+
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns">
+          <button id="panL">◂ Pan</button>
+          <button id="panR">Pan ▸</button>
+          <button id="recenter">⊙ Center</button>
+        </div>
+        <div class="hint">Scroll to zoom the range axis · drag the water to pan ·
+        double-click to fit.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="oRays" checked> Ray fan</label>
+        <label class="chk"><input type="checkbox" id="oWf" checked> Wavefront through the fan</label>
+        <label class="chk"><input type="checkbox" id="oEnv" checked> Turning-point envelope</label>
+        <label class="chk"><input type="checkbox" id="oProf" checked> c(z) panel &amp; channel axis</label>
+      </div>
+    </aside>
+
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="main2d"></canvas>
+        <div id="inset3d">
+          <span class="cap">1:1 near-source fan (true angles, schematic)</span>
+          <canvas id="c3d"></canvas>
+        </div>
+        <div id="readouts">
+          <h3>Live readout</h3>
+          <dl id="rdl"></dl>
+        </div>
+      </div>
+      <div id="plots">
+        <div class="plot">
+          <span class="cap">Hydrophone arrival train</span>
+          <canvas id="cArr"></canvas>
+        </div>
+        <div class="plot">
+          <span class="cap">Transmission loss vs range</span>
+          <canvas id="cTL"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="explain">
+    <div class="ex">
+      <h4>Rays bend toward slow water</h4>
+      <p>Sound in the sea travels at about <b>1500 m/s</b>, but not exactly: it speeds up in warm
+      water and under pressure. A ray crossing that layered water refracts, and Snell's law keeps
+      one number fixed all the way along it — <code>cos θ(z) / c(z) = const</code>.</p>
+      <p>So a ray always <b>curves toward the slower water</b>. Where the speed rises with depth the
+      ray bends back up; where it falls with depth the ray bends down. In a layer of constant
+      gradient <code>g = dc/dz</code> the path is exactly a <b>circular arc</b> of radius
+      <code>R = c₀ / (g·cos θ₀)</code>.</p>
+      <p>Wherever <code>c(z) = c_source / cos θ₀</code> the ray goes momentarily horizontal — its
+      <b>turning point</b> — and heads back. Steeper launch ⇒ deeper turn.</p>
+      <p class="cav">The stage is drawn with a large <b>vertical exaggeration</b> (printed in the
+      corner), because a ducted ray leans over less than 12° and would otherwise be a flat line.
+      The small inset is the same fan at a true 1:1 aspect. Angles on the main stage are steepened;
+      angles in the inset are real.</p>
+    </div>
+    <div class="ex">
+      <h4>A speed minimum is a waveguide</h4>
+      <p>Warm surface water is fast; cold deep water is slow; below about a kilometre the pressure
+      takes over and speeds sound up again. That leaves a <b>minimum</b> — the <b>SOFAR axis</b>,
+      near <b>1000–1300 m</b> at mid latitudes.</p>
+      <p>A ray launched near the axis shallow enough (here within roughly <code>±13°</code>) turns
+      back <b>before</b> it can reach the surface or the seabed. It never touches either, so it
+      never loses energy to scattering or bottom absorption — it just oscillates about the axis
+      forever, spreading <b>cylindrically</b> instead of spherically.</p>
+      <p>That is why the 1991 <b>Heard Island Feasibility Test</b> put a source on the axis in the
+      southern Indian Ocean and was detected on hydrophones roughly <b>18 000 km</b> away, on both
+      coasts of North America.</p>
+    </div>
+    <div class="ex">
+      <h4>What the hydrophone hears</h4>
+      <p>Not one arrival — a <b>train</b>. Each trapped ray takes a different path, so the same
+      click reaches the phone several times. Steep rays swing far off the axis through <b>faster</b>
+      water and arrive <b>first</b>; the near-axial ray takes the shortest, slowest path and arrives
+      <b>last and loudest</b>.</p>
+      <p>So a SOFAR arrival is a rising stutter that ends in a bang — a crescendo cut off sharply.
+      That signature is the fingerprint of the duct; drag the hydrophone and it reshapes.</p>
+      <p class="cav">This is a ray (high-frequency) model: no diffraction, no modes, no
+      frequency dependence, flat seabed, no currents or eddies. Amplitudes are ray-tube
+      estimates — treat every level as ±~5 dB and every count of arrivals as the strongest few.</p>
+    </div>
+    <div class="ex">
+      <h4>Shadow zones sit beside loud paths</h4>
+      <p>Rays leave gaps. Move the hydrophone a few hundred metres and you can fall in a
+      <b>shadow zone</b>: geometrically <b>no ray reaches you at all</b>, while a phone on the axis
+      at the same range is hearing a dozen arrivals. Loud and silent are neighbours.</p>
+      <p>The opposite also happens. Where neighbouring rays pile back together the tube collapses
+      and the sound is refocused — a <b>convergence zone</b>, a ring of loud water every
+      <b>50–65 km</b> in the deep ocean, with quiet in between.</p>
+      <p>Turn on the turning-point envelope to see the caustics that bound both.</p>
+    </div>
+    <div class="ex">
+      <h4>Reading the units</h4>
+      <p><b>c — metres per second.</b> The <b>sound speed</b>, ~1450–1550 m/s: a 1% change bends a
+      ray by degrees. A whole ocean's profile spans about <b>100 m/s</b>, less than the width of
+      the <code>c(z)</code> panel.</p>
+      <p><b>TL — transmission loss, decibels.</b> How much fainter than 1 m from the source.
+      Logarithmic: <code>+20 dB ≈ ten times fainter in pressure</code>, and <b>70 dB of loss is a
+      ten-million-fold drop in intensity</b>. Ducted sound loses about <code>10 log R</code>;
+      unducted sound loses <code>20 log R</code> — that gap is the whole trick.</p>
+      <p><b>Range — kilometres; arrival spread — seconds.</b> 300 km is London to Paris; a
+      <b>blue whale</b> call rides the channel across an ocean basin. The arrivals dribble in over
+      a second or two — the drawn-out, stuttering <b>echo of a shout in a canyon</b>, not a
+      single click.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ============================================================ constants */
+/* Munk (1974), "Sound channel in an exponentially stratified ocean, with application to SOFAR",
+   JASA 55, 220. Canonical mid-latitude deep sound channel. */
+const C_MUNK1   = 1492.0;     // sound speed on the channel axis, m/s
+const EPS_MUNK  = 0.00737;    // Munk perturbation parameter, dimensionless
+const B_MUNK    = 1300.0;     // Munk stratification scale depth, m
+const ZAX_MUNK  = 1300.0;     // canonical SOFAR axis depth at mid latitude, m
+const D_OCEAN   = 5000.0;     // deep-ocean seabed for this section, m
+const DZ_LAYER  = 50.0;       // layer thickness of the horizontally stratified model, m
+const NLAY      = Math.round(D_OCEAN/DZ_LAYER);
+/* Arctic half-channel: sound speed rises linearly from a cold, fresh surface.
+   c(z) = 1435 + 0.0165 z  (m/s) — a standard upward-refracting Arctic gradient. */
+const ARCTIC_C0 = 1435.0, ARCTIC_G = 0.0165;
+const MLD_GRAD  = 0.017;      // adiabatic gradient inside a wind-mixed layer, s^-1
+const D2_Z=280, D2_W=130, D2_AMP=16;   // secondary (shallow) duct: Gaussian notch, m / m / (m/s)
+/* Losses. Thorp (1967) volume absorption at ~100 Hz ≈ 0.0035 dB/km. Bottom loss is a
+   low-grazing-angle sand/silt figure; surface reflection is near-lossless in calm water. */
+const ALPHA_DB_KM = 0.0035, BOT_LOSS_DB = 8.0, SURF_LOSS_DB = 0.5;
+const TSCALE = 20.0;          // seconds of propagation per second of wall clock at rate 1×
+const NRAY = 144, NR = 481, DRAW_EVERY = 8;   // calculation fan · range samples · drawn subset
+const SHADOW_DB = 14;         // a spot this far below the best depth at its range, with at most one
+                              // path reaching it, is called a shadow zone (14 dB = 5x in pressure)
+const RECV_FRAC = 0.8;        // the hydrophone sits at 0.8 of the traced range: grid index 384
+const RIDX0 = Math.round((NR-1)*RECV_FRAC);
+const DEG = Math.PI/180;
+
+/* ============================================================ helpers */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*t*(t*(t*6-15)+10);
+function keyf(pairs,x){
+  if(x<=pairs[0][0])return pairs[0][1];
+  for(let i=1;i<pairs.length;i++){
+    if(x<=pairs[i][0]){
+      const[x0,y0]=pairs[i-1],[x1,y1]=pairs[i];
+      return lerp(y0,y1,(x-x0)/(x1-x0));
+    }
+  }
+  return pairs[pairs.length-1][1];
+}
+const log10=x=>Math.log(Math.max(x,1e-300))/Math.LN10;
+const fmt=(v,n)=>Number.isFinite(v)?v.toFixed(n):'—';
+
+/* ============================================================ medium model */
+// The one sound-speed kernel. Every profile in the piece is this function plus, optionally,
+// a hand-dragged offset table — so the rays, the c(z) panel and the readouts can never disagree.
+function munk(z, zax, eps){
+  const eta = 2*(z-zax)/B_MUNK;
+  return C_MUNK1*(1 + eps*(eta + Math.exp(-eta) - 1));
+}
+function presetC(z){
+  if(S.scen==='arctic')      return ARCTIC_C0 + ARCTIC_G*z;
+  if(S.scen==='surfaceduct'){
+    const m=S.mld;
+    return z<m ? munk(m,S.axisSet,S.eps) - MLD_GRAD*(m-z) : munk(z,S.axisSet,S.eps);
+  }
+  if(S.scen==='doubleduct')
+    return munk(z,S.axisSet,S.eps) - D2_AMP*Math.exp(-Math.pow((z-D2_Z)/D2_W,2));
+  return munk(z,S.axisSet,S.eps);            // deepchannel · shadow
+}
+const rawC = z => presetC(z) + keyf(S.cp, z);
+
+/* the layered table the ray march actually walks: c is linear inside every layer, so each
+   step is an exact circular arc and the ray invariant is conserved by construction */
+const LAYC = new Float64Array(NLAY+1);
+function buildProfile(){
+  for(let i=0;i<=NLAY;i++) LAYC[i]=rawC(i*DZ_LAYER);
+  let mi=0; for(let i=1;i<=NLAY;i++) if(LAYC[i]<LAYC[mi]) mi=i;
+  S.axisZ=mi*DZ_LAYER; S.axisC=LAYC[mi];
+  S.cMin=LAYC[mi]; S.cMax=LAYC[0];
+  for(let i=0;i<=NLAY;i++) if(LAYC[i]>S.cMax) S.cMax=LAYC[i];
+}
+function cAt(z){
+  z=clamp(z,0,D_OCEAN);
+  const f=z/DZ_LAYER; const i=Math.min(Math.floor(f),NLAY-1);
+  return lerp(LAYC[i],LAYC[i+1],f-i);
+}
+
+/* ============================================================ scenarios */
+// SCEN holds only the per-scenario differences: display name, control defaults, framing.
+const SCEN={
+  deepchannel :{name:'Deep sound channel', d:{src:1300, rcvd:1300, rng:300, fan:12, axis:1300, eps:7.37, rate:2.5}},
+  surfaceduct :{name:'Surface duct',       d:{src:60,   rcvd:60,   rng:120, fan:8,  axis:1300, eps:7.37, rate:2.5, mld:120}},
+  doubleduct  :{name:'Double duct',        d:{src:280,  rcvd:280,  rng:150, fan:9,  axis:1300, eps:7.37, rate:2.5}},
+  arctic      :{name:'Arctic half-channel',d:{src:100,  rcvd:100,  rng:120, fan:10, rate:2.5}},
+  // same ocean as scenario 1 — only the hydrophone moves, up above the fan's upper turning depth
+  shadow      :{name:'Shadow zone',        d:{src:1300, rcvd:300,  rng:200, fan:14, axis:1300, eps:7.37, rate:2.5}},
+};
+
+/* ============================================================ state */
+const S={
+  scen:'deepchannel', playing:false, t:0, rate:2.5,
+  // controls
+  src:1300, rcvd:1300, rng:300, fan:12, axisSet:1300, eps:0.00737, mld:120,
+  cp:[[0,0],[300,0],[1300,0],[3000,0],[5000,0]],   // hand-dragged c(z) offsets, m/s
+  ov:{rays:true, wf:true, env:true, prof:true},
+  // derived medium
+  axisZ:1300, axisC:C_MUNK1, cMin:C_MUNK1, cMax:C_MUNK1+50,
+  // derived acoustics (rebuilt by retrace / recomputeEig)
+  xMax:375000, ridx:RIDX0, maxDucted:0, drawn:[], eig:[], tl:null,
+  pan:0, span:375000,
+  // transient caches
+  _peak:null, _srcUserMoved:false, _res:null,
+};
+
+/* the traced fan, as flat typed arrays: index i*NR + k */
+const RX = new Float64Array(NR);            // range grid, m
+const gZ = new Float32Array(NRAY*NR);       // depth of ray i at range k
+const gT = new Float32Array(NRAY*NR);       // travel time
+const gS = new Int16Array(NRAY*NR);         // surface reflections so far
+const gB = new Int16Array(NRAY*NR);         // bottom reflections so far
+const gN = new Int16Array(NRAY*NR);         // turning points so far
+const gA = new Uint8Array(NRAY*NR);         // 1 once the ray has reached this range
+const TH = new Float64Array(NRAY);          // launch angles, rad (+ = downward)
+
+/* ============================================================ the ray kernel
+ * One ray, refracted layer by layer. Inside a layer c is linear, so the path is an exact
+ * circular arc of radius R = c/(g·cosθ) and the ray invariant  cosθ(z)/c(z) = ξ  is conserved
+ * by construction. Everything else in the piece — the drawn fan, the eigenrays, the arrival
+ * train, the transmission-loss curve and the up-front prediction — is built from this one
+ * function, so the picture and the numbers cannot drift apart.
+ *
+ *   x = (sinθa − sinθb) / (ξ·g·u)          u = +1 descending, −1 ascending
+ *   t = ln[(1+sinθa)·cb / ((1+sinθb)·ca)] / (g·u)
+ */
+function traceRay(th0, zs, xMax, idx, poly, samples){
+  const zStart = clamp(zs, 0.5, D_OCEAN-0.5);
+  const c0 = cAt(zStart);
+  const xi = Math.cos(Math.abs(th0))/Math.max(c0,1e-3);   // the ray invariant
+  let z=zStart, x=0, t=0, u = th0>=0 ? 1 : -1;
+  let ns=0, nb=0, nt=0, turnUp=NaN, turnDn=NaN;
+  const ev=[];                                            // range at each "starts descending" event
+  const base = idx>=0 ? idx*NR : 0;
+  let k=0;
+  if(idx>=0){ gZ[base]=z; gT[base]=0; gS[base]=0; gB[base]=0; gN[base]=0; gA[base]=1; k=1; }
+  if(poly){ poly.x=[0]; poly.z=[z]; poly.t=[0]; }
+  if(samples) samples.push({x:0, z, thDeg:Math.abs(th0)/DEG});
+
+  for(let step=0; step<16000 && x<xMax; step++){
+    const li = clamp(Math.floor(z/DZ_LAYER + (u>0?1e-9:-1e-9)), 0, NLAY-1);
+    const zT = u>0 ? (li+1)*DZ_LAYER : li*DZ_LAYER;       // layer boundary we head for
+    const cA_ = cAt(z), cB_ = cAt(zT);
+    const dzL = zT - z;
+    const g = Math.abs(dzL)<1e-9 ? 0 : (cB_-cA_)/dzL;
+    let cosA = clamp(xi*cA_, -1, 1), sinA = Math.sqrt(Math.max(1-cosA*cosA, 0));
+    let turned=false, zEnd, cEnd, sinB, dx, dt;
+
+    if(Math.abs(g)>1e-12){
+      const cTurn = 1/xi;
+      if(xi*cB_ >= 1 && cB_ > cA_){                       // turning point inside this layer
+        turned=true; zEnd = z + (cTurn-cA_)/g; cEnd=cTurn; sinB=0;
+      }else{
+        zEnd = zT; cEnd = cB_; sinB = Math.sqrt(Math.max(1-Math.min(xi*cB_,1)**2, 0));
+      }
+      dx = (sinA - sinB)/(xi*g*u);
+      dt = Math.log(Math.max((1+sinA)*cEnd/Math.max((1+sinB)*cA_,1e-9), 1e-12))/(g*u);
+    }else{                                                // isovelocity layer: a straight line
+      zEnd = zT; cEnd = cA_; sinB = sinA;
+      const sA = Math.max(sinA, 1e-7);
+      dx = Math.abs(dzL)*cosA/sA;
+      dt = Math.abs(dzL)/(sA*cA_);
+    }
+    if(!(dx>0) || !isFinite(dx) || !isFinite(dt)){ dx=Math.max(dx||0,1e-3); dt=Math.max(dt||0,1e-6); }
+    dx = Math.min(dx, 4e6); dt = Math.min(dt, 4e4);
+
+    // --- resample onto the uniform range grid, using the exact arc inside the step ---
+    if(idx>=0){
+      while(k<NR && RX[k] <= x+dx){
+        const dd = RX[k]-x;
+        let zk, tk;
+        if(Math.abs(g)>1e-12){
+          const sK = clamp(sinA - dd*xi*g*u, 0, 1);
+          const cK = Math.sqrt(Math.max(1-sK*sK,0))/xi;
+          zk = z + (cK-cA_)/g;
+          tk = t + Math.log(Math.max((1+sinA)*cK/Math.max((1+sK)*cA_,1e-9),1e-12))/(g*u);
+        }else{
+          const sA = Math.max(sinA,1e-7);
+          zk = z + u*dd*sA/Math.max(cosA,1e-9);
+          tk = t + dd/Math.max(cosA*cA_,1e-9);
+        }
+        const p=base+k;
+        gZ[p]=clamp(zk,0,D_OCEAN); gT[p]=tk; gS[p]=ns; gB[p]=nb; gN[p]=nt; gA[p]=1;
+        k++;
+      }
+    }
+    x += dx; t += dt; z = zEnd;
+    if(poly && (step%2===0 || turned)){ poly.x.push(x); poly.z.push(z); poly.t.push(t); }
+    if(samples) samples.push({x, z, thDeg:Math.asin(clamp(sinB,0,1))/DEG});
+
+    if(turned){
+      nt++;
+      if(u>0){ if(!isFinite(turnDn)) turnDn=z; u=-1; }
+      else   { if(!isFinite(turnUp)) turnUp=z; u=1; ev.push(x); }
+    }else if(z<=1e-6){                                    // surface reflection
+      ns++; u=1; z=0; ev.push(x);
+    }else if(z>=D_OCEAN-1e-6){                            // seabed reflection
+      nb++; u=-1; z=D_OCEAN;
+    }
+  }
+  if(idx>=0) for(; k<NR; k++){ const p=base+k; gZ[p]=z; gT[p]=t; gS[p]=ns; gB[p]=nb; gN[p]=nt; gA[p]=0; }
+  const cycle = ev.length>=2 ? ev[1]-ev[0] : NaN;
+  return {th0, xi, c0, zs:zStart, ns, nb, nt, turnUp, turnDn, cycle,
+          ducted: ns===0 && nb===0 && nt>0, xEnd:x, tEnd:t};
+}
+
+/* ============================================================ trace the whole fan */
+// a heavily bouncing ray can be tens of thousands of segments long; thin it for drawing only,
+// never for the physics (the resampled grid above is untouched)
+function decimate(p){
+  const n=p.x.length; if(n<=1200) return;
+  const st=Math.ceil(n/1200), X=[],Z=[],T=[];
+  for(let j=0;j<n;j+=st){ X.push(p.x[j]); Z.push(p.z[j]); T.push(p.t[j]); }
+  X.push(p.x[n-1]); Z.push(p.z[n-1]); T.push(p.t[n-1]);
+  p.x=X; p.z=Z; p.t=T;
+}
+function retrace(){
+  buildProfile();
+  S.xMax = S.rng*1000/RECV_FRAC;
+  for(let k=0;k<NR;k++) RX[k]=S.xMax*k/(NR-1);
+  S.ridx = RIDX0;
+  const h = S.fan*DEG;
+  S.drawn.length=0;
+  let maxD=0;
+  for(let i=0;i<NRAY;i++){
+    // half-step offset: no ray is launched at exactly 0°, which would be a degenerate eigenray
+    TH[i] = -h + 2*h*(i+0.5)/NRAY;
+    const wantPoly = (i%DRAW_EVERY===0);
+    const poly = wantPoly ? {} : null;
+    const r = traceRay(TH[i], S.src, S.xMax, i, poly, null);
+    if(poly){ poly.info=r; decimate(poly); S.drawn.push(poly); }
+    // furthest range at which this ray is still trapped: turned at least once, never touched
+    // the surface or the seabed
+    for(let k=NR-1;k>=0;k--){
+      const p=i*NR+k;
+      if(gA[p] && gS[p]===0 && gB[p]===0 && gN[p]>0){ if(RX[k]>maxD) maxD=RX[k]; break; }
+    }
+  }
+  S.maxDucted = maxD;
+  // the steepest downgoing ray, kept for the cycle-distance and turning-depth readouts
+  S._probe = traceRay(TH[NRAY-1], S.src, S.xMax, -1, null, null);
+  recomputeEig();
+}
+
+/* ---- eigenrays: where a ray of the fan crosses the hydrophone depth at its range ---- */
+function eigenraysAt(k, zr){
+  const R = Math.max(RX[k], 1);
+  const out=[];
+  for(let i=0;i<NRAY-1;i++){
+    const p=i*NR+k, q=(i+1)*NR+k;
+    if(!gA[p] || !gA[q]) continue;
+    const f0=gZ[p]-zr, f1=gZ[q]-zr;
+    if(!(f0*f1<0)) continue;                              // strict sign change = one eigenray
+    const w = f0/(f0-f1);
+    const th0 = lerp(TH[i],TH[i+1],w);
+    const tt  = lerp(gT[p],gT[q],w);
+    const dzdth = (gZ[q]-gZ[p])/Math.max(TH[i+1]-TH[i],1e-9);
+    const ns = w<0.5?gS[p]:gS[q], nb = w<0.5?gB[p]:gB[q], nt = w<0.5?gN[p]:gN[q];
+    // ray-tube spreading: I ∝ cosθ₀ / (R·|∂z/∂θ₀|).  In isovelocity water ∂z/∂θ₀ = R/cos²θ₀,
+    // which returns exactly 20·log R — spherical spreading — so the plot's guide slopes are real.
+    const TL = 10*log10(Math.max(R*Math.abs(dzdth)/Math.max(Math.cos(th0),1e-3), 1e-6))
+             + BOT_LOSS_DB*nb + SURF_LOSS_DB*ns + ALPHA_DB_KM*(R/1000);
+    if(!isFinite(TL) || !isFinite(tt)) continue;
+    out.push({t:tt, TL, th0, ns, nb, nt, ducted: ns===0&&nb===0&&nt>0});
+  }
+  out.sort((a,b)=>a.t-b.t);
+  if(!out.length) return out;
+  // keep what a hydrophone would actually resolve: the arrivals within 45 dB of the strongest
+  let best=Infinity; for(const e of out) if(e.TL<best) best=e.TL;
+  return out.filter(e=>e.TL <= best+45).slice(0,40);
+}
+const sumTL = eig => eig.length ? -10*log10(eig.reduce((s,e)=>s+Math.pow(10,-e.TL/10),0)) : NaN;
+
+function recomputeEig(){
+  S.eig = eigenraysAt(S.ridx, S.rcvd);
+  // transmission loss vs range at the hydrophone depth (the second plot)
+  const tl=new Float64Array(NR);
+  for(let k=1;k<NR;k++) tl[k]=sumTL(eigenraysAt(k,S.rcvd));
+  tl[0]=tl[1]; S.tl=tl;
+  S._peak = bestListening();
+}
+
+// Predict, from the profile and the source alone, WHERE at this range the sound is loudest and
+// how loud — before the run has played out. Same kernel as everything else.
+function bestListening(){
+  let bz=NaN, bTL=Infinity;
+  const probe=[];
+  for(let z=12.5; z<D_OCEAN; z+=25) probe.push(z);
+  probe.push(S.axisZ, S.src);         // the two depths the physics singles out — a coarse grid
+  for(const z of probe){              // straddles the axis peak and would under-read the best
+    if(z<=0 || z>=D_OCEAN) continue;
+    const v=sumTL(eigenraysAt(S.ridx,z));
+    if(isFinite(v) && v<bTL){ bTL=v; bz=z; }
+  }
+  return {z:bz, TL:bTL, R:RX[S.ridx]};
+}
+
+/* ============================================================ time model */
+// The timeline is propagation time. Nothing is "heard" until S.t passes its travel time, so
+// scrubbing to a pre-arrival instant can never show a phantom arrival.
+function simDuration(){
+  if(S.eig.length) return S.eig[S.eig.length-1].t*1.02 + 1.5;
+  return (RX[S.ridx]/Math.max(S.cMin,1))*1.35 + 4;
+}
+function computeObserver(){
+  const eig=S.eig, R={
+    state:'', shadow:false, starved:false, ducted:false, nArr:0, nGeo:eig.length,
+    tFirst:NaN, tLast:NaN, spread:NaN, TL:NaN, arrived:[], countdown:NaN,
+  };
+  if(!eig.length){
+    R.shadow=true;
+    R.state='shadow zone — no ray reaches here';
+    return R;
+  }
+  const arr = eig.filter(e=>e.t<=S.t);
+  R.arrived=arr; R.nArr=arr.length;
+  if(!arr.length){
+    R.countdown = eig[0].t - S.t;
+    R.state=`listening — first arrival in ≈ ${R.countdown.toFixed(1)} s`;
+    return R;
+  }
+  R.tFirst=arr[0].t; R.tLast=arr[arr.length-1].t; R.spread=R.tLast-R.tFirst;
+  R.TL=sumTL(arr);
+  R.ducted = arr.some(e=>e.ducted);
+  R.state = R.ducted ? 'trapped in the channel — ducted'
+                     : 'not ducted — surface & bottom bounces';
+  // A shadow zone is ray-STARVED, not always ray-free: a spot the geometry leaves with at most
+  // one feeble path while some other depth at the same range is being showered with them.
+  // `S._peak.TL` is the best loss anywhere in the column at this range, so the gap is measurable.
+  const best = S._peak && isFinite(S._peak.TL) ? S._peak.TL : NaN;
+  if(isFinite(best) && isFinite(R.TL) && R.nGeo<=1 && (R.TL-best)>=SHADOW_DB){
+    R.starved=true;
+    R.state=`shadow zone — ray-starved, ${(R.TL-best).toFixed(0)} dB below the best depth here`;
+  }
+  return R;
+}
+
+/* ============================================================ canvases */
+const main2d=document.getElementById('main2d'), g2=main2d.getContext('2d');
+const c3d=document.getElementById('c3d'), g3=c3d.getContext('2d');
+const cArr=document.getElementById('cArr'), gAr=cArr.getContext('2d');
+const cTL=document.getElementById('cTL'), gTl=cTL.getContext('2d');
+let DPR=1, W=0,H=0, W3=0,H3=0, WA=0,HA=0, WT=0,HT=0;
+function fit(cv,ctx){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.max(1,Math.round(r.width*DPR));
+  cv.height=Math.max(1,Math.round(r.height*DPR));
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return [r.width,r.height];
+}
+function resize(){
+  [W,H]=fit(main2d,g2); [W3,H3]=fit(c3d,g3);
+  [WA,HA]=fit(cArr,gAr); [WT,HT]=fit(cTL,gTl);
+  draw();
+}
+window.addEventListener('resize',resize);
+const cssMono=()=>getComputedStyle(document.body).getPropertyValue('--mono');
+
+/* ---- world <-> screen for the range–depth section ----
+   Range and depth CANNOT share one scale here: a ducted ray leans over by at most ~13°, so at
+   1:1 a 300 km section would be a hairline. The stage is therefore vertically exaggerated by
+   `cam.vex`, printed on the stage; the 1:1 inset carries the true angles. */
+const PW=158;                                   // width of the c(z) panel, px
+let cam={x0:0, span:1, sx:1, sy:1, top:26, vex:1};
+function updateCam(){
+  cam.span = clamp(S.span, S.xMax/60, S.xMax);
+  cam.x0   = clamp(S.pan, 0, Math.max(S.xMax-cam.span, 0));
+  cam.sx   = Math.max(W-PW-14,10)/cam.span;
+  cam.top  = 26;
+  cam.sy   = Math.max(H-cam.top-28,10)/D_OCEAN;
+  cam.vex  = cam.sy/cam.sx;
+}
+const sxp = wx => PW + (wx-cam.x0)*cam.sx;
+const syp = wz => cam.top + wz*cam.sy;
+const wxFromPx = px => cam.x0 + (px-PW)/cam.sx;
+const wzFromPy = py => (py-cam.top)/cam.sy;
+// the c(z) panel maps the whole profile's speed range across the panel width
+const cLo = () => S.cMin - 3, cHi = () => S.cMax + 3;
+const cxp = c => 14 + (c-cLo())/Math.max(cHi()-cLo(),1e-6)*(PW-30);
+const cFromPx = px => cLo() + (px-14)/Math.max(PW-30,1)*(cHi()-cLo());
+
+/* ============================================================ 2D DRAW */
+function draw(){
+  updateCam();
+  const R=S._res;
+
+  // water column
+  const grd=g2.createLinearGradient(0,syp(0),0,syp(D_OCEAN));
+  grd.addColorStop(0,'#0a1a2c'); grd.addColorStop(0.5,'#070e1c'); grd.addColorStop(1,'#04070f');
+  g2.fillStyle='#04060b'; g2.fillRect(0,0,W,H);
+  g2.fillStyle=grd; g2.fillRect(PW,syp(0),W-PW,syp(D_OCEAN)-syp(0));
+
+  // surface + seabed
+  g2.strokeStyle='rgba(150,190,230,.45)'; g2.lineWidth=1.5;
+  g2.beginPath(); g2.moveTo(PW,syp(0)); g2.lineTo(W,syp(0)); g2.stroke();
+  g2.fillStyle='#0a0d14'; g2.fillRect(PW,syp(D_OCEAN),W-PW,H-syp(D_OCEAN));
+  g2.strokeStyle='rgba(160,140,110,.45)';
+  g2.beginPath(); g2.moveTo(PW,syp(D_OCEAN)); g2.lineTo(W,syp(D_OCEAN)); g2.stroke();
+  g2.font='9px '+cssMono(); g2.fillStyle='rgba(150,170,200,.45)';
+  g2.fillText('SEA SURFACE', PW+8, syp(0)-4);
+  g2.fillText(`SEABED · ${(D_OCEAN/1000).toFixed(0)} km`, PW+8, syp(D_OCEAN)+12);
+
+  // depth grid + range ticks
+  g2.font='9px '+cssMono();
+  for(let z=1000;z<D_OCEAN;z+=1000){
+    const y=syp(z);
+    g2.strokeStyle='rgba(120,150,190,.09)'; g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(PW,y); g2.lineTo(W,y); g2.stroke();
+    g2.fillStyle='rgba(150,170,200,.35)'; g2.fillText(`${z} m`, W-46, y-3);
+  }
+  const spanKm=cam.span/1000;
+  const stepKm = spanKm>400?100: spanKm>200?50: spanKm>80?20: spanKm>30?10: spanKm>12?5:2;
+  g2.fillStyle='rgba(150,170,200,.4)';
+  for(let km=Math.ceil(cam.x0/1000/stepKm)*stepKm; km*1000<cam.x0+cam.span; km+=stepKm){
+    const X=sxp(km*1000); if(X<PW-2||X>W) continue;
+    g2.strokeStyle='rgba(120,150,190,.14)';
+    g2.beginPath(); g2.moveTo(X,syp(D_OCEAN)); g2.lineTo(X,syp(D_OCEAN)-6); g2.stroke();
+    g2.fillText(km+' km', X+3, syp(D_OCEAN)-9);
+  }
+
+  // channel axis
+  if(S.ov.prof){
+    const y=syp(S.axisZ);
+    g2.strokeStyle='rgba(251,191,36,.35)'; g2.setLineDash([6,5]); g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(PW,y); g2.lineTo(W,y); g2.stroke(); g2.setLineDash([]);
+    g2.fillStyle='rgba(251,191,36,.65)';
+    g2.fillText(`CHANNEL AXIS · ${S.axisZ.toFixed(0)} m · c_min ${S.axisC.toFixed(1)} m/s`, PW+8, y-4);
+  }
+
+  if(S.ov.rays) drawRays();
+  if(S.ov.env)  drawEnvelope();
+  if(S.ov.wf)   drawWavefront();
+
+  drawPredicted(R);
+  drawSource();
+  drawReceiver(R);
+
+  // vertical exaggeration disclosure — the drawn angles are NOT the true angles
+  g2.fillStyle='rgba(150,170,200,.55)'; g2.font='9px '+cssMono();
+  g2.fillText(`VERTICAL EXAGGERATION ×${cam.vex.toFixed(0)} at this window shape — drawn ray angles are steepened; the 1:1 inset is true`,
+    PW+8, H-8);
+
+  if(S.ov.prof) drawProfilePanel();
+  drawInset();
+  drawArrivals();
+  drawTLPlot();
+  updateReadouts();
+}
+
+/* the fan itself — the physically meaningful object (the duct) is the EMERGENT envelope of
+   these individually traced rays, not a shape asserted on top of them */
+function drawRays(){
+  for(const p of S.drawn){
+    const info=p.info;
+    const col = info.nb>0 ? 'rgba(248,113,113,'   // touched the seabed
+              : info.ns>0 ? 'rgba(125,155,195,'   // touched the surface
+                          : 'rgba(251,191,36,';   // trapped: never touches either
+    g2.strokeStyle=col+(info.ducted?0.8:0.5)+')';
+    g2.lineWidth=info.ducted?1.2:1.0;
+    g2.beginPath();
+    let started=false, drewAny=false;
+    for(let j=0;j<p.x.length;j++){
+      if(p.t[j]>S.t){                       // stop at the current propagation time
+        if(j>0){
+          const f=(S.t-p.t[j-1])/Math.max(p.t[j]-p.t[j-1],1e-9);
+          const X=sxp(lerp(p.x[j-1],p.x[j],f)), Y=syp(lerp(p.z[j-1],p.z[j],f));
+          g2.lineTo(X,Y); drewAny=true;
+        }
+        break;
+      }
+      const X=sxp(p.x[j]), Y=syp(p.z[j]);
+      if(!started){ g2.moveTo(X,Y); started=true; } else g2.lineTo(X,Y);
+      drewAny=true;
+    }
+    if(drewAny) g2.stroke();
+  }
+}
+
+// the wavefront: the locus of "where each ray is right now". It is never stored — it is drawn
+// by joining the current point of every drawn ray, exactly as the fan defines it.
+function drawWavefront(){
+  const pts=[];
+  for(const p of S.drawn){
+    let j=1; while(j<p.t.length && p.t[j]<S.t) j++;
+    if(j>=p.t.length) continue;
+    const f=(S.t-p.t[j-1])/Math.max(p.t[j]-p.t[j-1],1e-9);
+    if(f<0||f>1) continue;
+    pts.push([sxp(lerp(p.x[j-1],p.x[j],f)), syp(lerp(p.z[j-1],p.z[j],f))]);
+  }
+  if(pts.length<2) return;
+  g2.strokeStyle='rgba(56,189,248,.85)'; g2.lineWidth=1.6;
+  g2.beginPath(); pts.forEach((q,i)=>i?g2.lineTo(q[0],q[1]):g2.moveTo(q[0],q[1])); g2.stroke();
+  g2.fillStyle='rgba(56,189,248,.9)';
+  for(const q of pts){ g2.beginPath(); g2.arc(q[0],q[1],1.6,0,7); g2.fill(); }
+  const last=pts[pts.length-1];
+  g2.font='9px '+cssMono();
+  g2.fillText(`WAVEFRONT · t = ${S.t.toFixed(1)} s`, clamp(last[0]+8,PW+8,W-150), last[1]-6);
+}
+
+// caustics: the upper and lower turning depths of the fan bound where any sound can be
+function drawEnvelope(){
+  let zHi=Infinity, zLo=-Infinity;
+  for(let i=0;i<NRAY;i++){
+    for(let k=0;k<NR;k+=4){
+      const p=i*NR+k; if(!gA[p]) break;
+      if(gZ[p]<zHi) zHi=gZ[p];
+      if(gZ[p]>zLo) zLo=gZ[p];
+    }
+  }
+  if(!isFinite(zHi)||!isFinite(zLo)) return;
+  g2.strokeStyle='rgba(167,139,250,.45)'; g2.setLineDash([3,4]); g2.lineWidth=1;
+  for(const z of [zHi,zLo]){
+    const y=syp(z);
+    g2.beginPath(); g2.moveTo(PW,y); g2.lineTo(W,y); g2.stroke();
+  }
+  g2.setLineDash([]);
+  g2.fillStyle='rgba(167,139,250,.6)'; g2.font='9px '+cssMono();
+  g2.fillText(`turning-point envelope · ${zHi.toFixed(0)}–${zLo.toFixed(0)} m — no ray of this fan leaves it`,
+    PW+8, syp(zHi)+12);
+}
+
+function drawPredicted(R){
+  const pk=S._peak; if(!pk||!isFinite(pk.z)) return;
+  const X=sxp(pk.R), Y=syp(pk.z);
+  if(X<PW||X>W) return;
+  g2.strokeStyle='rgba(248,113,113,.55)'; g2.setLineDash([3,3]); g2.lineWidth=1;
+  g2.beginPath(); g2.moveTo(X-12,Y); g2.lineTo(X+12,Y); g2.moveTo(X,Y-12); g2.lineTo(X,Y+12); g2.stroke();
+  g2.setLineDash([]);
+  g2.fillStyle='rgba(248,113,113,.75)'; g2.font='9px '+cssMono();
+  g2.fillText(`predicted best listening depth · ≈ ${pk.TL.toFixed(0)} dB`, X-190, Y-6);
+}
+function drawSource(){
+  const X=sxp(0), Y=syp(S.src);
+  g2.strokeStyle='#38bdf8'; g2.fillStyle='rgba(56,189,248,.9)'; g2.lineWidth=2;
+  g2.beginPath(); g2.arc(X,Y,4.5,0,7); g2.fill();
+  g2.beginPath(); g2.arc(X,Y,9,0,7); g2.stroke();
+  g2.font='9px '+cssMono(); g2.fillText(`source ${S.src.toFixed(0)} m`, X+12, Y-8);
+}
+function drawReceiver(R){
+  const X=sxp(RX[S.ridx]), Y=syp(S.rcvd);
+  const hot = R && R.nArr>0 && !R.starved;
+  g2.strokeStyle = R&&(R.shadow||R.starved) ? '#f87171' : hot?'#fff':'#34d399';
+  g2.fillStyle   = R&&(R.shadow||R.starved) ? 'rgba(248,113,113,.9)' : hot?'rgba(255,255,255,.95)':'rgba(52,211,153,.9)';
+  g2.lineWidth=2;
+  g2.beginPath(); g2.arc(X,Y,4.5,0,7); g2.fill();
+  g2.beginPath(); g2.moveTo(X,Y-9); g2.lineTo(X,Y+9); g2.stroke();
+  g2.font='9px '+cssMono();
+  g2.fillText(`hydrophone ${S.rcvd.toFixed(0)} m`, X-104, Y+16);
+  if(R && (R.shadow||R.starved)){
+    g2.fillStyle='rgba(248,113,113,.95)'; g2.font='10px '+cssMono();
+    g2.fillText(R.shadow ? 'SHADOW ZONE — no ray path reaches this spot'
+      : 'SHADOW ZONE — ray-starved; the loud water is a few hundred metres away',
+      clamp(X-300,PW+6,W-360), Y-14);
+  }else if(hot && R.nArr>=3){
+    g2.fillStyle='rgba(52,211,153,.9)'; g2.font='10px '+cssMono();
+    g2.fillText(`${R.nArr} ARRIVALS — one click, many paths`, clamp(X-250,PW+6,W-300), Y-14);
+  }
+}
+
+/* the c(z) panel: the medium itself, dragged by hand */
+function drawProfilePanel(){
+  g2.fillStyle='rgba(8,12,22,.97)'; g2.fillRect(0,0,PW,H);
+  g2.strokeStyle='rgba(27,36,54,1)';
+  g2.beginPath(); g2.moveTo(PW-0.5,0); g2.lineTo(PW-0.5,H); g2.stroke();
+  g2.font='9px '+cssMono(); g2.fillStyle='rgba(150,170,200,.5)';
+  g2.fillText('c(z)  m/s', 12, 14);
+  g2.fillText(cLo().toFixed(0), 8, H-6);
+  g2.fillText(cHi().toFixed(0), PW-38, H-6);
+  // the profile
+  g2.strokeStyle='rgba(56,189,248,.9)'; g2.lineWidth=1.8;
+  g2.beginPath();
+  for(let i=0;i<=NLAY;i++){
+    const X=cxp(LAYC[i]), Y=syp(i*DZ_LAYER);
+    i?g2.lineTo(X,Y):g2.moveTo(X,Y);
+  }
+  g2.stroke();
+  // the minimum
+  g2.strokeStyle='rgba(251,191,36,.5)'; g2.setLineDash([4,4]);
+  g2.beginPath(); g2.moveTo(4,syp(S.axisZ)); g2.lineTo(PW-4,syp(S.axisZ)); g2.stroke(); g2.setLineDash([]);
+  // draggable control points
+  for(let i=0;i<S.cp.length;i++){
+    const z=S.cp[i][0], X=cxp(rawC(z)), Y=syp(z);
+    g2.fillStyle = S.cp[i][1]!==0 ? 'rgba(251,191,36,.95)' : 'rgba(56,189,248,.95)';
+    g2.beginPath(); g2.arc(X,Y,4,0,7); g2.fill();
+    g2.strokeStyle='rgba(255,255,255,.35)'; g2.lineWidth=1;
+    g2.beginPath(); g2.arc(X,Y,7,0,7); g2.stroke();
+  }
+  // source & receiver depth ticks
+  for(const [z,col] of [[S.src,'rgba(56,189,248,.7)'],[S.rcvd,'rgba(52,211,153,.7)']]){
+    g2.strokeStyle=col; g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(0,syp(z)); g2.lineTo(7,syp(z)); g2.stroke();
+  }
+}
+
+/* ============================================================ 1:1 INSET (hand-rolled)
+   The same fan, near the source, with range and depth on ONE scale — so the angles here are
+   the real angles. A trapped ray leans over by only a few degrees; that is the point. */
+function drawInset(){
+  g3.clearRect(0,0,W3,H3);
+  g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
+  const Xw=6000, sc=W3/Xw, Dh=H3/sc/2;
+  const z0=clamp(S.src-Dh, 0-Dh*0.15, D_OCEAN), zc=clamp(S.src, 0, D_OCEAN);
+  const top=zc-Dh;
+  const px=wx=>wx*sc, py=wz=>(wz-top)*sc;
+  if(top<0){ g3.strokeStyle='rgba(150,190,230,.4)'; g3.lineWidth=1;
+    g3.beginPath(); g3.moveTo(0,py(0)); g3.lineTo(W3,py(0)); g3.stroke(); }
+  if(top+2*Dh>D_OCEAN){ g3.strokeStyle='rgba(160,140,110,.4)'; g3.lineWidth=1;
+    g3.beginPath(); g3.moveTo(0,py(D_OCEAN)); g3.lineTo(W3,py(D_OCEAN)); g3.stroke(); }
+  for(const p of S.drawn){
+    g3.strokeStyle = p.info.ducted?'rgba(251,191,36,.75)':'rgba(125,155,195,.5)';
+    g3.lineWidth=1;
+    g3.beginPath();
+    let st=false;
+    for(let j=0;j<p.x.length;j++){
+      if(p.x[j]>Xw*1.05) break;
+      if(p.t[j]>S.t) break;
+      const X=px(p.x[j]), Y=py(p.z[j]);
+      if(!st){ g3.moveTo(X,Y); st=true; } else g3.lineTo(X,Y);
+    }
+    if(st) g3.stroke();
+  }
+  g3.fillStyle='rgba(56,189,248,.95)';
+  g3.beginPath(); g3.arc(px(0),py(zc),3,0,7); g3.fill();
+  g3.fillStyle='rgba(150,170,200,.55)'; g3.font='9px '+cssMono();
+  g3.fillText(`±${S.fan.toFixed(1)}°  ·  ${(Xw/1000).toFixed(0)} km wide, 1:1`, 8, H3-8);
+}
+
+/* ============================================================ ARRIVAL TRAIN (the lived signal) */
+function drawArrivals(){
+  gAr.clearRect(0,0,WA,HA);
+  gAr.fillStyle='#070a12'; gAr.fillRect(0,0,WA,HA);
+  const padL=46,padR=14,padT=36,padB=24;
+  const x0=padL,x1=WA-padR,y0=HA-padB,y1=padT;
+  gAr.strokeStyle='rgba(120,150,190,.18)'; gAr.lineWidth=1;
+  gAr.beginPath(); gAr.moveTo(x0,y1); gAr.lineTo(x0,y0); gAr.lineTo(x1,y0); gAr.stroke();
+  gAr.fillStyle='rgba(150,170,200,.5)'; gAr.font='9px '+cssMono();
+  gAr.fillText('amplitude',6,y1-6); gAr.fillText('arrival time →',x1-84,HA-8);
+  const R=S._res;
+  if(!R || !R.arrived.length){
+    gAr.fillStyle='rgba(150,170,200,.45)';
+    const msg = !R ? 'no rays traced yet'
+      : R.shadow ? 'shadow zone — no ray path reaches the hydrophone at all'
+      : `listening — first arrival in ≈ ${R.countdown.toFixed(1)} s   (nothing heard yet)`;
+    gAr.fillText(msg, x0+8, (y0+y1)/2);
+    return;
+  }
+  const arr=R.arrived;
+  const tA=arr[0].t, span=Math.max(R.spread*1.25, 0.35);
+  const tp=t=>x0+((t-tA)/span)*(x1-x0);
+  let best=Infinity; for(const e of arr) if(e.TL<best) best=e.TL;
+  const amp=e=>Math.pow(10,-(e.TL-best)/20);
+  for(const e of arr){
+    const X=tp(e.t); if(X<x0-1||X>x1+1) continue;
+    const hgt=(y0-y1-6)*clamp(amp(e),0.015,1);
+    const col = e.nb>0 ? 'rgba(248,113,113,.9)' : e.ns>0 ? 'rgba(125,155,195,.9)' : 'rgba(251,191,36,.95)';
+    gAr.strokeStyle=col; gAr.lineWidth=2;
+    gAr.beginPath(); gAr.moveTo(X,y0); gAr.lineTo(X,y0-hgt); gAr.stroke();
+    gAr.fillStyle=col; gAr.beginPath(); gAr.arc(X,y0-hgt,2,0,7); gAr.fill();
+  }
+  // playhead: the arrivals appear one at a time as propagation time passes them
+  const XP=tp(S.t);
+  if(XP>=x0&&XP<=x1){
+    gAr.strokeStyle='rgba(255,255,255,.75)'; gAr.lineWidth=1;
+    gAr.beginPath(); gAr.moveTo(XP,y1); gAr.lineTo(XP,y0); gAr.stroke();
+  }
+  gAr.fillStyle='rgba(150,170,200,.6)'; gAr.font='9px '+cssMono();
+  gAr.fillText(`${arr.length} arrivals  ·  first ${tA.toFixed(1)} s  ·  spread ${(R.spread*1000).toFixed(0)} ms  ·  ${R.TL.toFixed(0)} dB`, x0+8, HA-8);
+  gAr.fillStyle='rgba(251,191,36,.75)';
+  gAr.fillText('amber = trapped   grey = surface-reflected   red = bottom-bounce', x0+8, y1-6);
+  // time ticks
+  gAr.fillStyle='rgba(150,170,200,.4)';
+  for(let f=0;f<=1.0001;f+=0.25){
+    const X=x0+f*(x1-x0);
+    gAr.fillText(`+${(f*span).toFixed(2)}s`, X-16, y0+12);
+  }
+}
+
+/* ============================================================ TRANSMISSION LOSS PLOT */
+function drawTLPlot(){
+  gTl.clearRect(0,0,WT,HT);
+  gTl.fillStyle='#070a12'; gTl.fillRect(0,0,WT,HT);
+  const padL=46,padR=14,padT=36,padB=24;
+  const x0=padL,x1=WT-padR,y0=HT-padB,y1=padT;
+  gTl.strokeStyle='rgba(120,150,190,.18)'; gTl.lineWidth=1;
+  gTl.beginPath(); gTl.moveTo(x0,y1); gTl.lineTo(x0,y0); gTl.lineTo(x1,y0); gTl.stroke();
+  gTl.fillStyle='rgba(150,170,200,.5)'; gTl.font='9px '+cssMono();
+  gTl.fillText('TL [dB]',6,y1-6); gTl.fillText('range (log) →',x1-78,HT-8);
+  if(!S.tl){ return; }
+  const rMin=Math.max(RX[1],200), rMax=S.xMax;
+  const lo=log10(rMin), hi=log10(rMax);
+  const X=r=>x0+(log10(clamp(r,rMin,rMax))-lo)/Math.max(hi-lo,1e-6)*(x1-x0);
+  let tMin=Infinity,tMax=-Infinity;
+  for(let k=1;k<NR;k++){ const v=S.tl[k]; if(isFinite(v)){ if(v<tMin)tMin=v; if(v>tMax)tMax=v; } }
+  if(!isFinite(tMin)){ tMin=40; tMax=120; }
+  tMin=Math.min(tMin, 20*log10(rMin)); tMax=Math.max(tMax, 20*log10(rMax));
+  const dLo=tMin-4, dHi=tMax+4;
+  const Y=d=>y0-(dHi-clamp(d,dLo,dHi))/Math.max(dHi-dLo,1e-6)*(y0-y1);   // more loss = lower
+  // grid
+  gTl.fillStyle='rgba(150,170,200,.45)';
+  for(const rk of [0.2,1,3,10,30,100,300,1000]){
+    const r=rk*1000; if(r<rMin||r>rMax) continue;
+    gTl.strokeStyle='rgba(120,150,190,.10)';
+    gTl.beginPath(); gTl.moveTo(X(r),y1); gTl.lineTo(X(r),y0); gTl.stroke();
+    gTl.fillText((rk<1?rk*1000+' m':rk+' km'), X(r)-10, y0+12);
+  }
+  for(let d=Math.ceil(dLo/20)*20; d<dHi; d+=20){
+    gTl.strokeStyle='rgba(120,150,190,.10)';
+    gTl.beginPath(); gTl.moveTo(x0,Y(d)); gTl.lineTo(x1,Y(d)); gTl.stroke();
+    gTl.fillText(d+'', x0-30, Y(d)+3);
+  }
+  // reference slopes
+  const guide=(f,col,lab,yoff)=>{
+    gTl.strokeStyle=col; gTl.setLineDash([4,4]); gTl.lineWidth=1;
+    gTl.beginPath();
+    for(let i=0;i<=60;i++){ const r=Math.pow(10, lo+(hi-lo)*i/60);
+      i?gTl.lineTo(X(r),Y(f(r))):gTl.moveTo(X(r),Y(f(r))); }
+    gTl.stroke(); gTl.setLineDash([]);
+    gTl.fillStyle=col; gTl.fillText(lab, x1-136, Y(f(rMax))+yoff);
+  };
+  guide(r=>20*log10(r), 'rgba(248,113,113,.55)', '20 log R  spherical', -4);
+  guide(r=>10*log10(r)+30, 'rgba(52,211,153,.55)', '10 log R  cylindrical (ducted)', 12);
+  // the measured curve
+  gTl.strokeStyle='rgba(251,191,36,.95)'; gTl.lineWidth=1.8;
+  gTl.beginPath();
+  let st=false;
+  for(let k=1;k<NR;k++){
+    const v=S.tl[k]; if(!isFinite(v)){ st=false; continue; }
+    const px=X(RX[k]), py=Y(v);
+    if(!st){ gTl.moveTo(px,py); st=true; } else gTl.lineTo(px,py);
+  }
+  gTl.stroke();
+  // the hydrophone
+  const R=S._res;
+  const vr=S.tl[S.ridx];
+  if(isFinite(vr)){
+    gTl.fillStyle=(R&&R.nArr>0)?'#fff':'#34d399';
+    gTl.beginPath(); gTl.arc(X(RX[S.ridx]),Y(vr),4,0,7); gTl.fill();
+    gTl.fillStyle='rgba(230,238,247,.9)';
+    gTl.fillText(`hydrophone ≈ ${vr.toFixed(0)} dB @ ${(RX[S.ridx]/1000).toFixed(0)} km`, x0+8, y1-6);
+  }else{
+    gTl.fillStyle='rgba(248,113,113,.8)';
+    gTl.fillText('hydrophone: no ray path (shadow zone)', x0+8, y1-6);
+  }
+}
+
+/* ============================================================ READOUTS */
+function readRow(k,v,cls,tip){
+  const t = tip ? ` title="${tip}"` : '';
+  return `<dt${t}>${k}</dt><dd class="${cls||''}"${t}>${v}</dd>`;
+}
+function updateReadouts(){
+  const R=S._res; if(!R){ rdl.innerHTML=''; return; }
+  const pk=S._peak;
+  let rows='';
+  rows+=readRow('⌖ Best listening depth',
+    pk&&isFinite(pk.z) ? `${pk.z.toFixed(0)} m` : '— none at this range', '',
+    'Worked out up front from the profile and the source alone — the depth at this range with the least transmission loss, before the run has played out');
+  rows+=readRow('   loss there', pk&&isFinite(pk.TL)?`≈ ${pk.TL.toFixed(0)} dB`:'—', 'hi');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Scenario', SCEN[S.scen].name);
+  rows+=readRow('Channel axis', `${S.axisZ.toFixed(0)} m · ${S.axisC.toFixed(1)} m/s`, 'hi',
+    'Depth of the sound-speed MINIMUM in the current profile — the axis of the duct. Mid-latitude oceans put it near 1000–1300 m');
+  rows+=readRow('c at source', `${cAt(S.src).toFixed(1)} m/s`, '',
+    'Sound speed at the source depth, read straight off the layered c(z) the rays are marched through');
+  rows+=readRow('Source depth', `${S.src.toFixed(0)} m`);
+  rows+=readRow('Hydrophone', `${(RX[S.ridx]/1000).toFixed(1)} km · ${S.rcvd.toFixed(0)} m`);
+  rows+='<div class="sep"></div>';
+  const stCls = (R.shadow||R.starved)?'warn':R.ducted?'ok':R.nArr?'':'ok';
+  rows+=readRow('Duct state', R.state, stCls,
+    'Ducted = at least one arriving ray turned back before it could touch the surface or the seabed, so it loses nothing to either');
+  rows+=readRow('Max ducted range', `${(S.maxDucted/1000).toFixed(1)} km${S.maxDucted>0?'':' · none trapped'}`,
+    S.maxDucted>0?'ok':'warn',
+    'Furthest range at which some ray of the fan is still trapped — it has turned at least once and never touched the surface or the seabed');
+  rows+=readRow('Arrivals', R.nArr>0?`${R.nArr}${R.nGeo>R.nArr?` of ${R.nGeo}`:''}`:'—',
+    R.nArr>=3?'hi':'',
+    'How many separate ray paths have reached the hydrophone SO FAR. Nothing is counted before its travel time has elapsed');
+  rows+=readRow('First arrival', R.nArr?`${R.tFirst.toFixed(2)} s`:'—');
+  rows+=readRow('Arrival spread', R.nArr?`${(R.spread*1000).toFixed(0)} ms`:'—', '',
+    'Last arrival minus first — how drawn out the click has become after all these paths');
+  rows+=readRow('Transmission loss', R.nArr?`${R.TL.toFixed(0)} dB`:'—', R.nArr?'hi':'',
+    'Decibels fainter than 1 m from the source, summed over every arrival. +20 dB ≈ ten times fainter in pressure');
+  rows+='<div class="sep"></div>';
+  const r0=probeRay();
+  rows+=readRow('Cycle distance', isFinite(r0.cycle)?`${(r0.cycle/1000).toFixed(1)} km`:'—', '',
+    'Horizontal period of the steepest ray in the fan — surface bounce to surface bounce, or turning point to turning point');
+  rows+=readRow('Turning depths',
+    (isFinite(r0.turnUp)?r0.turnUp.toFixed(0):'—')+' ↕ '+(isFinite(r0.turnDn)?r0.turnDn.toFixed(0):'—')+' m', '',
+    'Where that ray goes momentarily horizontal: c(z) = c_source / cos θ₀ — the one exact relation here');
+  rows+=readRow('Vertical exaggeration', `×${cam.vex.toFixed(0)}`, '',
+    'The stage stretches depth against range by this factor, so drawn angles are steeper than the real ones. The 1:1 inset shows the true fan');
+  rdl.innerHTML=rows;
+}
+// the steepest downgoing ray of the fan, re-traced on demand (cheap, and never cached stale)
+function probeRay(){ return S._probe || {cycle:NaN,turnUp:NaN,turnDn:NaN}; }
+
+/* ============================================================ LOOP */
+let lastTS=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dtReal=Math.min((ts-lastTS)/1000||0, 0.05); lastTS=ts;
+  if(S.playing){
+    // fixed sub-steps so the animation is frame-rate independent
+    const dt=dtReal*S.rate*TSCALE;
+    const D=simDuration();
+    S.t=Math.min(S.t+dt, D);
+    if(S.t>=D){ S.playing=false; playBtn.textContent='▶ Play'; }
+    syncProg();
+  }
+  S._res=computeObserver();
+  draw();
+}
+
+/* ============================================================ UI WIRING */
+const $=id=>document.getElementById(id);
+const playBtn=$('playBtn'), rdl=$('rdl');
+function syncProg(){
+  const D=Math.max(simDuration(), S.t, 1e-3);
+  $('prog').value=clamp(S.t/D,0,1);
+  $('progV').textContent=`${S.t.toFixed(1)} / ${D.toFixed(0)} s`;
+}
+// Scrubbing must equal playing. rebuildTo(t) replays the deterministic ray march from scratch
+// and then sets the clock, so landing on t by dragging gives exactly the frame that playing to
+// t would have given — the rays are a pure function of the profile, the source and the fan.
+function rebuildTo(tt){ retrace(); S.t=tt; }
+function resetSim(){
+  S.t=0; S.playing=false; S.pan=0;
+  retrace(); S.span=S.xMax;
+  playBtn.textContent='▶ Play';
+  S._res=computeObserver(); syncProg(); draw();
+}
+const reparam=()=>{ retrace(); S._res=computeObserver(); syncProg(); if(!S.playing) draw(); };
+const nudge  =()=>{ recomputeEig(); S._res=computeObserver(); syncProg(); if(!S.playing) draw(); };
+
+playBtn.onclick=()=>{ S.playing=!S.playing; playBtn.textContent=S.playing?'❚❚ Pause':'▶ Play'; };
+$('restartBtn').onclick=()=>{ S.t=0; S.playing=false; playBtn.textContent='▶ Play';
+  S._res=computeObserver(); syncProg(); draw(); };
+$('prog').oninput=e=>{
+  S.playing=false; playBtn.textContent='▶ Play';
+  const D=simDuration();
+  rebuildTo(parseFloat(e.target.value)*D);
+  S._res=computeObserver(); syncProg(); draw();
+};
+
+function refreshSliderLabels(){
+  $('rateV').textContent=S.rate.toFixed(2)+'×';
+  $('srcV').textContent=S.src.toFixed(0)+' m';
+  $('fanV').textContent=S.fan.toFixed(1)+'°';
+  $('rngV').textContent=S.rng.toFixed(0)+' km';
+  $('rcvdV').textContent=S.rcvd.toFixed(0)+' m';
+  $('axisV').textContent=S.axisSet.toFixed(0)+' m';
+  $('epsV').textContent=(S.eps*1000).toFixed(2)+' ×10⁻³';
+  $('mldV').textContent=S.mld.toFixed(0)+' m';
+}
+$('rate').oninput=e=>{S.rate=parseFloat(e.target.value);refreshSliderLabels();};
+$('src') .oninput=e=>{S.src=parseFloat(e.target.value);S._srcUserMoved=true;refreshSliderLabels();reparam();};
+$('fan') .oninput=e=>{S.fan=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('rng') .oninput=e=>{S.rng=parseFloat(e.target.value);refreshSliderLabels();S.pan=0;reparam();S.span=S.xMax;};
+$('rcvd').oninput=e=>{S.rcvd=parseFloat(e.target.value);refreshSliderLabels();nudge();};
+$('axis').oninput=e=>{S.axisSet=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('eps') .oninput=e=>{S.eps=parseFloat(e.target.value)/1000;refreshSliderLabels();reparam();};
+$('mld') .oninput=e=>{S.mld=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('cpReset').onclick=()=>{ for(const p of S.cp) p[1]=0; reparam(); };
+
+$('oRays').onchange=e=>{S.ov.rays=e.target.checked;draw();};
+$('oWf')  .onchange=e=>{S.ov.wf  =e.target.checked;draw();};
+$('oEnv') .onchange=e=>{S.ov.env =e.target.checked;draw();};
+$('oProf').onchange=e=>{S.ov.prof=e.target.checked;draw();};
+
+/* tabs re-key everything: per-scenario defaults, clear the hand-drags, then reset */
+document.querySelectorAll('#tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.scen=b.dataset.s;
+    document.querySelectorAll('[data-scen]').forEach(el=>{
+      el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+    });
+    const D=SCEN[S.scen].d;
+    for(const p of S.cp) p[1]=0;
+    if(D.rate!=null) S.rate=D.rate;
+    if(D.src !=null) S.src =D.src;
+    if(D.rcvd!=null) S.rcvd=D.rcvd;
+    if(D.rng !=null) S.rng =D.rng;
+    if(D.fan !=null) S.fan =D.fan;
+    if(D.axis!=null) S.axisSet=D.axis;
+    if(D.eps !=null) S.eps =D.eps/1000;
+    if(D.mld !=null) S.mld =D.mld;
+    S._srcUserMoved=false;
+    $('rate').value=S.rate; $('src').value=S.src; $('rcvd').value=S.rcvd;
+    $('rng').value=S.rng;   $('fan').value=S.fan; $('axis').value=S.axisSet;
+    $('eps').value=(S.eps*1000).toFixed(2); $('mld').value=S.mld;
+    refreshSliderLabels();
+    resetSim();
+  };
+});
+
+/* ---- the stage is directly manipulable ---- */
+let dragMode=null, dragCp=-1, lastMx=0;
+main2d.addEventListener('mousedown',e=>{
+  const r=main2d.getBoundingClientRect();
+  const px=e.clientX-r.left, py=e.clientY-r.top;
+  lastMx=e.clientX; dragMode=null; dragCp=-1;
+  if(S.ov.prof && px<PW){
+    for(let i=0;i<S.cp.length;i++){
+      if(Math.hypot(px-cxp(rawC(S.cp[i][0])), py-syp(S.cp[i][0]))<11){ dragMode='cp'; dragCp=i; break; }
+    }
+    if(!dragMode) return;
+  }else if(Math.hypot(px-sxp(RX[S.ridx]), py-syp(S.rcvd))<16) dragMode='rcv';
+  else if(Math.hypot(px-sxp(0), py-syp(S.src))<16) dragMode='src';
+  else dragMode='pan';
+  document.body.style.cursor = dragMode==='pan'?'grabbing':'crosshair';
+  e.preventDefault();
+});
+window.addEventListener('mousemove',e=>{
+  if(!dragMode) return;
+  const r=main2d.getBoundingClientRect();
+  const px=e.clientX-r.left, py=e.clientY-r.top;
+  if(dragMode==='cp'){
+    const z=S.cp[dragCp][0];
+    S.cp[dragCp][1]=clamp(cFromPx(px)-presetC(z), -25, 25);
+    retrace();
+  }else if(dragMode==='rcv'){
+    S.rcvd=clamp(Math.round(wzFromPy(py)/10)*10, 10, D_OCEAN-10);
+    const wx=clamp(wxFromPx(px), RX[1], S.xMax);
+    S.ridx=clamp(Math.round(wx/(S.xMax/(NR-1))), 1, NR-1);
+    S.rng=clamp(Math.round(RX[S.ridx]/1000), 5, 500);
+    $('rcvd').value=S.rcvd; $('rng').value=S.rng; refreshSliderLabels();
+    recomputeEig();
+  }else if(dragMode==='src'){
+    S.src=clamp(Math.round(wzFromPy(py)/10)*10, 10, D_OCEAN-100);
+    S._srcUserMoved=true; $('src').value=S.src; refreshSliderLabels();
+    retrace();
+  }else{
+    S.pan -= (e.clientX-lastMx)/cam.sx; lastMx=e.clientX;
+  }
+  S._res=computeObserver(); syncProg(); if(!S.playing) draw();
+});
+window.addEventListener('mouseup',()=>{
+  if(dragMode==='rcv'){ retrace(); S._res=computeObserver(); syncProg(); if(!S.playing) draw(); }
+  dragMode=null; dragCp=-1; document.body.style.cursor='';
+});
+main2d.addEventListener('dblclick',()=>{ S.pan=0; S.span=S.xMax; if(!S.playing) draw(); });
+main2d.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=main2d.getBoundingClientRect();
+  const wx=wxFromPx(e.clientX-r.left);
+  S.span=clamp(S.span*(e.deltaY>0?1.18:1/1.18), S.xMax/60, S.xMax);
+  S.pan=clamp(wx-(e.clientX-r.left-PW)/(Math.max(W-PW-14,10)/S.span), 0, Math.max(S.xMax-S.span,0));
+  if(!S.playing) draw();
+},{passive:false});
+$('panL').onclick=()=>{ S.pan=clamp(S.pan-0.18*cam.span,0,Math.max(S.xMax-cam.span,0)); if(!S.playing)draw(); };
+$('panR').onclick=()=>{ S.pan=clamp(S.pan+0.18*cam.span,0,Math.max(S.xMax-cam.span,0)); if(!S.playing)draw(); };
+$('recenter').onclick=()=>{ S.pan=0; S.span=S.xMax; if(!S.playing)draw(); };
+
+/* ---- verification hook: one ray, with its (z, θ) samples, so the ray invariant and the
+   turning-point condition can be checked from outside ---- */
+window.__ray=function(i){
+  const idx=clamp(Math.round(i),0,NRAY-1);
+  const samples=[];
+  const r=traceRay(TH[idx], S.src, S.xMax, -1, null, samples);
+  return {th0Deg:TH[idx]/DEG, zs:r.zs, c0:r.c0, xi:r.xi, dzLayer:DZ_LAYER,
+          turnUp:r.turnUp, turnDn:r.turnDn, cycle:r.cycle, ducted:r.ducted,
+          ns:r.ns, nb:r.nb, nt:r.nt, xEnd:r.xEnd,
+          // CONSECUTIVE marched points (x,z) — the integrated ray path, so the ray invariant can
+          // be re-measured from the geometry instead of from the angle the march carries along
+          samples:samples.slice(0,600)};
+};
+window.__nray=NRAY;
+
+/* ============================================================ go */
+document.querySelectorAll('[data-scen]').forEach(el=>{
+  el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+});
+resize();
+document.querySelector('#tabs button.on').click();   // first paint runs the scenario-switch path
+requestAnimationFrame(frame);
+</script>

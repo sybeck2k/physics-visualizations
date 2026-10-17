@@ -12,6 +12,7 @@ const SRC = {
   diffraction:  "diffraction-grating.html",
   slingshot:    "gravitational-slingshot.html",
   sofar:        "sofar-sound-channel.html",
+  roadster:     "tesla-roadster.html",
 };
 
 // Orientation copy — house tone: second person, present, name the scene before the physics.
@@ -40,8 +41,14 @@ const META = {
     watch: `Sound bends toward slower water, so rays near the speed minimum get trapped and loop around it — a natural waveguide that carries a whale call or a small blast for thousands of kilometres. A listener just outside the channel sits in a near-silent shadow.`,
     act: `Press Play to send the rays. Drag the control points of the speed profile to reshape the channel. Drag the hydrophone and watch its arrival train (lower-left) rearrange. The tabs give a surface duct, a deep channel, a double duct, an Arctic profile, and the shadow-zone case.`,
   },
+  roadster: {
+    n: "Tesla Roadster: air & suction",
+    scene: `A true-scale 3-D pad rendered as an 8-bit synthwave arcade. Tab 1 is the cold-air thruster budget: the big neon car is the Roadster, the four wire cars are Tesla's own claims racing to 60 mph (2017 Roadster, Performance, Thrust, Rocket), and the white-hot jet at the tail is compressed air leaving four nozzles. Tab 2 is a tall quarter-pipe that curls past vertical, where the car's fans press it to the surface. The inset is the air system (tanks, valves, nozzles) and the readouts wear a confidence chip so you can see what Tesla stated and what was derived or assumed.`,
+    watch: `The tank is a blowdown bottle: as air leaves, pressure and thrust fall together, so 250 kg of air buys a launch, a hop or a flip but not a flight. On the wall, upside-down needs only more than 1 g of suction to stay, but getting there needs a little more because tyres give back less grip per extra load.`,
+    act: `Press Play on the launch, then drag the gauge in the inset to change the tank pressure and watch the 0–60 time slide across Tesla's claims. Try Hover hop and Barrel roll, then tab 2: drag the car along the ramp in Park & fade, cut the suction below 1 g, or tick the 4,700 kg box to see Tesla's own numbers disagree. Drag the scene to orbit; the Chase / Pad / Top buttons change the camera.`,
+  },
 };
-const ORDER = ["sonic-boom", "diffraction", "slingshot", "sofar"];
+const ORDER = ["sonic-boom", "diffraction", "slingshot", "sofar", "roadster"];
 
 const data = {};
 for (const k of ORDER) data[k] = fs.readFileSync(SRC[k], "utf8");
@@ -85,6 +92,15 @@ const HEAD = [
 '  }',
 '  .reopen:hover{color:var(--ink); border-color:var(--cyan)}',
 '  #stage{position:relative; flex:1 1 auto; min-height:0}',
+'  header.collapsed{display:none}',
+'  #hShow{',
+'    position:absolute; top:0; left:50%; transform:translateX(-50%); z-index:6; display:none;',
+'    font-family:var(--mono); font-size:10px; letter-spacing:.08em; color:var(--dim);',
+'    background:rgba(10,14,24,.92); border:1px solid var(--line); border-top:0; border-radius:0 0 8px 8px;',
+'    padding:2px 14px 3px; cursor:pointer;',
+'  }',
+'  #hShow:hover{color:var(--ink); border-color:var(--cyan)}',
+'  body.hcol #hShow{display:block}',
 '  #frame{position:absolute; inset:0; width:100%; height:100%; border:0; background:#04060b; display:block}',
 '  #intro{',
 '    position:absolute; inset:0; z-index:5; display:flex; align-items:center; justify-content:center;',
@@ -119,10 +135,12 @@ const HEAD = [
 '    <div id="right">',
 '      <div id="note"></div>',
 '      <button id="iReopen" class="reopen" type="button">?&nbsp;what am I looking at</button>',
+'      <button id="hHide" class="reopen" type="button" title="Collapse the top bar (H)">&#9652;&nbsp;hide bar</button>',
 '    </div>',
 '  </header>',
 '  <div id="stage">',
 '    <iframe id="frame" title="visualization"></iframe>',
+'    <button id="hShow" type="button" title="Show the top bar (H)">&#9662;&nbsp;menu</button>',
 '    <div id="intro" hidden>',
 '      <div class="card">',
 '        <div class="eyebrow" id="iName"></div>',
@@ -182,6 +200,15 @@ const TAIL = [
 'intro.addEventListener("click", function(e){ if (e.target === intro || e.target.id === "iClose") closeIntro(); });',
 'document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeIntro(); });',
 'document.getElementById("iReopen").onclick = function(){ if (cur) openIntro(cur); };',
+'var hdr = document.querySelector("header");',
+'function setBar(collapsed){',
+'  hdr.classList.toggle("collapsed", collapsed); document.body.classList.toggle("hcol", collapsed);',
+'  try { localStorage.setItem("vizbar", collapsed ? "1" : "0"); } catch (e) {}',
+'}',
+'document.getElementById("hHide").onclick = function(){ setBar(true); };',
+'document.getElementById("hShow").onclick = function(){ setBar(false); };',
+'document.addEventListener("keydown", function(e){ if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.metaKey && !e.altKey) setBar(!hdr.classList.contains("collapsed")); });',
+'try { if (localStorage.getItem("vizbar") === "1") setBar(true); } catch (e) {}',
 'var start = (location.hash || "").replace("#","");',
 'show(ORDER.indexOf(start) >= 0 ? start : ORDER[0]);',
 '</' + 'script>',

@@ -169,3 +169,22 @@ carries its adapted check table instead.
 
 To run one, swap the harness file in the Step 2 docker command:
 `-v "$PWD/.claude/skills/verify-physics-viz/verify-<name>.mjs":/home/pptruser/verify.mjs:ro`.
+
+---
+
+## WebGL pieces — `verify-tesla-roadster.mjs`
+
+The Tesla Roadster piece has its own harness (same A/B/C row grammar; B rows are closed-form and reported-figure
+anchors from its data pack). Headless Chromium needs software GL, so the harness launches with
+`--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`. It also launches a second browser with WebGL
+disabled to prove the fallback (A6).
+
+```sh
+S=/tmp/vpz && mkdir -p "$S" && chmod 777 "$S"
+cp tesla-roadster.html "$S/target.html" && chmod 666 "$S/target.html"
+docker run --rm --network none -v "$S":/work \
+  -v "$PWD/.claude/skills/verify-physics-viz/verify-tesla-roadster.mjs":/home/pptruser/verify.mjs:ro \
+  -w /home/pptruser ghcr.io/puppeteer/puppeteer:latest node verify.mjs /work/target.html
+```
+
+Runtime ≈ 1–2 min. Pass = exit 0 and every row `PASS`.

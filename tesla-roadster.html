@@ -1,0 +1,1399 @@
+<title>Tesla Roadster · Air &amp; Suction</title>
+<style>
+  /* Dark instrument panel for the chrome; the 3-D stage itself is 8-bit synthwave (see header comment in the script). */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa; --pink:#ff2e97;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.5; overflow:hidden}
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12); flex:0 0 auto}
+  header h1{font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; margin:0; color:#e6edf6}
+  header h1 span{color:var(--pink)}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--dim); background:var(--panel2);
+    border:1px solid var(--line); padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s}
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+  aside{border-right:1px solid var(--line); background:var(--panel); padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px}
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px}
+  .btns{display:flex; gap:6px; flex-wrap:wrap}
+  .btns button{flex:1; min-width:64px; font-family:var(--mono); font-size:11px; color:var(--ink); background:var(--panel2);
+    border:1px solid var(--line); border-radius:6px; padding:8px 4px; cursor:pointer; transition:.15s}
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  .btns button.on{background:rgba(255,46,151,.16); border-color:rgba(255,46,151,.6); color:#fff}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+  select{font-family:var(--mono); font-size:11px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:2px}
+  .hide{display:none !important}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#0d0221; overflow:hidden}
+  #gl{position:absolute; inset:0; width:100%; height:100%; cursor:grab; touch-action:none}
+  #gl:active{cursor:grabbing}
+  #nogl{position:absolute; inset:0; display:none; align-items:center; justify-content:center; text-align:center; padding:40px;
+    font-family:var(--mono); color:var(--amber); background:#0d0221; z-index:2}
+  #inset{position:absolute; top:12px; right:10px; width:272px; height:190px; border:1px solid var(--line); border-radius:9px;
+    background:rgba(7,10,18,.94); z-index:3}
+  #inset canvas{position:absolute; inset:0; width:100%; height:100%; cursor:ns-resize}
+  .cap{position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1; pointer-events:none}
+  #readouts{position:absolute; top:206px; right:10px; bottom:8px; width:322px; z-index:3; border:1px solid var(--line); border-radius:9px;
+    background:rgba(7,10,18,.95); padding:9px 12px; font-family:var(--mono); overflow-y:auto}
+  #readouts h3{font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin:0 0 6px}
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:2px 8px; margin:0; font-size:10.5px}
+  #readouts dt{color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink); white-space:nowrap}
+  #readouts dd.hi{color:var(--amber)} #readouts dd.warn{color:var(--red)} #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+  i.tg{font-style:normal; font-size:8px; letter-spacing:.06em; padding:0 3px; margin-left:5px; border-radius:3px; border:1px solid; vertical-align:1px; cursor:help}
+  i.tg.OFF{color:#34d399;border-color:#34d39966} i.tg.INT{color:#38bdf8;border-color:#38bdf866} i.tg.REP{color:#7aa2ff;border-color:#7aa2ff66}
+  i.tg.DER{color:#fbbf24;border-color:#fbbf2466} i.tg.EST{color:#a78bfa;border-color:#a78bfa66} i.tg.ASM{color:#f87171;border-color:#f8717166}
+
+  #plots{flex:0 0 150px; display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border-top:1px solid var(--line)}
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+
+  #explain{flex:0 0 auto; max-height:clamp(150px,22vh,260px); overflow-y:auto; border-top:1px solid var(--line); background:var(--panel);
+    padding:11px 16px 13px; display:grid; grid-template-columns:repeat(5,1fr); gap:12px}
+  #explain .ex{border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px; max-height:clamp(134px,20vh,240px); overflow-y:auto}
+  #explain .ex::-webkit-scrollbar{width:5px} #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{margin:0 0 5px; font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--pink)}
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  @media (max-width:1100px){ #inset{display:none} #readouts{top:10px; width:280px} }
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+</style>
+
+<div id="app">
+  <header>
+    <h1>Tesla&nbsp;<span>Roadster</span>&nbsp;·&nbsp;Air&nbsp;&amp;&nbsp;Suction</h1>
+    <div class="tabs" id="tabs">
+      <button data-s="air" class="on">1 · Air budget</button>
+      <button data-s="wall">2 · Stick to the wall</button>
+    </div>
+  </header>
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Playback</h2>
+        <div class="btns"><button id="playBtn" class="play">▶ Play</button><button id="restartBtn">↺ Restart</button></div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.00×</span><input type="range" id="rate" min="0.05" max="3" step="0.05" value="1"></label>
+        <label class="fld">Timeline <span class="v" id="progV">0.00 s</span><input type="range" id="prog" min="0" max="1" step="0.001" value="0"></label>
+      </div>
+      <div class="grp">
+        <h2>Run</h2>
+        <div class="btns" id="presets">
+          <button data-p="launch" data-scen="air" class="on">0–60 launch</button>
+          <button data-p="hover" data-scen="air">Hover hop</button>
+          <button data-p="roll" data-scen="air">Barrel roll</button>
+          <button data-p="climb" data-scen="wall">Wall climb</button>
+          <button data-p="park" data-scen="wall">Park &amp; fade</button>
+          <button data-p="corner" data-scen="wall">2 g corner</button>
+        </div>
+      </div>
+      <div class="grp" id="params">
+        <h2>Parameters</h2>
+        <label class="fld" data-scen="launch hover roll climb park">Tank fill pressure <span class="v" id="presV"></span><input type="range" id="pres" min="200" max="689" step="1" value="437"></label>
+        <label class="fld" data-scen="launch hover roll climb park">Specific impulse <span class="v" id="ispV"></span><input type="range" id="isp" min="54" max="70.7" step="0.1" value="60"></label>
+        <label class="fld" data-scen="launch hover roll climb park corner">Car mass <span class="v" id="massV"></span><input type="range" id="mass" min="1700" max="2350" step="10" value="1700"></label>
+        <label class="fld" data-scen="launch hover">Valve opening <span class="v" id="thrV"></span><input type="range" id="thr" min="20" max="100" step="1" value="49"></label>
+        <label class="fld" data-scen="roll">Kicker speed <span class="v" id="v0V"></span><input type="range" id="v0" min="8" max="30" step="0.5" value="15"></label>
+        <label class="fld" data-scen="roll">Kicker angle <span class="v" id="angV"></span><input type="range" id="ang" min="20" max="60" step="1" value="50"></label>
+        <label class="fld" data-scen="roll">Roll time <span class="v" id="rtV"></span><input type="range" id="rt" min="1" max="2.5" step="0.1" value="2"></label>
+        <label class="fld" data-scen="launch climb park corner">Fan suction <span class="v" id="supV"></span><input type="range" id="sup" min="0" max="2" step="0.05" value="2"></label>
+        <label class="fld" data-scen="launch climb park corner">Tyre grip μ <span class="v" id="muV"></span><input type="range" id="mu" min="0.8" max="1.4" step="0.01" value="1.26"></label>
+        <label class="fld" data-scen="climb">Climb speed <span class="v" id="vcV"></span><input type="range" id="vc" min="2" max="12" step="0.5" value="6"></label>
+        <label class="fld" data-scen="park">Park at pitch <span class="v" id="th0V"></span><input type="range" id="th0" min="30" max="180" step="1" value="180"></label>
+        <label class="fld" data-scen="park">Fan fade rate <span class="v" id="fadeV"></span><input type="range" id="fade" min="0.1" max="1" step="0.05" value="0.25"></label>
+        <label class="chk" data-scen="climb park corner"><input type="checkbox" id="fixed"> Use Tesla's 4,700 kg readout (46.1 kN)</label>
+        <div class="hint" id="hint"></div>
+      </div>
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="ovForce" checked> Force arrows</label>
+        <label class="chk"><input type="checkbox" id="ovPlume" checked> Exhaust plume</label>
+        <label class="chk"><input type="checkbox" id="ovFlow"> Underbody airflow</label>
+        <label class="chk"><input type="checkbox" id="ovXray"> X-ray (tanks · fans · nozzles)</label>
+        <label class="chk" data-scen="launch"><input type="checkbox" id="ovGhost" checked> Ghost cars (claims)</label>
+      </div>
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns" id="cams"><button data-c="chase" class="on">Chase</button><button data-c="pad">Pad</button><button data-c="top">Top</button></div>
+        <label class="fld">Pixel size <select id="ps"><option value="2">2 px</option><option value="3" selected>3 px</option><option value="4">4 px</option><option value="6">6 px</option></select></label>
+        <label class="chk"><input type="checkbox" id="crt" checked> CRT scanlines</label>
+        <label class="chk"><input type="checkbox" id="snd"> ♪ Chiptune + SFX</label>
+        <div class="hint">Drag the scene to orbit · wheel zooms · double-click recentres · drag the gauge on the right to set tank pressure.</div>
+      </div>
+    </aside>
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="gl"></canvas>
+        <div id="nogl">WebGL is not available in this browser.<br>The simulation, plots and readouts still run.</div>
+        <div id="inset"><span class="cap">Air system (schematic)</span><canvas id="inset2d"></canvas></div>
+        <div id="readouts"><h3 id="rdh">Readouts</h3><dl id="rdl"></dl></div>
+      </div>
+      <div id="plots">
+        <div class="plot"><span class="cap" id="cap1"></span><canvas id="p1"></canvas></div>
+        <div class="plot"><span class="cap" id="cap2"></span><canvas id="p2"></canvas></div>
+      </div>
+    </div>
+  </main>
+  <div id="explain"></div>
+</div>
+
+<script>
+"use strict";
+/* Tesla Roadster (2nd gen) — "Air & Suction". One self-contained file: no build, no network, raw WebGL.
+ *
+ * Two pieces of physics, one per tab, both calibrated to the figures Tesla and the press published on
+ * 15 Oct 2026 (data pack tags: OFFICIAL / INTERVIEW / REPORTED / DERIVED / ESTIMATE / ASSUMED):
+ *   1 Air budget      — cold-gas thrusters on a 600 L tank: F = ṁ·vₑ, adiabatic blowdown, real-gas Z.
+ *   2 Stick to the wall — fan suction adds load: μ_eff(N)·N ≥ m·g·sinθ, with a fitted tyre load-sensitivity.
+ *
+ * Declared deviations from the collection's house style (CLAUDE.md §8):
+ *   (3) the stage is a true-scale WebGL 3-D scene (not an isotropic 2-D canvas) and the secondary "3-D inset"
+ *       is therefore a 2-D air-system schematic;
+ *   (4) the in-scene look is 8-bit synthwave (low-res FBO, 32-colour palette, Bayer dither, CRT) — the UI chrome,
+ *       force arrows and HUD keep the role colours (cyan interactive, amber phenomenon, green OK, red limit).
+ * Everything else holds: one file, zero dependencies, real constants, one kernel per quantity, scrub == play,
+ * an up-front prediction, graceful degradation (no WebGL ⇒ plots and readouts still run).
+ * Not affiliated with Tesla. Treat every figure as an engineering estimate, ±~2×.
+ */
+/* ====================================================================================
+   KERNELS — pure functions, no DOM. Everything the readouts, plots, predictions and the
+   3-D scene show comes from here, so they cannot drift apart.
+   ==================================================================================== */
+// ---- constants (SI unless the name says otherwise) ----
+const G0 = 9.80665;               // m/s²  standard gravity
+const GAMMA = 1.4;                // –     air heat-capacity ratio
+const RAIR = 287.05;              // J/(kg·K) specific gas constant of air
+const T0K = 293.15;               // K     tank fill temperature (20 °C), data pack §4b
+const MPH = 0.44704;              // m/s per mph
+const V60 = 60 * MPH;             // m/s   26.8224
+const V_TANK = 0.6;               // m³    600 L (200 L + 400 L COPVs), Moravy
+const P_REF = 379;                // bar   "Thruster 5,500 psi" track-screen readout, §4a
+const F_REF = 80000;              // N     "over 80 kN" from the four rear nozzles at P_REF, §4a
+const PWR = 1.0e6;                // W     ">1 MW" battery + drive unit, §3
+const MU_TYRE = 1.26;             // –     tyre-only grip, 1.26 g (Moravy), §3
+const SUCK_MAX = 2.0;             // g     "up to 2 g" fan suction, §3a
+const DOWNFORCE_N = 4700 * G0;    // N     on-screen "4,700 kg" downforce readout = 46.1 kN, §3a
+const RAMP_R = 10.6;              // m     ramp arc radius so 170° pitch sits ≈21 m up: R(1−cos170°)=21, §6
+const NLS = 0.49;                 // –     tyre load-sensitivity exponent: μ_eff = μ0·(N/mg)^−NLS.
+                                  //       FIT so 2 g suction ⇒ ≈2.2 g cornering (Tesla: ">2 g"); with NLS=0 you'd get 3.78 g.
+const REAR_SHARE = 0.55;          // –     ASSUMED rear-axle share of tyre load
+const CDA = 0.34;                 // N/(m/s)²  ½ρ·Cd·A with Cd·A≈0.57 m² — ESTIMATE
+const VALVE_T = 0.10;             // s     ASSUMED valve spin-up (slow-motion frames show thrusters lead the car, §4a)
+const ROLL_ARM = 1.05;            // m     lateral position of the side roll-jet pods (couple lever arm = 2 × this)
+const ROLL_JET = 8000;            // N     ASSUMED thrust of one side roll jet at P_REF (Tesla published none); scales with tank pressure
+const PULSE_FRAC = 0.22;          // –     fraction of the roll time spent on each of the push and the counter-fire pulses (ASSUMED)
+const BRAKE_G = 3.3;              // g     reading during the landing burn at ~6.5 m (REPORTED telemetry, §6)
+
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = t => { t = clamp(t, 0, 1); return t * t * t * (t * (6 * t - 15) + 10); };
+// piecewise-linear table lookup, rows [x, y]
+const keyf = (tb, x) => {
+  if (x <= tb[0][0]) return tb[0][1];
+  for (let i = 1; i < tb.length; i++) if (x <= tb[i][0]) {
+    const a = tb[i - 1], b = tb[i]; return a[1] + (b[1] - a[1]) * (x - a[0]) / ((b[0] - a[0]) || 1);
+  }
+  return tb[tb.length - 1][1];
+};
+
+// ---- real-gas air: compressibility Z(p) at 20 °C, from CoolProp (data pack method) ----
+const ZT = [[1, .9996], [50, .9879], [100, .9881], [150, 1.001], [200, 1.026], [250, 1.0612], [300, 1.1043],
+            [379, 1.1831], [414, 1.2209], [437, 1.2464], [500, 1.3183], [600, 1.436], [689, 1.5425]];
+const zOf = bar => keyf(ZT, bar);
+// mass of air in the tank (kg) at fill pressure `bar` — pV = Z m R T
+const tankMass = (bar, V) => bar * 1e5 * (V || V_TANK) / (zOf(bar) * RAIR * T0K);
+const psi = bar => bar / 0.0689476;
+
+// ---- cold-gas tank, blowdown (adiabatic, fixed nozzle): p ∝ m^γ, T ∝ m^(γ−1) ----
+function newTank(p0) {
+  const m0 = tankMass(p0);
+  return { p0, m0, m: m0, p: p0, T: T0K };
+}
+// thrust available from the four rear nozzles at tank pressure p (thrust ∝ pressure, §4c)
+const thrustAvail = p => F_REF * p / P_REF;
+function tankBurn(tk, F, isp, h) {            // spend air for thrust F over h seconds: ṁ = F/(Isp·g0)
+  tk.m = Math.max(tk.m - F / (Math.max(isp, 1) * G0) * h, 0);
+  const f = tk.m / (tk.m0 || 1);
+  tk.p = tk.p0 * Math.pow(f, GAMMA); tk.T = T0K * Math.pow(f, GAMMA - 1);
+}
+// constant-thrust upper bound: seconds to empty `m` kg at thrust F (data pack §4c table)
+const timeToEmpty = (m, F, isp) => m * isp * G0 / F;
+// thrust to hover mass m (N)
+const hoverThrust = m => m * G0;
+
+// ---- trajectories: column store sampled every DT seconds ----
+const DT = 0.004;
+const COLS = ['x', 'y', 'z', 'yaw', 'pit', 'rol', 'F', 'FL', 'FR', 'JLu', 'JLd', 'JRu', 'JRd', 'p', 'T', 'am', 's', 'nl', 'mg', 'ag'];
+function newTraj(n) {
+  const c = {}; COLS.forEach(k => c[k] = new Float32Array(n));
+  return { n, dt: DT, c, info: {} };
+}
+function sampleT(tr, k, t) {                 // linear interpolation, clamped
+  const u = clamp(t / tr.dt, 0, tr.n - 1), i = Math.floor(u), j = Math.min(i + 1, tr.n - 1);
+  return lerp(tr.c[k][i], tr.c[k][j], u - i);
+}
+function put(tr, i, o) { for (const k in o) tr.c[k][i] = o[k]; }
+
+// ---- tyre force available in the launch (N): min(motor, tyre-limited) ----
+function tyreForce(m, v, sup, mu0) {
+  const nl = 1 + sup;                                      // load / weight with fan suction
+  const cap = REAR_SHARE * mu0 * Math.pow(nl, -NLS) * nl * m * G0;   // rear tyres only (RWD)
+  return Math.min(PWR / Math.max(v, 4), 36000, cap);       // 36 kN ≈ torque-limited, ASSUMED
+}
+
+// ---- A1: 0–60 launch ----
+// P: {p0, isp, mass, thr (0..1 valve opening), sup (g), mu}
+function simLaunch(P) {
+  const N = Math.round(3.2 / DT), tr = newTraj(N), tk = newTank(P.p0);
+  let x = 0, v = 0, t60 = NaN, x60 = NaN, usedAt60 = NaN, peakA = 0;
+  for (let i = 0; i < N; i++) {
+    const t = i * DT;
+    const Fth = P.thr * smooth(t / VALVE_T) * thrustAvail(tk.p);
+    const Ft = tyreForce(P.mass, v, P.sup, P.mu);
+    const a = (Fth + Ft - CDA * v * v) / P.mass;
+    put(tr, i, { x, F: Fth, p: tk.p, T: tk.T, am: tk.m, s: P.sup, ag: a / G0 });
+    peakA = Math.max(peakA, a / G0);
+    tankBurn(tk, Fth, P.isp, DT);
+    const vn = v + a * DT;
+    if (isNaN(t60) && vn >= V60) { const f = (V60 - v) / (vn - v || 1); t60 = t + f * DT; x60 = x + v * f * DT + 0.5 * a * (f * DT) ** 2; usedAt60 = tk.m0 - tk.m; }
+    x += v * DT + 0.5 * a * DT * DT; v = vn;
+  }
+  tr.info = { t60, x60, usedAt60, peakA, m0: tk.m0, tEnd: (N - 1) * DT };
+  return tr;
+}
+
+// ---- A2: hover hop (controller holds a 3 m hop on the four down-jets) ----
+function simHover(P) {
+  const N = Math.round(14 / DT), tr = newTraj(N), tk = newTank(P.p0), m = P.mass;
+  let y = 0, v = 0, lift = NaN, sink = NaN, land = NaN, vTouch = NaN, ymax = 0;
+  const H = 3.0;
+  for (let i = 0; i < N; i++) {
+    const t = i * DT, Fav = thrustAvail(tk.p);
+    let cmd = m * (G0 + 6 * (H - y) - 4 * v);
+    cmd = clamp(cmd, 0, Fav) * smooth(t / VALVE_T) * P.thr;
+    if (tk.m <= 1e-6) cmd = 0;
+    const a = (cmd - m * G0) / m;
+    put(tr, i, { y, FL: cmd / 2, FR: cmd / 2, p: tk.p, T: tk.T, am: tk.m, ag: (a + G0) / G0 });
+    tankBurn(tk, cmd, P.isp, DT);
+    if (isNaN(lift) && y > 0.05) lift = t;
+    if (!isNaN(lift) && isNaN(sink) && Fav * P.thr < m * G0) sink = t;
+    if (y > 0 || a > 0) { v += a * DT; y += v * DT; }
+    if (y <= 0) { if (v < -0.5 && isNaN(land) && !isNaN(lift)) { land = t; vTouch = -v; } y = 0; if (v < 0) v = 0; }
+    ymax = Math.max(ymax, y);
+  }
+  tr.info = { lift, sink, hoverT: isNaN(sink) ? NaN : sink - lift, land, vTouch, ymax, m0: tk.m0, tEnd: (N - 1) * DT };
+  return tr;
+}
+
+// ---- A3: kicker jump + barrel roll ----
+// Roll comes from four side jets in pods on the flanks (left/right × exhaust up/down), fired as COUPLES so there is no net force:
+//   push  : left jet exhausts DOWN (lifts the left side) + right jet exhausts UP (presses the right side down)
+//   coast : all closed, the car keeps spinning at ω = α·t_push
+//   brake : the opposite jets (left UP, right DOWN) fire for the same time and stop the roll
+// P: {p0, isp, mass, v0 (m/s), ang (deg), rt (s roll time)}
+function simRoll(P) {
+  const N = Math.round(4.2 / DT), tr = newTraj(N), tk = newTank(P.p0), m = P.mass, YL = 1.6;   // YL: lip height of the kicker, m
+  const al = P.ang * Math.PI / 180, vx = P.v0 * Math.cos(al), vy0 = P.v0 * Math.sin(al);
+  const tf = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G0 * YL)) / G0, apex = YL + vy0 * vy0 / (2 * G0);
+  const I = m * (2.0 * 2.0 + 1.1 * 1.1) / 12;              // kg·m² box w=2.0 h=1.1 (data pack §6)
+  const TH = 2 * Math.PI, t0 = 0.12;                        // roll starts just after the kicker (ASSUMED)
+  const jetCap = ROLL_JET * P.p0 / P_REF, aMax = 2 * jetCap * ROLL_ARM / I;
+  let T = P.rt, ta = PULSE_FRAC * T, alpha = TH / (ta * (T - ta)), limited = false;
+  if (alpha > aMax) { limited = true; alpha = aMax; T = Math.sqrt(4 * TH / alpha); ta = T / 2; }   // jets too weak: pure push/brake, no coast
+  const tau = I * alpha, Fj = tau / (2 * ROLL_ARM), omega = alpha * ta, tauBB = I * 4 * TH / (P.rt * P.rt);
+  let air = 0, landRoll = NaN;
+  for (let i = 0; i < N; i++) {
+    const t = i * DT, ft = Math.min(t, tf), x = vx * t;
+    const y = t >= tf ? 0 : Math.max(YL + vy0 * ft - 0.5 * G0 * ft * ft, 0), tq = t - t0;
+    let rol = 0, dir = 0;
+    if (tq > 0 && tq < ta) { rol = 0.5 * alpha * tq * tq; dir = 1; }
+    else if (tq >= ta && tq < T - ta) rol = 0.5 * alpha * ta * ta + omega * (tq - ta);
+    else if (tq >= T - ta && tq < T) { const d = T - tq; rol = TH - 0.5 * alpha * d * d; dir = -1; }
+    else if (tq >= T) rol = TH;
+    if (t >= tf) { if (isNaN(landRoll)) landRoll = tr.c.rol[Math.max(i - 1, 0)]; rol = landRoll; dir = 0; }
+    const F = tk.m > 0 ? Fj : 0;
+    put(tr, i, { x, y, pit: 0, rol, JLd: dir > 0 ? F : 0, JRu: dir > 0 ? F : 0, JLu: dir < 0 ? F : 0, JRd: dir < 0 ? F : 0,
+      p: tk.p, T: tk.T, am: tk.m, ag: t < tf ? 0 : 1 });
+    const used = dir ? 2 * F : 0; air += used / (P.isp * G0) * DT; tankBurn(tk, used, P.isp, DT);
+  }
+  const rolledDeg = landRoll * 180 / Math.PI;
+  tr.info = { tf, apex, I, tau, tauBB, Fj, jetCap, alpha, omegaDeg: omega * 180 / Math.PI, ta, limited, Teff: T, air, rollEnd: t0 + T, rolledDeg,
+              landOK: Math.abs(rolledDeg - 360) < 20, dist: vx * tf, m0: tk.m0, tEnd: (N - 1) * DT, t0 };
+  return tr;
+}
+
+// ---- B: fan suction / wall ----
+const capN = (nl, mu0) => nl > 0 ? mu0 * Math.pow(nl, -NLS) * nl : 0;     // friction capacity in units of m·g
+// can the car hold station on a surface at pitch θ (rad), suction s (g), speed v (m/s)?
+function wallState(th, s, mu0, v) {
+  const R = RAMP_R;
+  const nl = s + Math.cos(th) + (th > 0 ? v * v / (G0 * R) : 0);          // normal load / weight
+  const cp = capN(nl, mu0), req = Math.sin(th);
+  return { nl, cap: cp, req, margin: cp - req, ok: nl > 0 && cp >= req };
+}
+// highest pitch (deg) reachable by slow climbing at suction s
+function thetaMax(s, mu0, v) {
+  for (let d = 0; d <= 180; d += 0.25) if (!wallState(d * Math.PI / 180, s, mu0, v || 0).ok) return Math.max(d - 0.25, 0);
+  return 180;
+}
+// smallest suction (g) that lets the car climb to `deg`
+function minSuction(deg, mu0, v) {
+  let lo = 0, hi = 4;
+  for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; (thetaMax(mid, mu0, v) >= deg - 0.3 ? hi = mid : lo = mid); }
+  return hi;
+}
+// peak cornering acceleration (g) on the flat at suction s
+const cornerG = (s, mu0) => capN(1 + s, mu0);              // peak cornering acceleration, g (capN is already μ_eff·N/mg)
+// suction force in units of weight: slider value, or the fixed 46.1 kN readout
+const suckG = (P, m) => P.fixed ? DOWNFORCE_N / (m * G0) : P.s;
+
+// P: {mode:'climb'|'park', s, fixed, mass, mu, vc, th0 (deg), p0, isp, fade (g/s), hold (s)}
+function simWall(P) {
+  const N = Math.round(13 / DT), tr = newTraj(N), tk = newTank(P.p0), m = P.mass, R = RAMP_R;
+  const sg = suckG(P, m), thEnd = 170 * Math.PI / 180;
+  let u = P.mode === 'climb' ? -8 : P.th0 * Math.PI / 180 * R, du = P.mode === 'climb' ? P.vc : 0;
+  let mode = 'att', tHold = NaN, tRel = NaN, slipTh = NaN, slipT = NaN, detachT = NaN, detachTh = NaN;
+  let bx = 0, by = 0, bvx = 0, bvy = 0, pit0 = 0, tb = 0, yb0 = 0, braking = false, landed = false, vTouch = NaN, brakeY = NaN, gPeak = 1;
+  let scale = 1, pit = 0;
+  for (let i = 0; i < N; i++) {
+    const t = i * DT;
+    // fan schedule
+    if (P.mode === 'park') scale = P.s > 0 || P.fixed ? clamp(1 - P.fade * t / sg, 0, 1) : 0;
+    else if (!isNaN(tRel)) scale = 0;
+    const sNow = sg * scale;
+    let Fb = 0, th = Math.max(u / R, 0), px, py;
+    if (mode === 'att' || mode === 'slide') {
+      const ws = wallState(th, sNow, P.mu, Math.abs(du));
+      if (ws.nl <= 0 && !(th === 0 && sNow >= 0)) { // peeled off the surface
+        mode = 'ball'; detachT = t; detachTh = th * 180 / Math.PI;
+        px = u < 0 ? u : R * Math.sin(th); py = u < 0 ? 0 : R * (1 - Math.cos(th));
+        bx = px; by = py; bvx = du * Math.cos(th); bvy = du * Math.sin(th); pit0 = th; tb = t; yb0 = by;
+      } else {
+        if (mode === 'att') {
+          if (P.mode === 'climb' && isNaN(tRel)) {
+            if (!ws.ok) { mode = 'slide'; slipTh = th * 180 / Math.PI; slipT = t; du = Math.max(du, 0); }
+            else if (u >= R * thEnd) { u = R * thEnd; du = 0; if (isNaN(tHold)) tHold = t; if (t - tHold >= P.hold) tRel = t; }
+            else du = P.vc;
+          } else if (P.mode === 'park') {
+            if (!ws.ok) { mode = 'slide'; slipTh = th * 180 / Math.PI; slipT = t; }
+          }
+        }
+        if (mode === 'slide') {
+          const fr = 0.7 * ws.cap * G0;       // kinetic friction (0.7 of static capacity), opposes the slide
+          const a = -G0 * Math.sin(th) + (du > 1e-3 ? -fr : fr);
+          du += a * DT;
+          if (u <= 0 && du <= 0) { u = 0; du = 0; mode = 'rest'; }
+        }
+        if (mode === 'att' || mode === 'slide') u += du * DT;
+        th = Math.max(u / R, 0);
+        px = u < 0 ? u : R * Math.sin(th); py = u < 0 ? 0 : R * (1 - Math.cos(th)); pit = th;
+        put(tr, i, { x: px, y: py, pit, s: sNow, nl: ws.nl, mg: ws.margin, p: tk.p, T: tk.T, am: tk.m, ag: ws.nl });
+        continue;
+      }
+    }
+    if (mode === 'rest') {
+      put(tr, i, { x: 0, y: 0, pit: 0, s: sNow, nl: 1 + sNow, mg: 1, p: tk.p, T: tk.T, am: tk.m, ag: 1 });
+      continue;
+    }
+    // ballistic fall with a landing burn (thrusters brake and level the car)
+    if (mode === 'ball') {
+      const aB = (BRAKE_G - 1) * G0, need = bvy < 0 ? (bvy * bvy - 1.5 * 1.5) / (2 * aB) : 1e9;
+      if (!braking && by <= need + 0.1 && bvy < 0) { braking = true; brakeY = by; }
+      let F = 0;
+      if (braking && !landed) { // full 3.3 g burn until ~1.5 m/s, then hold weight for a soft touch-down
+        const full = Math.min(m * BRAKE_G * G0, thrustAvail(tk.p));
+        F = (bvy < -1.5 ? full : Math.min(m * G0, full)) * (tk.m > 0 ? 1 : 0);
+      }
+      const ay = F / m - G0;
+      if (!landed) { bvy += ay * DT; by += bvy * DT; bx += bvx * DT; gPeak = Math.max(gPeak, F / (m * G0)); tankBurn(tk, F, P.isp, DT); }
+      const tfall = Math.sqrt(2 * Math.max(yb0, 1) / G0);
+      pit = pit0 * (1 - smooth((t - tb) / (0.8 * tfall)));
+      if (by <= 0 && !landed) { by = 0; landed = true; vTouch = Math.abs(bvy); bvy = 0; }
+      if (landed) { pit = pit * 0; F = 0; }
+      put(tr, i, { x: bx, y: by, pit, FL: F / 2, FR: F / 2, s: 0, nl: 0, mg: -1, p: tk.p, T: tk.T, am: tk.m, ag: F > 0 ? F / (m * G0) : 0 });
+    }
+  }
+  tr.info = { slipTh, slipT, detachT, detachTh, tRel, tHold, brakeY, vTouch, gPeak, landed, air: tk.m0 - tk.m, m0: tk.m0, sg, tEnd: (N - 1) * DT,
+              minS170: minSuction(170, P.mu, P.mode === 'climb' ? P.vc : 0), thMax: thetaMax(sg, P.mu, P.mode === 'climb' ? P.vc : 0) };
+  return tr;
+}
+
+// ---- B3: skid-pad corner (flat), car vs a fan-less ghost ----
+function simCorner(P) {
+  const Rc = 28, N = Math.round(10 / DT), tr = newTraj(N), m = P.mass, sg = suckG(P, m);
+  const aLim = capN(1 + sg, P.mu) * G0, aLim0 = capN(1, P.mu) * G0;       // m/s² at the grip limit
+  const vL = Math.sqrt(aLim * Rc), vL0 = Math.sqrt(aLim0 * Rc);
+  let ph = 0, ph0 = 0, v = 0, v0 = 0;
+  const ghost = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const t = i * DT, sNow = sg * smooth(t / 0.8);
+    const lim = Math.sqrt(capN(1 + sNow, P.mu) * G0 * Rc);
+    v = Math.min(v + 5 * DT, lim); v0 = Math.min(v0 + 5 * DT, vL0);
+    ph += v / Rc * DT; ph0 += v0 / Rc * DT; ghost[i] = ph0;
+    const a = v * v / Rc / G0;
+    put(tr, i, { x: Rc * Math.sin(ph), z: Rc * (1 - Math.cos(ph)), yaw: ph, s: sNow, ag: a, nl: 1 + sNow, p: 437, T: T0K, am: 250 });
+  }
+  tr.ghost = ghost;
+  tr.info = { m0: 250, Rc, aLim, vL, vL0, gLim: aLim / G0, gLim0: aLim0 / G0, naive: MU_TYRE * (1 + sg), sg, tEnd: (N - 1) * DT };
+  return tr;
+}
+
+/* ====================================================================================
+   RENDERING — raw WebGL 1, no libraries. The scene is drawn into a tiny FBO (≈ stage/ps
+   pixels), then one post pass snaps it to a 32-colour synthwave palette with a 4×4 Bayer
+   dither, adds neon bloom + CRT, and composites a bitmap-font HUD drawn on a 2-D canvas of
+   the same low resolution.
+   ==================================================================================== */
+const mat = {
+  mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+  id() { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); },
+  T(x, y, z) { const o = mat.id(); o[12] = x; o[13] = y; o[14] = z; return o; },
+  RX(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); },
+  RY(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]); },
+  RZ(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); },
+  persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), o = new Float32Array(16); o[0] = t / a; o[5] = t; o[10] = (fa + n) / (n - fa); o[11] = -1; o[14] = 2 * fa * n / (n - fa); return o; },
+  look(e, c, u) {
+    let f = [c[0] - e[0], c[1] - e[1], c[2] - e[2]]; const fl = Math.hypot(...f) || 1; f = f.map(v => v / fl);
+    let s = [f[1] * u[2] - f[2] * u[1], f[2] * u[0] - f[0] * u[2], f[0] * u[1] - f[1] * u[0]]; const sl = Math.hypot(...s) || 1; s = s.map(v => v / sl);
+    const w = [s[1] * f[2] - s[2] * f[1], s[2] * f[0] - s[0] * f[2], s[0] * f[1] - s[1] * f[0]];
+    const o = new Float32Array([s[0], w[0], -f[0], 0, s[1], w[1], -f[1], 0, s[2], w[2], -f[2], 0, 0, 0, 0, 1]);
+    o[12] = -(s[0] * e[0] + s[1] * e[1] + s[2] * e[2]); o[13] = -(w[0] * e[0] + w[1] * e[1] + w[2] * e[2]); o[14] = f[0] * e[0] + f[1] * e[1] + f[2] * e[2];
+    return { m: o, f, s, u: w };
+  },
+  pt(M, v) { return [M[0] * v[0] + M[4] * v[1] + M[8] * v[2] + M[12], M[1] * v[0] + M[5] * v[1] + M[9] * v[2] + M[13], M[2] * v[0] + M[6] * v[1] + M[10] * v[2] + M[14]]; },
+  dir(M, v) { return [M[0] * v[0] + M[4] * v[1] + M[8] * v[2], M[1] * v[0] + M[5] * v[1] + M[9] * v[2], M[2] * v[0] + M[6] * v[1] + M[10] * v[2]]; },
+};
+
+// 32-colour synthwave palette (r,g,b 0..255)
+const PAL = ['05010f', '0d0221', '1b0a3c', '2d1160', '44167f', '6a1b9a', '8e24aa', 'b5179e', 'd81b9a', 'ff2e97', 'ff6ec7',
+  'ff4d6d', 'ff7a45', 'ff9e2c', 'ffc93c', 'fff275', '0b3d91', '1565c0', '2979ff', '00b8d9', '00e5ff', '7df9ff', 'b2fff0',
+  'ffffff', 'e6dcff', 'b9a8e0', '8070b0', '5a4a85', '3a2d5c', '241a40', '39ff88', 'ff2442'].map(h => [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]);
+const C = n => PAL[n];     // palette index helper for HUD / line colours
+const hex = h => [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+const CPINK = hex('ff2e97'), CCY = hex('00e5ff'), CAMB = hex('ff9e2c'), CYEL = hex('fff275'), CGRN = hex('39ff88'), CRED = hex('ff2442'), CVIO = hex('8e24aa'), CWHT = [1, 1, 1];
+const FOGC = [0.17, 0.05, 0.27];
+
+const VS_TRI = `attribute vec3 aP,aN,aC; attribute float aE; uniform mat4 uM,uVP; varying vec3 vC,vN,vW; varying float vE;
+void main(){ vec4 w=uM*vec4(aP,1.0); vW=w.xyz; vN=(uM*vec4(aN,0.0)).xyz; vC=aC; vE=aE; gl_Position=uVP*w; }`;
+const FS_TRI = `precision mediump float; varying vec3 vC,vN,vW; varying float vE; uniform vec3 uCam,uL,uTint,uFogC; uniform float uMix,uFog;
+void main(){ vec3 N=normalize(vN); vec3 V=uCam-vW; if(dot(N,V)<0.0) N=-N; float l=dot(N,uL);
+  float k=l>0.45?1.0:(l>0.0?0.86:(l>-0.45?0.72:0.58)); vec3 c=vC*k;
+  float rim=pow(1.0-abs(dot(N,normalize(V))),3.0); c+=rim*vec3(1.0,0.25,0.75)*0.35*(1.0-vE);
+  c=mix(c,vC,vE); c=mix(c,uTint,uMix);
+  float d=length(V); float f=clamp((d-uFog)/(uFog*4.0),0.0,1.0); c=mix(c,uFogC,f); gl_FragColor=vec4(c,1.0); }`;
+const VS_LN = `attribute vec3 aP,aC; uniform mat4 uM,uVP; uniform vec3 uCam; varying vec3 vC; varying float vD;
+void main(){ vec4 w=uM*vec4(aP,1.0); vC=aC; vD=length(w.xyz-uCam); gl_Position=uVP*w; }`;
+const FS_LN = `precision mediump float; varying vec3 vC; varying float vD; uniform vec3 uLC,uFogC; uniform float uUse,uFog;
+void main(){ vec3 c=mix(vC,uLC,uUse); float f=clamp((vD-uFog)/(uFog*4.0),0.0,1.0); gl_FragColor=vec4(mix(c,uFogC,f),1.0); }`;
+const VS_GRD = `attribute vec3 aP; uniform mat4 uVP; varying vec3 vW; void main(){ vW=aP; gl_Position=uVP*vec4(aP,1.0); }`;
+const FS_GRD = `precision mediump float; varying vec3 vW; uniform vec3 uCam; uniform float uPx;
+void main(){ vec2 c=vW.xz/10.0; float d=length(uCam-vW); float sg=max(abs(uCam.y-vW.y)/d,0.15); float w=0.0012+d*uPx/sg/10.0*0.5; vec2 e=0.5-abs(fract(c)-0.5);
+  float lx=1.0-smoothstep(w*0.5,w,e.x), lz=1.0-smoothstep(w*0.5,w,e.y); float far=(1.0-smoothstep(120.0,700.0,d))*(1.0-smoothstep(0.06,0.16,w));
+  vec3 c1=vec3(1.0,0.18,0.60), c2=vec3(0.0,0.75,1.0); vec3 col=vec3(0.04,0.008,0.10)+(c1*lx+c2*lz)*far*0.8;
+  col+=(c1*smoothstep(w*3.0,0.0,e.x)+c2*smoothstep(w*3.0,0.0,e.y))*0.05*far;
+  col=mix(col,vec3(0.62,0.12,0.5),smoothstep(250.0,1400.0,d)*0.8); gl_FragColor=vec4(col,1.0); }`;
+const VS_PT = `attribute vec3 aP,aC; attribute float aS; uniform mat4 uVP; uniform float uK; varying vec3 vC;
+void main(){ gl_Position=uVP*vec4(aP,1.0); vC=aC; gl_PointSize=clamp(aS*uK/max(gl_Position.w,0.1),1.0,48.0); }`;
+const FS_PT = `precision mediump float; varying vec3 vC; void main(){ gl_FragColor=vec4(vC,1.0); }`;
+const VS_FS = `attribute vec2 aQ; varying vec2 vQ; void main(){ vQ=aQ; gl_Position=vec4(aQ,0.9999,1.0); }`;
+const FS_SKY = `precision mediump float; varying vec2 vQ; uniform vec3 uF,uR,uU,uSun; uniform vec2 uTan; uniform float uT,uShift;
+float h(vec3 p){ return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453); }
+void main(){ vec3 r=normalize(uF+(vQ.x-uShift)*uTan.x*uR+vQ.y*uTan.y*uU); float y=r.y;
+  vec3 hz=vec3(1.0,0.32,0.55), mid=vec3(0.50,0.09,0.62), top=vec3(0.04,0.01,0.16);
+  vec3 c = y>0.0 ? mix(hz,mix(mid,top,smoothstep(0.12,0.75,y)),smoothstep(0.0,0.2,y)) : vec3(0.05,0.01,0.12);
+  float a=dot(r,uSun), sr=0.15;
+  if(y>-0.02){
+    float g=exp(-(1.0-a)*45.0); c+=vec3(1.0,0.35,0.6)*g*0.55;
+    if(a>cos(sr)){ float p=(y-uSun.y)/sin(sr); vec3 sc=mix(vec3(1.0,0.95,0.35),vec3(1.0,0.2,0.6),smoothstep(0.7,-0.9,p));
+      float cut=smoothstep(0.35,-1.0,p)*0.85; if(!(p<0.35 && fract(p*7.0)<cut)) c=sc; }
+    if(y>0.04){ vec3 q=floor(r*140.0); float s=h(q); if(s>0.9965) c+=vec3(0.8+0.2*sin(uT*3.0+s*60.0)); }
+  }
+  gl_FragColor=vec4(c,1.0); }`;
+const FS_POST = `precision highp float; varying vec2 vQ; uniform sampler2D uS,uH; uniform vec2 uLow; uniform float uCrt; uniform vec3 uPal[32];
+float f2(float a,float b){ return 2.0*abs(a-b)+b; }
+float bayer(vec2 p){ vec2 q=floor(p); float x0=mod(q.x,2.0),y0=mod(q.y,2.0),x1=mod(floor(q.x/2.0),2.0),y1=mod(floor(q.y/2.0),2.0); return (f2(x0,y0)*4.0+f2(x1,y1)+0.5)/16.0; }
+void main(){
+  vec2 uv=vQ*0.5+0.5; vec2 cc=uv-0.5; float r2=dot(cc,cc);
+  vec2 p=uv*uLow; vec2 cell=floor(p);
+  vec3 c=texture2D(uS,(cell+0.5)/uLow).rgb;
+  vec3 g=vec3(0.0);
+  for(int i=-2;i<=2;i++) for(int j=-2;j<=2;j++){ vec3 s=texture2D(uS,(cell+vec2(float(i),float(j))*2.0+0.5)/uLow).rgb; g+=max(s-0.62,0.0); }
+  c+=g/25.0*1.6;
+  c+=(bayer(cell)-0.5)*0.11;
+  float best=1e9; vec3 bc=c;
+  for(int i=0;i<32;i++){ vec3 d=c-uPal[i]; float e=dot(d,d); if(e<best){ best=e; bc=uPal[i]; } }
+  c=bc;
+  vec4 hd=texture2D(uH,(cell+0.5)/uLow); if(hd.a>0.5) c=hd.rgb;
+  if(uCrt>0.5){ float row=fract(p.y); c*=0.80+0.20*sin(row*3.14159); c*=1.0-r2*0.25; float col=mod(floor(uv.x*uLow.x*3.0),3.0); c*=0.93+0.07*step(0.5,1.0-abs(col-1.0)); }
+  gl_FragColor=vec4(c,1.0); }`;
+
+const GL = { ok: false, gl: null, lost: false };
+function glSetup() {
+  const cv = $('gl');
+  let gl = null;
+  try { gl = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false }) || cv.getContext('experimental-webgl'); } catch (e) { gl = null; }
+  if (!gl) { $('nogl').style.display = 'flex'; cv.style.display = 'none'; return; }
+  GL.gl = gl;
+  const prog = (vs, fs, nm) => {
+    const mk = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(nm + ': ' + gl.getShaderInfoLog(s)); return s; };
+    const p = gl.createProgram(); gl.attachShader(p, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(nm + ' link: ' + gl.getProgramInfoLog(p));
+    const u = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i), nm2 = a.name.replace('[0]', ''); u[nm2] = gl.getUniformLocation(p, a.name); }
+    return { p, u, a: n => gl.getAttribLocation(p, n) };
+  };
+  try {
+    GL.tri = prog(VS_TRI, FS_TRI, 'tri'); GL.ln = prog(VS_LN, FS_LN, 'line'); GL.pt = prog(VS_PT, FS_PT, 'points');
+    GL.grd = prog(VS_GRD, FS_GRD, 'grid'); GL.sky = prog(VS_FS, FS_SKY, 'sky'); GL.post = prog(VS_FS, FS_POST, 'post');
+  } catch (e) { $('nogl').innerHTML = 'Shader error:<br><small>' + String(e.message).replace(/</g, '&lt;') + '</small><br>The simulation, plots and readouts still run.'; $('nogl').style.display = 'flex'; cv.style.display = 'none'; GL.gl = null; return; }
+  GL.quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, GL.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  GL.hudTex = gl.createTexture(); GL.fboTex = gl.createTexture(); GL.fbo = gl.createFramebuffer(); GL.depth = gl.createRenderbuffer();
+  GL.dyn = gl.createBuffer(); GL.dynP = gl.createBuffer();
+  cv.addEventListener('webglcontextlost', e => { e.preventDefault(); GL.lost = true; });
+  cv.addEventListener('webglcontextrestored', () => { GL.lost = false; location.reload(); });
+  GL.ok = true;
+  buildMeshes();
+}
+const bufOf = arr => { const gl = GL.gl; if (!gl) return null; const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW); return { b, n: arr.length }; };
+
+/* ---- mesh builders ---- */
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+function TB() {                                           // triangle soup: pos3 nrm3 col3 emis1
+  const a = [];
+  const tri = (p, q, r, c, e) => { const n = nrm(crs(sub(q, p), sub(r, p))); for (const v of [p, q, r]) a.push(v[0], v[1], v[2], n[0], n[1], n[2], c[0], c[1], c[2], e || 0); };
+  return { a, tri, quad(p, q, r, s, c, e) { tri(p, q, r, c, e); tri(p, r, s, c, e); } };
+}
+function LB() { const a = []; return { a, line(p, q, c) { a.push(p[0], p[1], p[2], c[0], c[1], c[2], q[0], q[1], q[2], c[0], c[1], c[2]); } }; }
+// cylinder with axis 'x'|'y'|'z' centred at c; caps coloured cc (emissive e)
+function cyl(tb, axis, c, r, len, n, col, cap, e, col2) {
+  const P = (t, ang, zz) => { const u = Math.cos(ang) * r, v = Math.sin(ang) * r; return axis === 'z' ? [c[0] + u, c[1] + v, c[2] + zz] : axis === 'x' ? [c[0] + zz, c[1] + u, c[2] + v] : [c[0] + u, c[1] + zz, c[2] + v]; };
+  const C0 = axis === 'z' ? [c[0], c[1], c[2] - len / 2] : axis === 'x' ? [c[0] - len / 2, c[1], c[2]] : [c[0], c[1] - len / 2, c[2]];
+  const C1 = axis === 'z' ? [c[0], c[1], c[2] + len / 2] : axis === 'x' ? [c[0] + len / 2, c[1], c[2]] : [c[0], c[1] + len / 2, c[2]];
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, cc = (col2 && i % 2) ? col2 : col;
+    tb.quad(P(0, a0, -len / 2), P(0, a1, -len / 2), P(0, a1, len / 2), P(0, a0, len / 2), cc, 0);
+    tb.tri(C0, P(0, a1, -len / 2), P(0, a0, -len / 2), cap || col, e || 0);
+    tb.tri(C1, P(0, a0, len / 2), P(0, a1, len / 2), cap || col, e || 0);
+  }
+}
+function sphere(tb, c, r, nu, nv, col) {
+  const P = (i, j) => { const th = i / nu * Math.PI * 2, ph = j / nv * Math.PI - Math.PI / 2; return [c[0] + r * Math.cos(ph) * Math.cos(th), c[1] + r * Math.sin(ph), c[2] + r * Math.cos(ph) * Math.sin(th)]; };
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) tb.quad(P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1), col, 0);
+}
+function cone(tb, axis, c, r, len, n, col) {            // nozzle bell opening towards -axis direction (wide end first)
+  const ap = axis[0] ? [c[0] + axis[0] * len, c[1], c[2]] : axis[1] ? [c[0], c[1] + axis[1] * len, c[2]] : [c[0], c[1], c[2] + axis[2] * len];
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * 6.2832, a1 = (i + 1) / n * 6.2832, u0 = Math.cos(a0) * r, v0 = Math.sin(a0) * r, u1 = Math.cos(a1) * r, v1 = Math.sin(a1) * r;
+    const q = (u, v) => axis[0] ? [c[0], c[1] + u, c[2] + v] : axis[1] ? [c[0] + u, c[1], c[2] + v] : [c[0] + u, c[1] + v, c[2]];
+    tb.tri(q(u0, v0), q(u1, v1), ap, col, 0);
+  }
+}
+
+// --- the car (x forward, y up, z right; origin on the ground under the middle) ---
+const CAR_ST = [ // x, yb, ybelt, yt, w, wb, wt
+  [2.10, .18, .30, .32, .55, .45, .35], [1.80, .15, .36, .42, .85, .70, .55], [1.20, .13, .50, .60, .93, .78, .70],
+  [.55, .12, .60, .78, .95, .80, .72], [0.0, .12, .64, 1.08, .95, .80, .52], [-.70, .12, .66, 1.06, .96, .80, .50],
+  [-1.30, .12, .70, .88, .97, .80, .62], [-1.75, .12, .72, .78, .93, .76, .72], [-2.10, .16, .70, .74, .86, .70, .70]];
+const WHEEL_R = 0.34;
+const WHEELS = [[1.35, -.86], [1.35, .86], [-1.35, -.86], [-1.35, .86]];
+const NOZ_REAR = [[-2.1, .42, -.55], [-2.1, .42, -.2], [-2.1, .42, .2], [-2.1, .42, .55]];
+const NOZ_DOWN_L = [[-1.75, .30, -.86], [.95, .30, -.86]], NOZ_DOWN_R = [[-1.75, .30, .86], [.95, .30, .86]];
+const ROLL_NOZ = [[0, .74, -1.0], [0, .46, -1.0], [0, .74, 1.0], [0, .46, 1.0]];   // exhaust origin of JLu, JLd, JRu, JRd
+const ROLL_EXH = [[0, 1, 0], [0, -1, 0], [0, 1, 0], [0, -1, 0]];                    // exhaust directions (car frame)
+const M_ = {};
+function box(tb, c, sx, sy, sz, col, e) {
+  const x0 = c[0] - sx / 2, x1 = c[0] + sx / 2, y0 = c[1] - sy / 2, y1 = c[1] + sy / 2, z0 = c[2] - sz / 2, z1 = c[2] + sz / 2;
+  tb.quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], col, e); tb.quad([x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1], col, e);
+  tb.quad([x0, y0, z0], [x0, y0, z1], [x1, y0, z1], [x1, y0, z0], col, e); tb.quad([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], col, e);
+  tb.quad([x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1], col, e); tb.quad([x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0], col, e);
+}
+function buildMeshes() {
+  const tb = TB(), lb = LB(), ring = s => { const [, yb, yl, yt, w, wb, wt] = s; return [[-wb, yb], [-w, yb + .06], [-w, yl], [-wt, yt], [wt, yt], [w, yl], [w, yb + .06], [wb, yb]]; };
+  const BODY = hex('e6dcff'), BODY2 = hex('b9a8e0'), GLASS = hex('1565c0'), UNDER = hex('1b0a3c');
+  const rings = CAR_ST.map(s => ring(s).map(p => [s[0], p[1], p[0]]));
+  for (let k = 0; k < rings.length - 1; k++) for (let e = 0; e < 8; e++) {
+    const e2 = (e + 1) % 8, cabin = CAR_ST[k][0] <= .6 && CAR_ST[k][0] >= -1.3 || (CAR_ST[k + 1][0] <= .6 && CAR_ST[k + 1][0] >= -1.3);
+    let col = BODY;
+    if (e === 0) col = UNDER; else if (e === 1 || e === 6) col = BODY2; else if ((e === 2 || e === 3 || e === 4) && cabin && CAR_ST[k][0] < 0.6) col = GLASS;
+    tb.quad(rings[k][e], rings[k + 1][e], rings[k + 1][e2], rings[k][e2], col, 0);
+  }
+  const f = rings[0], r = rings[rings.length - 1];                      // nose + tail caps
+  for (let e = 1; e < 7; e++) tb.tri(f[0], f[e + 1], f[e], BODY2, 0);
+  for (let e = 1; e < 7; e++) tb.tri(r[0], r[e], r[e + 1], UNDER, 0);
+  tb.quad([-2.108, .5, -.8], [-2.108, .5, .8], [-2.108, .58, .8], [-2.108, .58, -.8], CPINK, 1);         // full-width tail bar
+  tb.quad([2.02, .31, -.5], [2.02, .31, .5], [2.02, .335, .5], [2.02, .335, -.5], CCY, 1);                // hidden-headlight slit
+  tb.quad([-2.0, .03, -.9], [2.0, .03, -.9], [2.0, .03, .9], [-2.0, .03, .9], hex('b5179e'), 1);         // neon underglow
+  M_.body = bufOf(tb.a);
+  for (let k = 0; k < rings.length; k++) for (let e = 0; e < 8; e++) { if (e === 0 || e === 7) continue; lb.line(rings[k][e], rings[k][(e + 1) % 8], k % 2 ? CPINK : CVIO); }
+  for (let k = 0; k < rings.length - 1; k++) for (const e of [2, 3, 4, 5]) lb.line(rings[k][e], rings[k + 1][e], e === 3 ? CCY : CPINK);
+  M_.edges = bufOf(lb.a);
+  const wt = TB();                                                       // one wheel, axis z, centred at origin
+  cyl(wt, 'z', [0, 0, 0], WHEEL_R, .28, 8, hex('1b0a3c'), hex('00b8d9'), 1, hex('2d1160'));
+  M_.wheel = bufOf(wt.a);
+  const xt = TB();                                                       // x-ray internals
+  sphere(xt, [-.85, .55, 0], .457, 10, 7, hex('2d1160')); M_.tank400 = bufOf(xt.a);
+  const x2 = TB(); cyl(x2, 'z', [-1.55, .5, 0], .25, 1.0, 10, hex('2d1160'), hex('44167f'), 0); M_.tank200 = bufOf(x2.a);
+  const x3 = TB(); cyl(x3, 'y', [0, 0, 0], .21, .07, 12, hex('00b8d9'), hex('7df9ff'), 1, hex('1565c0')); M_.fan = bufOf(x3.a);
+  const x4 = TB(); for (const n of NOZ_REAR) cone(x4, [1, 0, 0], n, .11, .35, 8, hex('ffc93c')); M_.nozRear = bufOf(x4.a);
+  const rp = TB(); for (const z of [-1.0, 1.0]) { box(rp, [0, .6, z], .62, .30, .14, hex('3a2d5c'), 0); box(rp, [0, .6, z * 1.07], .5, .05, .02, CCY, 1); }
+  M_.rcsPods = bufOf(rp.a);
+  M_.rcsJet = ROLL_NOZ.map((n, k) => { const jt = TB(); cone(jt, [0, -ROLL_EXH[k][1], 0], n, .075, .15, 8, hex('ffc93c')); return bufOf(jt.a); });
+  const x5 = TB(); for (const n of NOZ_DOWN_L.concat(NOZ_DOWN_R)) cone(x5, [0, 1, 0], [n[0], .12, n[2]], .09, .22, 8, hex('ffc93c')); M_.nozDown = bufOf(x5.a);
+  // world: ground, grid, mountains, tower, ramp
+  const gt = TB(); gt.quad([-1500, -.03, -1500], [-1500, -.03, 1500], [1500, -.03, 1500], [1500, -.03, -1500], hex('0d0221'), 1); M_.floor = bufOf(gt.a);
+  const gl2 = LB(), GS = 5, GN = 60;
+  for (let i = -GN; i <= GN; i++) { const c = i % 5 === 0 ? CPINK : hex('8e24aa'); gl2.line([i * GS, 0, -GN * GS], [i * GS, 0, GN * GS], c); gl2.line([-GN * GS, 0, i * GS], [GN * GS, 0, i * GS], i % 5 === 0 ? CCY : hex('2979ff')); }
+  M_.grid = bufOf(gl2.a);
+  const mt = TB(), ml = LB(); let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const MN = 72, RM = 900; let prev = null;
+  for (let i = 0; i <= MN; i++) {
+    const a = i / MN * 6.2832, h = 50 + rnd() * 110 * (0.4 + 0.6 * Math.abs(Math.sin(a * 3.1))), p = [Math.cos(a) * RM, h, Math.sin(a) * RM];
+    if (prev) { const b0 = [prev[0], 0, prev[2]], b1 = [p[0], 0, p[2]]; mt.quad(b0, b1, p, prev, hex('1b0a3c'), 1); ml.line(prev, p, CPINK); }
+    prev = p;
+  }
+  M_.mtn = bufOf(mt.a); M_.mtnL = bufOf(ml.a);
+  const tw = LB(), TW = [[0, 0], [2.5, 0], [2.5, 2.5], [0, 2.5]];
+  for (let y = 0; y < 8; y++) for (let i = 0; i < 4; i++) { const a = TW[i], b = TW[(i + 1) % 4], y0 = y * 5, y1 = y0 + 5; tw.line([a[0], y0, a[1]], [b[0], y0, b[1]], CCY); tw.line([a[0], y0, a[1]], [b[0], y1, b[1]], CVIO); tw.line([a[0], y0, a[1]], [a[0], y1, a[1]], CCY); }
+  M_.tower = bufOf(tw.a);
+  const rt = TB(), rl = LB(), R = RAMP_R, W = 3.2, step = Math.PI / 60;
+  for (let th = 0; th < Math.PI - 1e-6; th += step) {
+    const P = (a, rr, z) => [rr * Math.sin(a), rr * (1 - Math.cos(a)) + 0 * 0, z];
+    const cen = (a, rr, z) => [rr * Math.sin(a), R - rr * Math.cos(a), z];   // circle centred (0,R)
+    const a0 = th, a1 = th + step;
+    rt.quad(cen(a0, R, -W), cen(a1, R, -W), cen(a1, R, W), cen(a0, R, W), hex('1b0a3c'), 0);
+    rt.quad(cen(a0, R + .7, -W), cen(a1, R + .7, -W), cen(a1, R + .7, W), cen(a0, R + .7, W), hex('0d0221'), 0);
+    rt.quad(cen(a0, R, -W), cen(a1, R, -W), cen(a1, R + .7, -W), cen(a0, R + .7, -W), hex('2d1160'), 0);
+    rt.quad(cen(a0, R, W), cen(a1, R, W), cen(a1, R + .7, W), cen(a0, R + .7, W), hex('2d1160'), 0);
+    rl.line(cen(a0, R, -W), cen(a1, R, -W), CCY); rl.line(cen(a0, R, W), cen(a1, R, W), CPINK);
+    if (Math.round(th / step) % 5 === 0) rl.line(cen(a0, R, -W), cen(a0, R, W), hex('8e24aa'));
+  }
+  rt.quad([0, 2 * R, -W], [0, 2 * R, W], [6, 2 * R, W], [6, 2 * R, -W], hex('1b0a3c'), 0);       // top ledge
+  rt.quad([0, 2 * R + .7, -W], [6, 2 * R + .7, -W], [6, 2 * R + .7, W], [0, 2 * R + .7, W], hex('0d0221'), 0);
+  rl.line([0, 2 * R, -W], [6, 2 * R, -W], CCY); rl.line([0, 2 * R, W], [6, 2 * R, W], CPINK); rl.line([6, 2 * R, -W], [6, 2 * R, W], CYEL);
+  for (let h = 0; h < 2 * R; h += 3) { rl.line([R + .7, h, -W], [R + .7, h, W], hex('3a2d5c')); }
+  M_.ramp = bufOf(rt.a); M_.rampL = bufOf(rl.a);
+}
+
+/* ---- drawing helpers ---- */
+function useTri(vp, cam, tint, mix) {
+  const gl = GL.gl, p = GL.tri;
+  gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uVP, false, vp); gl.uniform3fv(p.u.uCam, cam); gl.uniform3fv(p.u.uL, nrm([0.6, 0.55, -0.35]));
+  gl.uniform3fv(p.u.uFogC, FOGC); gl.uniform1f(p.u.uFog, 90);
+}
+function drawTri(m, M, tint, mix) {
+  const gl = GL.gl, p = GL.tri;
+  gl.uniformMatrix4fv(p.u.uM, false, M); gl.uniform3fv(p.u.uTint, tint || [0, 0, 0]); gl.uniform1f(p.u.uMix, mix || 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.b);
+  const set = (n, sz, off) => { const l = p.a(n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, sz, gl.FLOAT, false, 40, off * 4); };
+  set('aP', 3, 0); set('aN', 3, 3); set('aC', 3, 6); set('aE', 1, 9);
+  gl.drawArrays(gl.TRIANGLES, 0, m.n / 10);
+}
+function drawLines(m, M, vp, cam, col, fog, count) {
+  const gl = GL.gl, p = GL.ln;
+  gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uVP, false, vp); gl.uniformMatrix4fv(p.u.uM, false, M); gl.uniform3fv(p.u.uCam, cam);
+  gl.uniform3fv(p.u.uFogC, FOGC); gl.uniform1f(p.u.uFog, fog || 120); gl.uniform3fv(p.u.uLC, col || [1, 1, 1]); gl.uniform1f(p.u.uUse, col ? 1 : 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.b);
+  let l = p.a('aP'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 24, 0);
+  l = p.a('aC'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 24, 12);
+  gl.drawArrays(gl.LINES, 0, count || m.n / 6);
+}
+function drawFloor(vp, cam) {
+  const gl = GL.gl, p = GL.grd; glDisableAttribs(); gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uVP, false, vp); gl.uniform3fv(p.u.uCam, cam); gl.uniform1f(p.u.uPx, 2 * Math.tan(FOV / 2) / S.H);
+  gl.bindBuffer(gl.ARRAY_BUFFER, M_.floor.b); const l = p.a('aP'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 40, 0); gl.drawArrays(gl.TRIANGLES, 0, M_.floor.n / 10);
+}
+function glDisableAttribs() { const gl = GL.gl; for (let i = 0; i < 8; i++) gl.disableVertexAttribArray(i); }
+
+// per-frame dynamic line batch (force arrows, ticks, wire ghosts use static buffers)
+const DL = { a: [], line(p, q, c) { this.a.push(p[0], p[1], p[2], c[0], c[1], c[2], q[0], q[1], q[2], c[0], c[1], c[2]); },
+  arrow(p, d, len, c) {                       // shaft + 4-line head, d = unit direction
+    if (len < 0.05) return; const q = [p[0] + d[0] * len, p[1] + d[1] * len, p[2] + d[2] * len]; this.line(p, q, c);
+    const up = Math.abs(d[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0], s = nrm(crs(d, up)), u = nrm(crs(s, d)), h = Math.min(0.35, len * 0.3);
+    for (const v of [s, u, [-s[0], -s[1], -s[2]], [-u[0], -u[1], -u[2]]]) this.line(q, [q[0] - d[0] * h + v[0] * h * .5, q[1] - d[1] * h + v[1] * h * .5, q[2] - d[2] * h + v[2] * h * .5], c);
+  } };
+const PB = { a: [], pt(p, s, c) { this.a.push(p[0], p[1], p[2], c[0], c[1], c[2], s); } };
+
+/* ---- bitmap font (5×7) ---- */
+const FONT = {};
+(function () {
+  const g = { 0: '0e,11,13,15,19,11,0e', 1: '04,0c,04,04,04,04,0e', 2: '0e,11,01,02,04,08,1f', 3: '1f,02,04,02,01,11,0e', 4: '02,06,0a,12,1f,02,02', 5: '1f,10,1e,01,01,11,0e', 6: '06,08,10,1e,11,11,0e', 7: '1f,01,02,04,08,08,08', 8: '0e,11,11,0e,11,11,0e', 9: '0e,11,11,0f,01,02,0c',
+    A: '0e,11,11,1f,11,11,11', B: '1e,11,11,1e,11,11,1e', C: '0e,11,10,10,10,11,0e', D: '1c,12,11,11,11,12,1c', E: '1f,10,10,1e,10,10,1f', F: '1f,10,10,1e,10,10,10', G: '0e,11,10,17,11,11,0f', H: '11,11,11,1f,11,11,11', I: '0e,04,04,04,04,04,0e', J: '07,02,02,02,02,12,0c', K: '11,12,14,18,14,12,11', L: '10,10,10,10,10,10,1f', M: '11,1b,15,15,11,11,11',
+    N: '11,11,19,15,13,11,11', O: '0e,11,11,11,11,11,0e', P: '1e,11,11,1e,10,10,10', Q: '0e,11,11,11,15,12,0d', R: '1e,11,11,1e,14,12,11', S: '0f,10,10,0e,01,01,1e', T: '1f,04,04,04,04,04,04', U: '11,11,11,11,11,11,0e', V: '11,11,11,11,11,0a,04', W: '11,11,11,15,15,15,0a', X: '11,11,0a,04,0a,11,11', Y: '11,11,11,0a,04,04,04', Z: '1f,01,02,04,08,10,1f',
+    '.': '00,00,00,00,00,0c,0c', ':': '00,0c,0c,00,0c,0c,00', '-': '00,00,00,1f,00,00,00', '+': '00,04,04,1f,04,04,00', '/': '01,01,02,04,08,10,10', '%': '18,19,02,04,08,13,03', '=': '00,00,1f,00,1f,00,00', '!': '04,04,04,04,04,00,04', '?': '0e,11,01,02,04,00,04',
+    '(': '02,04,08,08,08,04,02', ')': '08,04,02,02,02,04,08', ',': '00,00,00,00,0c,04,08', '<': '02,04,08,10,08,04,02', '>': '08,04,02,01,02,04,08', '^': '0c,12,12,0c,00,00,00', '~': '00,00,08,15,02,00,00', '*': '00,15,0e,1f,0e,15,00', ' ': '00,00,00,00,00,00,00' };
+  for (const k in g) FONT[k] = g[k].split(',').map(h => parseInt(h, 16));
+})();
+const rgbCss = c => `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
+function txt(cx, s, x, y, sc, col, shadow) {            // integer-pixel bitmap text; returns width
+  s = String(s).toUpperCase(); let w = 0;
+  for (const pass of shadow === false ? [0] : [1, 0]) {
+    cx.fillStyle = pass ? '#0d0221' : (typeof col === 'string' ? col : rgbCss(col));
+    let px = x;
+    for (const ch of s) { const gl = FONT[ch] || FONT['?']; for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (gl[r] & (16 >> c)) cx.fillRect(Math.round(px + c * sc + pass * sc), Math.round(y + r * sc + pass * sc), sc, sc); px += 6 * sc; }
+    w = px - x;
+  }
+  return w;
+}
+const txtW = (s, sc) => String(s).length * 6 * sc;
+
+/* ====================================================================================
+   STATE, SCENARIOS, UI
+   ==================================================================================== */
+const $ = id => document.getElementById(id);
+const PRE = {
+  launch: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, thr: 49, sup: 2, mu: 1.26 } },
+  hover: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, thr: 100 } },
+  roll: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, v0: 14, ang: 49, rt: 2 } },
+  climb: { tab: 'wall', def: { pres: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26, vc: 6 } },
+  park: { tab: 'wall', def: { pres: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26, th0: 180, fade: 0.25 } },
+  corner: { tab: 'wall', def: { mass: 1700, sup: 2, mu: 1.26 } },
+};
+const FMT = {
+  pres: v => `${v} bar · ${Math.round(psi(+v))} psi · ${tankMass(+v).toFixed(0)} kg`, isp: v => `${(+v).toFixed(1)} s`, mass: v => `${v} kg`, thr: v => `${v} %`,
+  sup: v => `${(+v).toFixed(2)} g`, mu: v => (+v).toFixed(2), v0: v => `${(+v).toFixed(1)} m/s`, ang: v => `${v}°`, rt: v => `${(+v).toFixed(1)} s`,
+  vc: v => `${(+v).toFixed(1)} m/s`, th0: v => `${v}°`, fade: v => `${(+v).toFixed(2)} g/s`,
+};
+const S = {
+  tab: 'air', pre: 'launch', playing: false, t: 0, dur: 3, rate: 1, tr: null, P: null, started: false,
+  cam: { mode: 'chase', dyaw: 0, dpit: 0, dd: 1, cur: null }, ov: {}, W: 160, H: 90, ps: 3, vp: null, camPos: [0, 5, 20], basis: null,
+  ptime: 0, p2: null, _rd: '', labels: [],
+};
+const sliderIds = Object.keys(FMT);
+function refreshLabels() { sliderIds.forEach(k => { const el = $(k); if (el) $(k + 'V').textContent = FMT[k](el.value); }); $('rateV').textContent = (+$('rate').value).toFixed(2) + '×'; }
+function readParams() {
+  const g = k => $(k) ? +$(k).value : 0;
+  const mode = S.pre === 'park' ? 'park' : 'climb';
+  return { p0: g('pres'), isp: g('isp'), mass: g('mass'), thr: g('thr') / 100, sup: g('sup'), s: g('sup'), mu: g('mu'), v0: g('v0'), ang: g('ang'), rt: g('rt'),
+    vc: g('vc'), th0: g('th0'), fade: g('fade'), fixed: $('fixed').checked, hold: 1.0, mode };
+}
+function activeEnd(tr, keys) {
+  const n = tr.n; let last = 0;
+  for (const k of keys) { const a = tr.c[k]; for (let i = n - 2; i >= 0; i--) { if (Math.abs(a[i] - a[n - 1]) > 1e-3 * (1 + Math.abs(a[n - 1])) * 3) { last = Math.max(last, i); break; } } }
+  return last * tr.dt;
+}
+function reparam() {
+  const P = S.P = readParams(), pre = S.pre;
+  let tr;
+  if (pre === 'launch') { tr = simLaunch(P); S.dur = Math.min(3.2, (isNaN(tr.info.t60) ? 2.5 : tr.info.t60) + 1.2); }
+  else if (pre === 'hover') { tr = simHover(P); S.dur = Math.min(12, (isNaN(tr.info.land) ? 12 : tr.info.land + 1.5)); }
+  else if (pre === 'roll') { tr = simRoll(P); S.dur = Math.min(4.2, tr.info.tf + 1.3); }
+  else if (pre === 'corner') { tr = simCorner(P); S.dur = 9; }
+  else { tr = simWall(P); S.dur = Math.max(2.5, Math.min(12.5, activeEnd(tr, ['x', 'y', 'pit', 'FL']) + 1.4)); }
+  S.tr = tr; S.t = clamp(S.t, 0, S.dur);
+  buildStatic(); buildP2(); drawPlots();
+}
+function applyScen() {
+  document.querySelectorAll('[data-scen]').forEach(el => { const ls = el.dataset.scen.split(' '); el.classList.toggle('hide', !(ls.includes(S.pre) || ls.includes(S.tab))); });
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === S.pre));
+  $('hint').textContent = HINTS[S.pre];
+}
+function setPreset(p) {
+  S.pre = p; S.tab = PRE[p].tab;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === S.tab));
+  const d = PRE[p].def; for (const k in d) if ($(k)) $(k).value = d[k];
+  if (S.tab === 'wall' && p !== 'corner') $('fixed').checked = false;
+  S.t = 0; S.playing = false; S.started = false; $('playBtn').textContent = '▶ Play';
+  S.cam.mode = p === 'corner' ? 'top' : (p === 'launch' || p === 'roll' ? 'pad' : 'chase'); S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; S.cam.cur = null; syncCamBtns();
+  refreshLabels(); applyScen(); buildCards(); reparam();
+}
+const HINTS = {
+  launch: 'Valve opening is the one unpublished number — it is fitted so the run lands on Tesla\'s live 0.81 s. Drag the gauge to change the tank.',
+  hover: 'The four down-jets hold a 3 m hop until the tank can no longer push back on the car\'s weight. Heavier car ⇒ shorter hop.',
+  roll: 'Four side jets fire in couples: a push to start the spin, a coast, then the opposite jets fire to stop it. A shorter roll needs harder pulses; if the jets can\'t deliver, the roll takes longer than you asked.',
+  climb: 'Slow the climb or cut the fans: friction fails first at high pitch. Crawl speed removes the centrifugal help.',
+  park: 'Drag the car along the ramp (or use the slider). The fans fade; when suction drops under 1 g the car lets go.',
+  corner: 'The ghost has no fans. Same tyres, same corner — suction adds load, load adds grip.',
+};
+function syncCamBtns() { document.querySelectorAll('#cams button').forEach(b => b.classList.toggle('on', b.dataset.c === S.cam.mode)); }
+
+/* ---- static scene bits per run: lanes, finish ticks, rulers, kicker ---- */
+const GHOSTS = [{ t: 1.9, n: '2017 ROADSTER', z: -6.4, c: hex('8070b0') }, { t: 1.6, n: 'PERFORMANCE', z: -3.2, c: hex('00b8d9') },
+  { t: 0.9, n: 'THRUST', z: 3.2, c: hex('ffc93c') }, { t: 0.59, n: 'ROCKET', z: 6.4, c: hex('ff6ec7') }];
+const ghostX = (g, t) => t < g.t ? 0.5 * V60 / g.t * t * t : 0.5 * V60 * g.t + V60 * (t - g.t);
+function buildStatic() {
+  const lb = LB(), tb = TB(); S.labels = [];
+  const ruler = (x, z, h, step, lab) => {
+    lb.line([x, 0, z], [x, h, z], CCY);
+    for (let y = 0; y <= h + 1e-6; y += step) { lb.line([x - .3, y, z], [x + .3, y, z], CCY); if (lab && Math.round(y / step) % lab === 0 && y > 0) S.labels.push({ p: [x + .4, y, z], t: Math.round(y) + 'M', c: CCY }); }
+  };
+  if (S.pre === 'launch') {
+    for (const z of [-6.4, -3.2, 0, 3.2, 6.4]) { const c = z === 0 ? CPINK : hex('44167f'); lb.line([-5, .02, z - 1.5], [45, .02, z - 1.5], c); lb.line([-5, .02, z + 1.5], [45, .02, z + 1.5], c); }
+    lb.line([0, .03, -8], [0, .03, 8], CWHT);
+    for (const g of GHOSTS) {
+      const x = 0.5 * V60 * g.t; lb.line([x, .03, g.z - 1.5], [x, .03, g.z + 1.5], g.c); lb.line([x, 0, g.z - 1.5], [x, 2.2, g.z - 1.5], g.c);
+      S.labels.push({ p: [x, 2.7, g.z - 1.5], t: g.t.toFixed(2) + 'S', c: g.c });
+    }
+    const i = S.tr.info; if (!isNaN(i.x60)) { lb.line([i.x60, .03, -1.5], [i.x60, .03, 1.5], CAMB); lb.line([i.x60, 0, 1.5], [i.x60, 2.6, 1.5], CAMB); S.labels.push({ p: [i.x60, 3.2, 1.5], t: i.t60.toFixed(2) + 'S', c: CAMB }); }
+  } else if (S.pre === 'hover') {
+    ruler(3.2, 0, 8, 1, 2);
+    for (let a = 0; a < 24; a++) lb.line([2.2 * Math.cos(a / 24 * 6.2832), .03, 2.2 * Math.sin(a / 24 * 6.2832)], [2.2 * Math.cos((a + 1) / 24 * 6.2832), .03, 2.2 * Math.sin((a + 1) / 24 * 6.2832)], CPINK);
+    lb.line([2.8, 3.0, 0], [3.6, 3.0, 0], CAMB);
+  } else if (S.pre === 'roll') {
+    const i = S.tr.info; ruler(i.dist * 0.5, -3.5, 9, 1, 2);
+    const a = S.P.ang * Math.PI / 180, L = 1.6 / Math.tan(a);
+    tb.quad([-L, 0, -1.4], [0, 1.6, -1.4], [0, 1.6, 1.4], [-L, 0, 1.4], hex('44167f'), 0); tb.quad([-L, 0, -1.4], [0, 0, -1.4], [0, 1.6, -1.4], [-L, 0, -1.4], hex('2d1160'), 0);
+    lb.line([-L, 0, -1.4], [0, 1.6, -1.4], CCY); lb.line([-L, 0, 1.4], [0, 1.6, 1.4], CPINK); lb.line([0, 1.6, -1.4], [0, 1.6, 1.4], CYEL);
+    for (let k = 0; k < 5; k++) { const x = (k + .5) * 4.2 + 4, c = [hex('b9a8e0'), hex('8e24aa'), hex('00b8d9'), hex('ff6ec7'), hex('ffc93c')][k]; tb.quad([x, 0, -.9], [x + 3.4, 0, -.9], [x + 3.4, 1.4, -.9], [x, 1.4, -.9], c, 0); tb.quad([x, 1.4, -.9], [x + 3.4, 1.4, -.9], [x + 3.4, 1.4, .9], [x, 1.4, .9], c, 0); }
+    lb.line([0, i.apex, 3.5], [i.dist, i.apex, 3.5], CAMB); S.labels.push({ p: [i.dist * .5, i.apex + .6, 3.5], t: 'APEX ' + i.apex.toFixed(1) + 'M', c: CAMB });
+  } else if (S.tab === 'wall' && S.pre !== 'corner') {
+    ruler(RAMP_R + 3, 0, 22, 2, 5);
+    for (let a = 0; a < 7; a++) lb.line([-8 - a * 6, .02, -3.2], [-8 - a * 6, .02, 3.2], hex('44167f'));
+  } else if (S.pre === 'corner') {
+    const Rc = S.tr.info.Rc; for (let a = 0; a < 90; a++) { const a0 = a / 90 * 6.2832, a1 = (a + 1) / 90 * 6.2832; for (const dr of [-2, 2]) lb.line([(Rc + dr) * Math.sin(a0), .02, Rc - (Rc + dr) * Math.cos(a0)], [(Rc + dr) * Math.sin(a1), .02, Rc - (Rc + dr) * Math.cos(a1)], dr < 0 ? CPINK : CCY); }
+  }
+  S.sLn = lb.a.length ? bufOf(lb.a) : null; S.sTr = tb.a.length ? bufOf(tb.a) : null;
+}
+
+/* ---- pose and plume ---- */
+function poseAt(tr, t) {
+  const g = k => sampleT(tr, k, t);
+  const o = { x: g('x'), y: g('y'), z: g('z'), yaw: g('yaw'), pit: g('pit'), rol: g('rol'), F: g('F'), FL: g('FL'), FR: g('FR'), JLu: g('JLu'), JLd: g('JLd'), JRu: g('JRu'), JRd: g('JRd'), p: g('p'), T: g('T'), am: g('am'), s: g('s'), nl: g('nl'), mg: g('mg'), ag: g('ag') };
+  if (S.pre === 'corner') { o.yaw = -o.yaw; }
+  return o;
+}
+function carM(o) { return mat.mul(mat.mul(mat.mul(mat.T(o.x, o.y, o.z), mat.RY(o.yaw)), mat.RZ(o.pit)), mat.RX(o.rol)); }
+const hash = (a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
+const PREF = { F: 20000, FL: 20000, FR: 20000, JLu: 3500, JLd: 3500, JRu: 3500, JRd: 3500 };   // N per nozzle that draws a full-size plume
+const PLS = { F: 1, FL: 1, FR: 1, JLu: 0.22, JLd: 0.22, JRu: 0.22, JRd: 0.22 };                // plume length scale
+function plume(t, tr) {
+  const LIFE = 0.8, RATE = 360, TAU = 0.12;
+  const chans = [['F', NOZ_REAR, [-1, 0, 0]], ['FL', NOZ_DOWN_L, [0, -1, 0]], ['FR', NOZ_DOWN_R, [0, -1, 0]],
+    ['JLu', [ROLL_NOZ[0]], ROLL_EXH[0]], ['JLd', [ROLL_NOZ[1]], ROLL_EXH[1]], ['JRu', [ROLL_NOZ[2]], ROLL_EXH[2]], ['JRd', [ROLL_NOZ[3]], ROLL_EXH[3]]];
+  chans.forEach((ch, ci) => {
+    const nz = ch[1], col = ch[0], k1 = Math.floor(t * RATE), k0 = Math.max(0, Math.ceil((t - LIFE) * RATE)), ref = PREF[col], ls = PLS[col];
+    const nN = nz.length;
+    for (let k = k0; k <= k1; k++) {
+      const te = k / RATE, age = t - te, Ft = sampleT(tr, col, te) / nN;
+      if (Ft < 150) continue;
+      const frac = Ft / ref, o = poseAt(tr, te), M = carM(o), a = age / LIFE;
+      for (let j = 0; j < nN; j++) {
+        const h1 = hash(k, j + ci * 7), h2 = hash(k + 31, j), h3 = hash(k + 77, j + 3);
+        const d = mat.dir(M, ch[2]), p0 = mat.pt(M, nz[j]);
+        const ve = (50 + 120 * Math.sqrt(Math.min(frac, 1.5))) * (0.8 + 0.4 * h1), travel = ve * TAU * (1 - Math.exp(-age / TAU)) * ls, sp = (0.10 + 0.5 * a) * (h2 - 0.5) * 2;
+        const px = p0[0] + d[0] * travel + (h2 - .5) * sp * travel, py = p0[1] + d[1] * travel + (h3 - .5) * sp * travel + 0.5 * age * (ci ? 0.2 : 1) * ls,
+          pz = p0[2] + d[2] * travel + (h3 - .5) * sp * travel;
+        const sz = (0.3 + 1.5 * a) * Math.sqrt(Math.min(frac, 1.2) + .2) * (0.25 + 0.5 * ls), b = Math.pow(1 - a, 1.3) * Math.min(1.1, .4 + frac * .8);
+        const c = a < .07 ? [1, 1, 1] : a < .24 ? [.2, .9, 1] : a < .5 ? [1, .25, .8] : [.55, .2, .8];
+        PB.pt([px, Math.max(py, 0.04), pz], sz, [c[0] * b, c[1] * b, c[2] * b]);
+      }
+    }
+    // Mach diamonds + hot core, drawn at the current instant
+    const Fn = sampleT(tr, col, t) / nN, fr = Fn / ref; if (fr < 0.08) return;
+    const o = poseAt(tr, t), M = carM(o), d = mat.dir(M, ch[2]), len = Math.min(fr, 1.4);
+    for (let j = 0; j < nN; j++) {
+      const p0 = mat.pt(M, nz[j]);
+      for (let kk = 0; kk < 5; kk++) { const s = (0.7 + 1.3 * kk) * (0.5 + 0.5 * len) * ls; PB.pt([p0[0] + d[0] * s, p0[1] + d[1] * s, p0[2] + d[2] * s], 0.3 * (0.3 + 0.7 * ls), kk % 2 ? [.9, .6, 1] : [1, 1, .8]); }
+      for (let s = 0.05; s < 6 * len * ls; s += 0.3 * Math.max(ls, 0.25)) PB.pt([p0[0] + d[0] * s, p0[1] + d[1] * s, p0[2] + d[2] * s], (0.22 + 0.2 * (1 - s / (6 * len * ls))) * (0.3 + 0.7 * ls), [.7, 1, 1]);
+    }
+  });
+}
+function flowParticles(t, o, M) {
+  const s = o.s; if (s < 0.05 && !(S.pre === 'launch' && S.P.sup > 0.05)) return;
+  const gain = clamp((S.pre === 'launch' ? S.P.sup : s) / 2, 0.15, 1);
+  for (let i = 0; i < 150; i++) {
+    const u = ((i * 0.61803 + t * 0.9) % 1 + 1) % 1, ang = i * 2.39996, rad = 3.6 * (1 - u) + 0.3, hgt = 0.04 + 0.22 * u * u;
+    const p = mat.pt(M, [Math.cos(ang) * rad * 1.35, hgt, Math.sin(ang) * rad * 0.8]);
+    PB.pt(p, 0.13, [0.1 * gain, 0.85 * gain, 1 * gain]);
+  }
+}
+
+/* ---- camera ---- */
+const CAMDEF = {
+  launch: { pad: { t: [8, .6, 0], yaw: .3, pit: .42, d: 25 }, top: { t: [9, 0, 0], yaw: 0, pit: 1.45, d: 28 }, chase: { off: [3, .9, 0], d: 9, pit: .18 } },
+  hover: { pad: { t: [0, 2.2, 0], yaw: .5, pit: .15, d: 14 }, top: { t: [0, 0, 0], yaw: 0, pit: 1.45, d: 20 }, chase: { off: [0, 1.6, 0], d: 10, pit: .15 } },
+  roll: { pad: { t: [10.5, 4, 0], yaw: .3, pit: .12, d: 25 }, top: { t: [11, 0, 0], yaw: 0, pit: 1.45, d: 44 }, chase: { off: [4, 1, 0], d: 13, pit: .15 } },
+  climb: { pad: { t: [4.5, 10.5, 0], yaw: .45, pit: .08, d: 27 }, top: { t: [5, 10.5, 0], yaw: 1.3, pit: .2, d: 52 }, chase: { off: [0, 1, 0], d: 16, pit: .12 } },
+  corner: { pad: { t: [0, 0, 28], yaw: .6, pit: .5, d: 50 }, top: { t: [0, 0, 28], yaw: 0, pit: 1.5, d: 68 }, chase: { off: [0, 1, 0], d: 11, pit: .2 } },
+};
+CAMDEF.park = CAMDEF.climb;
+function updateCam(o, dt) {
+  const D = CAMDEF[S.pre][S.cam.mode]; let t, yaw, pit, d;
+  if (S.cam.mode === 'chase') {
+    const hx = Math.cos(o.yaw), hz = -Math.sin(o.yaw), sx = -hz, sz = hx, ox = -.85 * hx + .5 * sx, oz = -.85 * hz + .5 * sz;
+    t = [o.x + D.off[0], o.y + D.off[1], o.z + D.off[2]]; yaw = Math.atan2(ox, oz); pit = D.pit; d = D.d;
+  } else { t = D.t; yaw = D.yaw; pit = D.pit; d = D.d; if (S.tab === 'wall' && S.pre !== 'corner' && S.cam.mode === 'pad') t = [2 + 0.5 * o.x, clamp(o.y * 0.9 + 1.5, 5, 19), 0]; }
+  const c = S.cam.cur;
+  if (!c) S.cam.cur = { t: t.slice(), yaw, pit, d };
+  else {
+    const a = 1 - Math.exp(-5 * dt); let dy = yaw - c.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    c.t = c.t.map((v, i) => lerp(v, t[i], a)); c.yaw += dy * a; c.pit = lerp(c.pit, pit, a); c.d = lerp(c.d, d, a);
+  }
+  const cc = S.cam.cur, P = clamp(cc.pit + S.cam.dpit, 0.03, 1.53), Y = cc.yaw + S.cam.dyaw, Dd = cc.d * S.cam.dd;
+  const eye = [cc.t[0] + Dd * Math.cos(P) * Math.sin(Y), Math.max(cc.t[1] + Dd * Math.sin(P), 0.35), cc.t[2] + Dd * Math.cos(P) * Math.cos(Y)];
+  return { eye, tgt: cc.t };
+}
+const FOV = 0.87;                                         // ≈ 50° vertical
+function projPt(v) {
+  const m = S.vp; if (!m) return null; const x = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12], y = m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13], w = m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15];
+  if (w < 0.3) return null; return [(x / w * .5 + .5) * S.W, (1 - (y / w * .5 + .5)) * S.H, w];
+}
+
+/* ---- the frame ---- */
+function allocFBO(W, H) {
+  const gl = GL.gl; S.W = W; S.H = H;
+  gl.bindTexture(gl.TEXTURE_2D, GL.fboTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, GL.depth); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, W, H);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, GL.fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, GL.fboTex, 0);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, GL.depth);
+  if (!GL.hud) { GL.hud = document.createElement('canvas'); }
+  GL.hud.width = W; GL.hud.height = H; GL.hctx = GL.hud.getContext('2d');
+}
+const spinOf = o => S.pre === 'corner' ? (o.yaw * -1 * S.tr.info.Rc) / WHEEL_R : S.tab === 'wall' ? (o.pit * RAMP_R + Math.min(o.x, 0)) / WHEEL_R : S.pre === 'hover' ? 0 : o.x / WHEEL_R;
+function drawCar(M, o, wire, xray) {
+  const gl = GL.gl, vp = S.vp, cam = S.camPos;
+  if (wire) { drawLines(M_.edges, M, vp, cam, wire, 200); return; }
+  if (!xray) { gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1); useTri(vp, cam); drawTri(M_.body, M); gl.disable(gl.POLYGON_OFFSET_FILL); }
+  drawLines(M_.edges, M, vp, cam, null, 200);
+  useTri(vp, cam); const sp = spinOf(o);
+  for (const w of WHEELS) drawTri(M_.wheel, mat.mul(M, mat.mul(mat.T(w[0], WHEEL_R, w[1]), mat.RZ(-sp))));
+  drawTri(M_.rcsPods, M);
+  const jf = [o.JLu, o.JLd, o.JRu, o.JRd]; for (let k = 0; k < 4; k++) drawTri(M_.rcsJet[k], M, [1, .95, .7], clamp(jf[k] / 3000, 0, 1));
+  if (xray) {
+    const fz = clamp((T0K - o.T) / 150, 0, 0.92), fr = clamp((o.F + o.FL + o.FR) / 60000, 0, 1);
+    useTri(vp, cam);
+    drawTri(M_.tank400, M, [.7, .95, 1], fz); drawTri(M_.tank200, M, [.7, .95, 1], fz);
+    const fa = S.t * (12 + 30 * clamp(o.s, 0, 2));
+    for (const f of [[.95, .5], [.95, -.5], [-.95, .5], [-.95, -.5]]) drawTri(M_.fan, mat.mul(M, mat.mul(mat.T(f[0], .2, f[1]), mat.RY(fa))));
+    drawTri(M_.nozRear, M, [1, .4, .1], clamp(o.F / 90000, 0, 1)); drawTri(M_.nozDown, M, [1, .4, .1], clamp((o.FL + o.FR) / 60000, 0, 1) * (fr > 0 ? 1 : 0));
+  }
+}
+function buildForces(o, M) {
+  const m = S.P.mass, k = 1 / 12000, up = nrm(mat.dir(M, [0, 1, 0])), fw = nrm(mat.dir(M, [1, 0, 0])), c0 = mat.pt(M, [0, .6, 0]);
+  const W = [1, 1, 1], SU = CCY, NO = CGRN, FRC = CPINK, TH = CAMB;
+  DL.arrow(c0, [0, -1, 0], m * G0 * k, W);
+  const pre = S.pre;
+  if (pre === 'launch') {
+    const sg = S.P.sup * m * G0; DL.arrow(c0, [-up[0], -up[1], -up[2]], sg * k, SU);
+    const r = mat.pt(M, [-2.1, .45, 0]); DL.arrow(r, fw, o.F * k, TH);
+  } else if (pre === 'roll') {
+    const jf = [o.JLu, o.JLd, o.JRu, o.JRd]; ROLL_NOZ.forEach((n, i) => { if (jf[i] > 50) DL.arrow(mat.pt(M, n), nrm(mat.dir(M, [0, -ROLL_EXH[i][1], 0])), jf[i] / 2500, TH); });
+  } else if (pre === 'hover') {
+    const Fz = o.FL + o.FR; for (const [z, F] of [[-.86, o.FL], [.86, o.FR]]) DL.arrow(mat.pt(M, [0, .3, z]), up, F * k * 1, TH);
+  } else if (pre === 'corner') {
+    const sg = o.s * m * G0; DL.arrow(c0, [-up[0], -up[1], -up[2]], sg * k, SU); DL.arrow(c0, up, (1 + o.s) * m * G0 * k, NO);
+    const lat = [-Math.sin(-o.yaw) * 0 + 0, 0, 0]; const cx = 0 - o.x, cz = S.tr.info.Rc - o.z, l = Math.hypot(cx, cz) || 1; DL.arrow(c0, [cx / l, 0, cz / l], o.ag * m * G0 * k, FRC);
+  } else {
+    const sg = o.s * m * G0 * (S.P.fixed ? 1 : 1);
+    if (o.s > 0.01) DL.arrow(c0, [-up[0], -up[1], -up[2]], (S.P.fixed ? DOWNFORCE_N : S.P.s * m * G0) * (o.s / Math.max(suckG(S.P, m), 1e-3)) * k, SU);
+    if (o.nl > 0) { DL.arrow(c0, up, o.nl * m * G0 * k, NO); DL.arrow(mat.pt(M, [0, .1, 0]), fw, Math.sin(o.pit) * m * G0 * k, o.mg < 0 ? CRED : FRC); }
+    if (o.F + o.FL + o.FR > 100) for (const z of [-.86, .86]) DL.arrow(mat.pt(M, [0, .3, z]), up, (o.FL + o.FR) / 2 * k, TH);
+  }
+}
+let _fr = 0;
+function render(dt) {
+  const gl = GL.gl, cv = $('gl'), st = $('stage'), sw = st.clientWidth, sh = st.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  if (sw < 10 || sh < 10) return;
+  const cw = Math.round(sw * dpr), ch = Math.round(sh * dpr); if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
+  const W = Math.max(96, Math.round(sw / S.ps)), H = Math.max(54, Math.round(sh / S.ps)); if (W !== S.W || H !== S.H || !GL.hctx) allocFBO(W, H);
+  const o = poseAt(S.tr, S.t), M = carM(o), cm = updateCam(o, dt), asp = W / H;
+  const L = mat.look(cm.eye, cm.tgt, [0, 1, 0]), Pm = mat.persp(FOV, asp, 0.3, 3000), LS = -Math.min(332 / sw, 0.34); Pm[8] = -LS; S.LS = LS;
+  const vp = mat.mul(Pm, L.m);
+  S.vp = vp; S.camPos = cm.eye; S.basis = L; S.cm = cm; const cam = cm.eye;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, GL.fbo); gl.viewport(0, 0, W, H); gl.depthMask(true); gl.disable(gl.BLEND); gl.clearColor(.05, .01, .12, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // sky
+  gl.disable(gl.DEPTH_TEST); glDisableAttribs(); let p = GL.sky; gl.useProgram(p.p);
+  gl.uniform3fv(p.u.uF, L.f); gl.uniform3fv(p.u.uR, L.s); gl.uniform3fv(p.u.uU, L.u); gl.uniform2f(p.u.uTan, Math.tan(FOV / 2) * asp, Math.tan(FOV / 2));
+  gl.uniform3fv(p.u.uSun, nrm([1, .13, -.22])); gl.uniform1f(p.u.uT, performance.now() / 1000); gl.uniform1f(p.u.uShift, LS);
+  gl.bindBuffer(gl.ARRAY_BUFFER, GL.quad); let l = p.a('aQ'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+  // world
+  const I = mat.id(); drawFloor(vp, cam); glDisableAttribs(); useTri(vp, cam);
+  const cx = cam[0], cz = cam[2]; drawTri(M_.mtn, mat.T(cx, 0, cz)); glDisableAttribs();
+  drawLines(M_.mtnL, mat.T(cx, 0, cz), vp, cam, null, 2000);
+  drawLines(M_.tower, mat.T(S.tab === 'air' ? 38 : -28, 0, S.tab === 'air' ? -26 : -22), vp, cam, null, 400);
+  drawLines(M_.tower, mat.T(S.tab === 'air' ? 52 : -40, 0, S.tab === 'air' ? 30 : 26), vp, cam, [.6, .2, .8], 400);
+  if (S.tab === 'wall' && S.pre !== 'corner') { glDisableAttribs(); useTri(vp, cam); drawTri(M_.ramp, I); drawLines(M_.rampL, I, vp, cam, null, 400); }
+  if (S.sTr) { glDisableAttribs(); useTri(vp, cam); drawTri(S.sTr, I); }
+  if (S.sLn) drawLines(S.sLn, I, vp, cam, null, 300);
+  // ghosts
+  if (S.pre === 'launch' && $('ovGhost').checked) for (const g of GHOSTS) drawCar(mat.mul(mat.T(ghostX(g, S.t), 0, g.z), mat.id()), { x: ghostX(g, S.t), T: T0K, F: 0, FL: 0, FR: 0, s: 0, pit: 0, rol: 0, yaw: 0, y: 0 }, g.c, false);
+  if (S.pre === 'corner' && $('ovGhost').checked) { const ph = sampleG(S.tr, S.t), Rc = S.tr.info.Rc; drawCar(mat.mul(mat.T(Rc * Math.sin(ph), 0, Rc - Rc * Math.cos(ph)), mat.RY(-ph)), { x: 0, T: T0K, F: 0, FL: 0, FR: 0, s: 0, pit: 0, rol: 0, yaw: 0 }, hex('8070b0'), false); }
+  drawCar(M, o, null, $('ovXray').checked);
+  // dynamic lines (forces) and points (plume, airflow)
+  DL.a.length = 0; PB.a.length = 0;
+  if ($('ovForce').checked) buildForces(o, M);
+  if ($('ovPlume').checked) plume(S.t, S.tr);
+  if ($('ovFlow').checked) flowParticles(S.t, o, M);
+  if (DL.a.length) { gl.bindBuffer(gl.ARRAY_BUFFER, GL.dyn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(DL.a), gl.DYNAMIC_DRAW); drawLines({ b: GL.dyn, n: DL.a.length }, I, vp, cam, null, 400); }
+  if (PB.a.length) {
+    glDisableAttribs(); const pp = GL.pt; gl.useProgram(pp.p); gl.uniformMatrix4fv(pp.u.uVP, false, vp); gl.uniform1f(pp.u.uK, H / (2 * Math.tan(FOV / 2)));
+    gl.bindBuffer(gl.ARRAY_BUFFER, GL.dynP); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(PB.a), gl.DYNAMIC_DRAW);
+    let a = pp.a('aP'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 3, gl.FLOAT, false, 28, 0);
+    a = pp.a('aC'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 3, gl.FLOAT, false, 28, 12);
+    a = pp.a('aS'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 1, gl.FLOAT, false, 28, 24);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); gl.drawArrays(gl.POINTS, 0, PB.a.length / 7); gl.depthMask(true); gl.disable(gl.BLEND);
+  }
+  drawHud(o);
+  // HUD → texture
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GL.hudTex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, GL.hud); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // post
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, cw, ch); gl.disable(gl.DEPTH_TEST); glDisableAttribs();
+  p = GL.post; gl.useProgram(p.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GL.fboTex); gl.uniform1i(p.u.uS, 0); gl.uniform1i(p.u.uH, 1);
+  gl.uniform2f(p.u.uLow, W, H); gl.uniform1f(p.u.uCrt, $('crt').checked ? 1 : 0); gl.uniform3fv(p.u.uPal, new Float32Array(PAL.flat()));
+  gl.bindBuffer(gl.ARRAY_BUFFER, GL.quad); l = p.a('aQ'); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  S.lastPose = o;
+}
+const sampleG = (tr, t) => { const u = clamp(t / tr.dt, 0, tr.n - 1), i = Math.floor(u), j = Math.min(i + 1, tr.n - 1); return lerp(tr.ghost[i], tr.ghost[j], u - i); };
+
+/* ---- HUD (low-res canvas; bitmap font) ---- */
+function shout(o) {
+  const i = S.tr.info, t = S.t, pre = S.pre;
+  if (pre === 'launch') { if (!isNaN(i.t60) && t >= i.t60 && t < i.t60 + 1.0) return ['60 MPH IN ' + i.t60.toFixed(2) + ' S', CGRN]; if (o.am < 0.06 * i.m0) return ['AIR TANK EMPTY', CRED]; if (t > 0.05 && t < i.t60) return ['GO GO GO', CYEL]; return null; }
+  if (pre === 'hover') { if (!isNaN(i.land) && t >= i.land) return ['TOUCHDOWN ' + i.vTouch.toFixed(1) + ' M/S', i.vTouch > 6 ? CRED : CGRN]; if (!isNaN(i.sink) && t >= i.sink) return ['TANK CANNOT HOLD THE CAR', CRED]; if (!isNaN(i.lift) && t >= i.lift) return ['HOVER', CCY]; return null; }
+  if (pre === 'roll') { if (t >= i.tf) return [i.landOK ? 'LANDED ON WHEELS' : 'LANDED AT ' + Math.round(i.rolledDeg) + ' DEG', i.landOK ? CGRN : CRED]; const tq = t - i.t0; if (tq >= 0 && tq < i.ta) return ['ROLL PUSH - SIDE JETS', CPINK]; if (tq >= i.ta && tq < i.Teff - i.ta) return ['SPINNING ' + Math.round(i.omegaDeg) + ' DEG/S', CCY]; if (tq >= i.Teff - i.ta && tq < i.Teff) return ['COUNTER-FIRE - BRAKE', CAMB]; return null; }
+  if (pre === 'corner') { return o.ag >= i.gLim - 0.01 ? ['AT THE LIMIT ' + o.ag.toFixed(2) + ' G', CRED] : null; }
+  if (!isNaN(i.slipT) && t >= i.slipT) return o.y < 0.5 ? null : ['FRICTION LOST AT ' + Math.round(i.slipTh) + ' DEG', CRED];
+  if (!isNaN(i.detachT) && t >= i.detachT) { if (i.landed && o.y <= 0.01) return ['TOUCHDOWN ' + i.vTouch.toFixed(1) + ' M/S', i.vTouch > 6 ? CRED : CGRN]; if (o.FL > 100) return ['LANDING BURN ' + (i.gPeak).toFixed(1) + ' G', CAMB]; return ['FANS OFF - FALLING', CRED]; }
+  if (o.pit > 2.9 && o.s > 0.01) return ['UPSIDE DOWN HOLD', CGRN];
+  if (pre === 'park' && o.s < 1.05 && o.s > 0) return ['SUCTION UNDER 1 G', CRED];
+  return null;
+}
+function drawHud(o) {
+  const cx = GL.hctx, W = S.W, H = S.H, sc = Math.max(1, Math.round(H / 150)), i = S.tr.info; cx.clearRect(0, 0, W, H);
+  txt(cx, 'T ' + S.t.toFixed(2) + ' S', 4 * sc, 4 * sc, sc * 1.5 | 0 || 1, CYEL); const WC = W * (1 + (S.LS || 0)) / 2;
+  const m0 = i.m0 || 250, fr = clamp(o.am / m0, 0, 1), y2 = 4 * sc + 12 * sc;
+  if (S.pre !== 'corner') {
+    txt(cx, 'AIR', 4 * sc, y2, sc, CWHT);
+    const nb = 20, on = Math.ceil(fr * nb - 1e-6), blink = fr < 0.15 && Math.floor(performance.now() / 180) % 2;
+    for (let b = 0; b < nb; b++) { const lit = b < on; const col = fr < 0.15 ? CRED : fr < 0.4 ? CAMB : CGRN; cx.fillStyle = lit && !blink ? rgbCss(col) : '#241a40'; cx.fillRect((24 + b * 4) * sc, y2, 3 * sc, 7 * sc); }
+    txt(cx, Math.round(o.am) + ' KG', (24 + 82) * sc, y2, sc, CWHT);
+  }
+  if (S.tab === 'wall') {
+    const y3 = y2 + 11 * sc; txt(cx, 'GRIP', 4 * sc, y3, sc, CWHT); const g = clamp(o.mg + 0.5, 0, 2) / 2;
+    for (let b = 0; b < 20; b++) { cx.fillStyle = b < Math.ceil(g * 20) && o.nl > 0 ? rgbCss(o.mg < 0 ? CRED : CCY) : '#241a40'; cx.fillRect((24 + b * 4) * sc, y3, 3 * sc, 7 * sc); }
+    txt(cx, 'SUCTION ' + o.s.toFixed(2) + ' G', 4 * sc, y3 + 11 * sc, sc, CCY);
+  }
+  for (const lb of S.labels) { const q = projPt(lb.p); if (!q) continue; const w = txtW(lb.t, sc), x = Math.round(q[0] - w / 2), y = Math.round(q[1] - 3 * sc); if (x > -w && x < W && y > -10 && y < H) txt(cx, lb.t, x, y, sc, lb.c); }
+  const sh = shout(o);
+  if (sh) { const free = W * (1 + (S.LS || 0)) - 80 * sc, sc2 = txtW(sh[0], sc * 2) <= free ? sc * 2 : sc, w = txtW(sh[0], sc2); txt(cx, sh[0], Math.round(80 * sc + (free - w) / 2), Math.round(H - 20 * sc), sc2, sh[1]); }
+  if (S.pre === 'launch' && $('ovGhost').checked && !isNaN(i.t60)) {
+    const rows = GHOSTS.map(g => [g.n === '2017 ROADSTER' ? '2017' : g.n === 'PERFORMANCE' ? 'PERF' : g.n, g.t, 0.5 * V60 * g.t, g.c]).concat([['YOU', i.t60, i.x60, CAMB]]).sort((a, b) => b[1] - a[1]);
+    const x0 = Math.round(W * (1 + (S.LS || 0)) - 112 * sc); rows.forEach((r, k) => txt(cx, r[0].padEnd(7) + r[1].toFixed(2) + 'S ' + r[2].toFixed(0).padStart(2) + 'M', x0, (4 + k * 9) * sc, sc, r[3]));
+  }
+  if ($('ovForce').checked) {
+    const lg = S.tab === 'air' ? (S.pre === 'launch' ? [['THRUST', CAMB], ['SUCTION', CCY], ['WEIGHT', CWHT]] : [['JETS', CAMB], ['WEIGHT', CWHT]]) : [['SUCTION', CCY], ['WEIGHT', CWHT], ['SURFACE', CGRN], ['FRICTION', CPINK]];
+    lg.forEach((e, k) => txt(cx, '> ' + e[0], 4 * sc, H - (lg.length - k) * 9 * sc - 2 * sc, sc, e[1]));
+  }
+  if (!S.started && S.t === 0) {
+    const s3 = sc * 4, w = txtW('TESLA', s3), x = Math.round(WC - w / 2), y = Math.round(H * 0.28), bands = [CPINK, CAMB, CYEL];
+    bands.forEach((c, b) => { cx.save(); cx.beginPath(); cx.rect(0, y + b * 3 * s3 / 1, W, 3 * s3); cx.rect; cx.clip(); txt(cx, 'TESLA', x, y, s3, c, b === 0); cx.restore(); });
+    const s4 = sc * 3, w2 = txtW('ROADSTER', s4); [CCY, CAMB].forEach((c, b) => { cx.save(); cx.beginPath(); cx.rect(0, Math.round(H * 0.28) + 8 * s3 + b * 4 * s4, W, 4 * s4); cx.clip(); txt(cx, 'ROADSTER', Math.round(WC - w2 / 2), Math.round(H * 0.28) + 8 * s3, s4, c, b === 0); cx.restore(); });
+    if (Math.floor(performance.now() / 500) % 2) { const w3 = txtW('PRESS PLAY', sc * 2); txt(cx, 'PRESS PLAY', Math.round(WC - w3 / 2), Math.round(H * 0.28) + 8 * s3 + 9 * s4, sc * 2, CWHT); }
+  }
+}
+
+/* ---- plots ---- */
+const cssMono = () => 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+function fitC(c) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return { x, w, h };
+}
+function niceStep(span, n) { const r = span / n, p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+function axes(cx, w, h, x0, x1, y0, y1, o) {
+  o = o || {}; const L = 40, R = o.right ? 40 : 12, T = 24, B = 22;
+  const X = v => L + (v - x0) / ((x1 - x0) || 1) * (w - L - R), Y = v => h - B - (v - y0) / ((y1 - y0) || 1) * (h - T - B);
+  cx.font = `9px ${cssMono()}`; cx.lineWidth = 1; cx.textBaseline = 'middle';
+  const sx = niceStep(x1 - x0, 6), sy = niceStep(y1 - y0, 4);
+  cx.strokeStyle = 'rgba(120,140,180,.14)'; cx.fillStyle = '#4a5568';
+  for (let v = Math.ceil(x0 / sx) * sx; v <= x1 + 1e-9; v += sx) { cx.beginPath(); cx.moveTo(X(v), T); cx.lineTo(X(v), h - B); cx.stroke(); cx.textAlign = 'center'; cx.fillText(+v.toFixed(2), X(v), h - B + 10); }
+  for (let v = Math.ceil(y0 / sy) * sy; v <= y1 + 1e-9; v += sy) { cx.beginPath(); cx.moveTo(L, Y(v)); cx.lineTo(w - R, Y(v)); cx.stroke(); cx.textAlign = 'right'; cx.fillText(+v.toFixed(2), L - 4, Y(v)); }
+  cx.strokeStyle = '#1b2436'; cx.strokeRect(L, T, w - L - R, h - T - B);
+  return { X, Y, L, R, T, B };
+}
+function curve(cx, pts, X, Y, col, wd, dash) { cx.beginPath(); pts.forEach((p, i) => i ? cx.lineTo(X(p[0]), Y(p[1])) : cx.moveTo(X(p[0]), Y(p[1]))); cx.strokeStyle = col; cx.lineWidth = wd || 1.6; cx.setLineDash(dash || []); cx.stroke(); cx.setLineDash([]); }
+function marker(cx, x, y, col) { cx.fillStyle = col; cx.beginPath(); cx.arc(x, y, 3.5, 0, 6.2832); cx.fill(); cx.strokeStyle = '#fff'; cx.lineWidth = 1; cx.stroke(); }
+function legend(cx, items, x, y) { cx.font = `9px ${cssMono()}`; cx.textAlign = 'left'; items.forEach((it, i) => { cx.fillStyle = it[1]; cx.fillText(it[0], x, y + i * 11); }); }
+
+function buildP2() {
+  const P = S.P, pre = S.pre, pts = [];
+  if (pre === 'launch') for (let b = 200; b <= 689; b += 21) pts.push([b, simLaunch({ ...P, p0: b }).info.t60]);
+  else if (pre === 'hover') for (let b = 200; b <= 689; b += 21) pts.push([b, simHover({ ...P, p0: b }).info.hoverT]);
+  else if (pre === 'roll') for (let r = 1; r <= 2.501; r += 0.1) { const i = simRoll({ ...P, rt: r }).info; pts.push([r, i.Fj / 1000, i.limited]); }
+  else { for (let s = 0; s <= 2.4001; s += 0.05) pts.push([s, thetaMax(s, P.mu, pre === 'climb' ? P.vc : 0), cornerG(s, P.mu)]); }
+  S.p2 = pts;
+}
+function drawPlots() {
+  const tr = S.tr, o = S.lastPose || poseAt(tr, S.t), pre = S.pre, dur = S.dur, P = S.P;
+  if (!tr || !P) return;
+  let a = fitC($('p1')), cx = a.x; cx.clearRect(0, 0, a.w, a.h);
+  const tt = [], N = 140; for (let i = 0; i <= N; i++) tt.push(i / N * dur);
+  const norm = (f, col, name, unit, dec) => { const v = tt.map(f), mx = Math.max(...v.map(Math.abs), 1e-6); return { pts: tt.map((t, i) => [t, v[i] / mx]), col, name: `${name} ${mx.toFixed(dec)} ${unit} MAX` }; };
+  if (pre === 'corner') {
+    $('cap1').textContent = 'Lived signal · lateral g you feel in the corner';
+    const Rc = tr.info.Rc, g0 = tt.map(t => { const u = clamp(t / tr.dt, 0, tr.n - 1); return [t, sampleT(tr, 'ag', t)]; }), gh = tt.map(t => { const v0 = Math.min(5 * t, tr.info.vL0); return [t, v0 * v0 / Rc / G0]; });
+    const ax = axes(cx, a.w, a.h, 0, dur, 0, Math.max(2.6, tr.info.gLim * 1.1)); curve(cx, g0, ax.X, ax.Y, '#38bdf8', 2); curve(cx, gh, ax.X, ax.Y, '#8070b0', 1.6, [4, 3]);
+    cx.strokeStyle = '#ff2442'; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(ax.X(0), ax.Y(tr.info.gLim)); cx.lineTo(ax.X(dur), ax.Y(tr.info.gLim)); cx.stroke(); cx.setLineDash([]);
+    legend(cx, [['WITH FANS', '#38bdf8'], ['TYRES ONLY', '#8070b0'], ['LIMIT ' + tr.info.gLim.toFixed(2) + ' G', '#ff2442']], a.w - 110, 34);
+    cx.strokeStyle = '#ff2e97'; cx.beginPath(); cx.moveTo(ax.X(S.t), ax.T); cx.lineTo(ax.X(S.t), a.h - ax.B); cx.stroke();
+  } else if (S.tab === 'wall') {
+    $('cap1').textContent = 'Lived signal · friction the surface can give vs needs (units of weight)';
+    const sNow = o.s, v = pre === 'climb' ? P.vc : 0, cap = [], req = [];
+    for (let d = 0; d <= 180; d += 2) { const w = wallState(d * Math.PI / 180, sNow, P.mu, v); cap.push([d, w.cap]); req.push([d, w.req]); }
+    const ax = axes(cx, a.w, a.h, 0, 180, 0, 2.4);
+    cx.fillStyle = 'rgba(248,113,113,.10)'; cx.beginPath(); let inb = false; for (let i = 0; i < cap.length; i++) { if (cap[i][1] < req[i][1]) { cx.fillRect(ax.X(cap[i][0]) - 1, ax.T, ax.X(2) - ax.X(0) + 2, a.h - ax.T - ax.B); } }
+    curve(cx, cap, ax.X, ax.Y, '#34d399', 2); curve(cx, req, ax.X, ax.Y, '#fbbf24', 1.8, [5, 3]);
+    legend(cx, [['SURFACE CAN GIVE μ·N', '#34d399'], ['CAR NEEDS  sin θ', '#fbbf24'], ['AT ' + sNow.toFixed(2) + ' G SUCTION', '#7c8aa0']], 50, 34);
+    cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('pitch θ (deg)', a.w / 2 + 10, a.h - 4);
+    const th = clamp(o.pit * 180 / Math.PI, 0, 180); const w = wallState(o.pit, sNow, P.mu, v); cx.strokeStyle = '#ff2e97'; cx.beginPath(); cx.moveTo(ax.X(th), ax.T); cx.lineTo(ax.X(th), a.h - ax.B); cx.stroke();
+    marker(cx, ax.X(th), ax.Y(clamp(w.cap, 0, 2.4)), w.ok ? '#34d399' : '#f87171');
+  } else {
+    let ser;
+    if (pre === 'launch') { $('cap1').textContent = 'Lived signal · what the occupant feels, and the thrust behind it'; ser = [norm(t => sampleT(tr, 'ag', t), '#fbbf24', 'ACCEL', 'G', 1), norm(t => sampleT(tr, 'F', t) / 1000, '#38bdf8', 'THRUST', 'KN', 0)]; }
+    else if (pre === 'hover') { $('cap1').textContent = 'Lived signal · altitude and jet thrust ÷ weight'; ser = [norm(t => sampleT(tr, 'y', t), '#fbbf24', 'ALTITUDE', 'M', 1), norm(t => (sampleT(tr, 'FL', t) + sampleT(tr, 'FR', t)) / (P.mass * G0), '#38bdf8', 'THRUST/WEIGHT', '×', 1)]; }
+    else { $('cap1').textContent = 'Lived signal · altitude, roll angle and the side-jet pulses'; ser = [norm(t => sampleT(tr, 'y', t), '#fbbf24', 'ALTITUDE', 'M', 1), norm(t => sampleT(tr, 'rol', t) * 180 / Math.PI, '#ff2e97', 'ROLL', 'DEG', 0), norm(t => (sampleT(tr, 'JLu', t) + sampleT(tr, 'JLd', t)) / 1000, '#38bdf8', 'SIDE JET', 'KN', 1)]; }
+    const ax = axes(cx, a.w, a.h, 0, dur, 0, 1.05); ser.forEach(s => curve(cx, s.pts, ax.X, ax.Y, s.col, 2));
+    legend(cx, ser.map(s => [s.name, s.col]), a.w - 150, 34);
+    cx.strokeStyle = '#ff2e97'; cx.beginPath(); cx.moveTo(ax.X(S.t), ax.T); cx.lineTo(ax.X(S.t), a.h - ax.B); cx.stroke();
+    cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('time (s) · each trace normalised to its own max', a.w / 2 + 10, a.h - 4);
+  }
+  a = fitC($('p2')); cx = a.x; cx.clearRect(0, 0, a.w, a.h);
+  const pts = S.p2 || [];
+  if (S.tab === 'wall') {
+    $('cap2').textContent = 'Relationship · what suction buys: highest pitch held, and cornering g';
+    const ax = axes(cx, a.w, a.h, 0, 2.4, 0, 180, { right: true });
+    curve(cx, pts.map(p => [p[0], p[1]]), ax.X, ax.Y, '#34d399', 2);
+    const Y2 = v => a.h - ax.B - (v / 3) * (a.h - ax.T - ax.B); cx.beginPath(); pts.forEach((p, i) => i ? cx.lineTo(ax.X(p[0]), Y2(p[2])) : cx.moveTo(ax.X(p[0]), Y2(p[2]))); cx.strokeStyle = '#38bdf8'; cx.lineWidth = 2; cx.stroke();
+    cx.fillStyle = '#38bdf8'; cx.textAlign = 'left'; for (let g = 0; g <= 3; g++) cx.fillText(g + 'g', a.w - ax.R + 4, Y2(g));
+    cx.strokeStyle = 'rgba(248,113,113,.7)'; cx.setLineDash([3, 3]); cx.beginPath(); cx.moveTo(ax.X(1), ax.T); cx.lineTo(ax.X(1), a.h - ax.B); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = '#f87171'; cx.textAlign = 'left'; cx.fillText('1 G = upside-down hold', ax.X(1) + 4, ax.T + 8);
+    cx.strokeStyle = 'rgba(139,112,176,.8)'; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(ax.L, Y2(1.26)); cx.lineTo(a.w - ax.R, Y2(1.26)); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = '#8070b0'; cx.fillText('tyres only 1.26 g', ax.L + 4, Y2(1.26) - 6);
+    legend(cx, [['MAX PITCH HELD (DEG)', '#34d399'], ['CORNERING G', '#38bdf8']], a.w - 160, 34);
+    const sg = S.tr.info.sg !== undefined ? S.tr.info.sg : suckG(P, P.mass); marker(cx, ax.X(clamp(sg, 0, 2.4)), Y2(cornerG(sg, P.mu)), '#38bdf8'); marker(cx, ax.X(clamp(sg, 0, 2.4)), ax.Y(thetaMax(sg, P.mu, pre === 'climb' ? P.vc : 0)), '#34d399');
+    cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('fan suction (g of own weight)', a.w / 2 + 10, a.h - 4);
+  } else if (pre === 'roll') {
+    $('cap2').textContent = 'Relationship · thrust each side jet needs vs roll time';
+    const ymax = Math.max(...pts.map(p => p[1]), 4) * 1.05, ax = axes(cx, a.w, a.h, 1, 2.5, 0, ymax);
+    curve(cx, pts.map(p => [p[0], p[1]]), ax.X, ax.Y, '#ff2e97', 2);
+    const cap = ROLL_JET * P.p0 / P_REF / 1000; cx.strokeStyle = '#f87171'; cx.setLineDash([4, 3]); cx.beginPath(); cx.moveTo(ax.L, ax.Y(cap)); cx.lineTo(a.w - ax.R, ax.Y(cap)); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = '#f87171'; cx.textAlign = 'left'; cx.fillText('one side jet at this tank pressure: ' + cap.toFixed(1) + ' kN (assumed)', ax.L + 4, ax.Y(cap) - 6);
+    marker(cx, ax.X(P.rt), ax.Y(S.tr.info.Fj / 1000), '#fbbf24');
+    cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('roll time (s) · thrust in kN', a.w / 2 + 10, a.h - 4);
+  } else {
+    const hov = pre === 'hover', ymax = Math.max(...pts.map(p => p[1] || 0), 1) * 1.1, ax = axes(cx, a.w, a.h, 200, 689, 0, hov ? ymax : Math.max(2.2, ymax));
+    $('cap2').textContent = hov ? 'Relationship · hover time vs tank fill pressure' : 'Relationship · 0–60 mph time vs tank fill pressure';
+    curve(cx, pts.filter(p => !isNaN(p[1])).map(p => [p[0], p[1]]), ax.X, ax.Y, '#fbbf24', 2);
+    if (!hov) [[1.9, '2017 ROADSTER 1.9 S'], [1.6, 'PERFORMANCE 1.6 S'], [0.9, 'THRUST 0.9 S'], [0.59, 'ROCKET 0.59 S']].forEach(r => {
+      cx.strokeStyle = 'rgba(139,112,176,.8)'; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(ax.L, ax.Y(r[0])); cx.lineTo(a.w - ax.R, ax.Y(r[0])); cx.stroke(); cx.setLineDash([]);
+      cx.fillStyle = '#8070b0'; cx.textAlign = 'left'; cx.fillText(r[1], ax.L + 4, ax.Y(r[0]) - 5); });
+    const mk = hov ? S.tr.info.hoverT : S.tr.info.t60; if (!isNaN(mk)) marker(cx, ax.X(P.p0), ax.Y(mk), '#ff2e97');
+    cx.strokeStyle = 'rgba(52,211,153,.5)'; cx.setLineDash([3, 3]); [379, 437].forEach(b => { cx.beginPath(); cx.moveTo(ax.X(b), ax.T); cx.lineTo(ax.X(b), a.h - ax.B); cx.stroke(); }); cx.setLineDash([]);
+    cx.fillStyle = '#34d399'; cx.textAlign = 'right'; cx.fillText('379 screen', ax.X(379) - 3, a.h - ax.B - 6); cx.textAlign = 'left'; cx.fillText('437 = 250 kg', ax.X(437) + 3, a.h - ax.B - 6);
+    cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('tank fill pressure (bar)', a.w / 2 + 10, a.h - 4);
+  }
+}
+
+/* ---- inset: air-system schematic + draggable pressure gauge ---- */
+function drawInset() {
+  const c = $('inset2d'), a = fitC(c), cx = a.x, w = a.w, h = a.h, o = S.lastPose || poseAt(S.tr, S.t), i = S.tr.info, P = S.P;
+  cx.clearRect(0, 0, w, h); cx.font = `9px ${cssMono()}`;
+  const gx = 14, gy = 30, gh = 140, gw = 18, ymap = b => gy + gh - (b - 200) / (689 - 200) * gh;
+  cx.strokeStyle = '#2b3550'; cx.strokeRect(gx, gy, gw, gh);
+  const pnow = clamp(o.p || P.p0, 0, 689), fillH = clamp((pnow - 0) / 689, 0, 1) * gh; cx.fillStyle = pnow < 0.15 * P.p0 ? '#f87171' : '#00b8d9'; cx.fillRect(gx + 1, gy + gh - fillH, gw - 2, fillH);
+  cx.textAlign = 'left'; cx.fillStyle = '#7c8aa0'; [[379, '379'], [437, '437'], [689, '689']].forEach(r => { const y = gy + gh - r[0] / 689 * gh; cx.strokeStyle = '#34d399'; cx.beginPath(); cx.moveTo(gx + gw, y); cx.lineTo(gx + gw + 4, y); cx.stroke(); cx.fillText(r[1], gx + gw + 6, y + 3); });
+  const ny = gy + gh - P.p0 / 689 * gh; cx.fillStyle = '#fbbf24'; cx.beginPath(); cx.moveTo(gx - 6, ny - 4); cx.lineTo(gx, ny); cx.lineTo(gx - 6, ny + 4); cx.fill();
+  cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('BAR', gx + gw / 2, gy - 6);
+  const frac = clamp(o.am / (i.m0 || 250), 0, 1), frost = clamp((T0K - o.T) / 150, 0, 0.9);
+  const tank = (x, y, r, lab) => { cx.beginPath(); cx.arc(x, y, r, 0, 6.2832); cx.strokeStyle = '#8070b0'; cx.lineWidth = 1.5; cx.stroke(); cx.save(); cx.clip(); const hh = 2 * r * frac; cx.fillStyle = `rgb(${Math.round(30 + 190 * frost)},${Math.round(150 + 90 * frost)},${Math.round(210 + 40 * frost)})`; cx.fillRect(x - r, y + r - hh, 2 * r, hh); cx.restore(); cx.fillStyle = '#c9d4e3'; cx.textAlign = 'center'; cx.fillText(lab, x, y + 3); cx.lineWidth = 1; };
+  tank(108, 62, 26, '400L'); tank(108, 128, 19, '200L');
+  const thrust = clamp(o.F / 90000, 0, 1), dn = clamp((o.FL + o.FR) / 60000, 0, 1);
+  cx.strokeStyle = '#4a5568'; cx.beginPath(); cx.moveTo(134, 62); cx.lineTo(170, 62); cx.lineTo(170, 128); cx.lineTo(127, 128); cx.moveTo(170, 95); cx.lineTo(196, 95); cx.stroke();
+  for (let k = 0; k < 4; k++) { const y = 40 + k * 12; cx.fillStyle = thrust > 0.02 ? `rgb(255,${Math.round(110 + 140 * thrust)},60)` : '#241a40'; cx.beginPath(); cx.moveTo(196, y); cx.lineTo(214 + 8 * thrust, y + 4); cx.lineTo(196, y + 8); cx.fill(); }
+  for (let k = 0; k < 4; k++) { const x = 198 + k * 14; cx.fillStyle = dn > 0.02 ? `rgb(0,${Math.round(180 + 60 * dn)},255)` : '#241a40'; cx.beginPath(); cx.moveTo(x, 108); cx.lineTo(x + 8, 108); cx.lineTo(x + 4, 116 + 8 * dn); cx.fill(); }
+  cx.fillStyle = '#7c8aa0'; cx.textAlign = 'left'; cx.fillText('4 REAR', 224, 56); cx.fillText('4 DOWN', 224, 122); cx.fillText('4 SIDE', 224, 142); { const jj = [o.JLu, o.JLd, o.JRu, o.JRd]; for (let k = 0; k < 4; k++) { cx.fillStyle = jj[k] > 50 ? '#ffc93c' : '#241a40'; cx.fillRect(198 + k * 6, 134, 5, 9); } }
+  cx.fillStyle = '#c9d4e3'; cx.fillText(`P ${Math.round(pnow)} bar`, 84, 168); cx.fillText(`T ${Math.round(o.T - 273.15)} °C`, 84, 180);
+  cx.fillStyle = '#fbbf24'; cx.fillText(`${Math.round(o.am)} kg`, 168, 168);
+}
+
+/* ---- readouts ---- */
+const TAGT = { OFF: 'OFFICIAL — stated by Tesla / Musk / Moravy', INT: 'INTERVIEW — a development target quoted in the Oct-16 interviews', REP: 'REPORTED — journalists\' reading of telemetry / photos',
+  DER: 'DERIVED — computed from the inputs with the formula shown in the tooltip', EST: 'ESTIMATE — engineering estimate, ±~2×', ASM: 'ASSUMED — not published; chosen here and labelled so' };
+let RW = [];
+const R = (k, v, tag, cls, tip) => RW.push(`<dt${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>${k}</dt><dd class="${cls || ''}">${v}${tag ? `<i class="tg ${tag}" title="${TAGT[tag]}">${tag}</i>` : ''}</dd>`);
+const SEP = () => RW.push('<div class="sep"></div>');
+function updateReadouts(o) {
+  const i = S.tr.info, P = S.P, pre = S.pre, m = P.mass, f1 = (v, d) => isNaN(v) || v === undefined ? '–' : v.toFixed(d);
+  RW = [];
+  const tank = () => {
+    R('Tank pressure now', `${o.p.toFixed(0)} bar · ${Math.round(psi(o.p))} psi`, 'DER', '', 'p = p0·(m/m0)^1.4 — adiabatic blowdown from the fill pressure');
+    R('Gas temperature', `${(o.T - 273.15).toFixed(0)} °C`, 'DER', o.T < 223 ? 'warn' : '', 'T = 293 K·(m/m0)^0.4 — the expanding gas chills');
+    R('Air left', `${o.am.toFixed(0)} of ${(i.m0 || 0).toFixed(0)} kg`, 'DER', '', 'p·V = Z·m·R·T with real-gas Z from CoolProp; Moravy quotes ≈250 kg');
+  };
+  const vNow = (sampleT(S.tr, 'x', S.t + .02) - sampleT(S.tr, 'x', Math.max(S.t - .02, 0))) / (S.t < .02 ? .02 + S.t : .04);
+  if (pre === 'launch') {
+    R('Predicted 0–60 mph', `≈ ${f1(i.t60, 2)} s`, 'DER', 'hi', 'Same kernel that moves the car. Valve opening is fitted so the default lands on Tesla\'s live 0.81 s run');
+    R('Distance to 60', `≈ ${f1(i.x60, 1)} m`, 'DER', '', 'Reported ≈ 11 m for the live run');
+    R('Peak acceleration', `≈ ${f1(i.peakA, 1)} g`, 'DER', '', '(thrust + tyres − drag) / mass');
+    R('Air burned by 60', `≈ ${f1(i.usedAt60, 0)} kg`, 'DER', '', 'ṁ = F/(Isp·g0) integrated to 60 mph');
+    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Speed now', `${(Math.abs(vNow) / MPH).toFixed(0)} mph`); R('Thrust now', `${(o.F / 1000).toFixed(0)} kN`, 'ASM', 'hi', 'F = valve opening × 80 kN × (p/379 bar) × valve spin-up (0.1 s, assumed)');
+    tank(); SEP();
+    R('80 kN empties in', `${timeToEmpty(i.m0, F_REF, P.isp).toFixed(2)} s`, 'DER', '', 'm·Isp·g0 / F — upper bound, ignores blowdown (data pack: 1.65–2.17 s)');
+    R('Thrust ÷ tyre limit', `${(F_REF * P.p0 / P_REF / Math.max(tyreForce(m, 5, P.sup, P.mu), 1)).toFixed(1)} ×`, 'DER', '', 'Tesla: thrusters give 4–5× what the tyres can. Tyre force = rear tyres only, with fan load');
+    R('Tank fill mass', `${i.m0.toFixed(0)} kg`, Math.abs(i.m0 - 250) < 3 ? 'OFF' : 'DER', '', '600 L at the slider pressure, real-gas Z. 437 bar ⇒ 250 kg; the 5,500 psi screen readout (379 bar) only holds 228 kg');
+  } else if (pre === 'hover') {
+    R('Predicted hover time', `≈ ${f1(i.hoverT, 1)} s`, 'DER', 'hi', 'Until the tank can no longer push with the car\'s weight. Data pack: ≈4–5 s at 2,350 kg');
+    R('Thrust to hover', `${(hoverThrust(m) / 1000).toFixed(1)} kN`, 'DER', '', 'T = m·g (16.7 kN at 1,700 kg · 23.0 kN at 2,350 kg)');
+    R('Air to hold', `${(hoverThrust(m) / (P.isp * G0)).toFixed(0)} kg/s`, 'DER', '', 'ṁ = m·g/(Isp·g0)');
+    R('Peak height', `${f1(i.ymax, 1)} m`, 'DER');
+    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Altitude', `${o.y.toFixed(2)} m`); R('Jet thrust ÷ weight', `${((o.FL + o.FR) / (m * G0)).toFixed(2)} ×`, 'ASM', 'hi', 'The four down-jets are assumed to share the 4 × 20 kN scale of the rear nozzles — Tesla published no figure');
+    tank(); SEP(); R('Touch-down speed', isNaN(i.vTouch) ? '–' : `${i.vTouch.toFixed(1)} m/s`, 'DER', i.vTouch > 6 ? 'warn' : 'ok', 'Once the tank can\'t hold the car it simply falls: no landing burn in this run');
+  } else if (pre === 'roll') {
+    R('Apex height', `≈ ${i.apex.toFixed(1)} m`, 'DER', 'hi', 'Reported kick-flip apex ≈ 7 m');
+    R('Flight time · distance', `${i.tf.toFixed(2)} s · ${i.dist.toFixed(0)} m`, 'DER', '', 'Reported: five parked vehicles cleared');
+    R('Side jet thrust', `${(i.Fj / 1000).toFixed(1)} kN of ${(i.jetCap / 1000).toFixed(1)} max`, 'ASM', i.limited ? 'warn' : 'hi', 'Two jets fire as a couple (lever 2 × 1.05 m). Tesla published no side-jet thrust; 8 kN at 379 bar is assumed');
+    R('Push·coast·brake', `${i.ta.toFixed(2)} · ${(i.Teff - 2 * i.ta).toFixed(2)} · ${i.ta.toFixed(2)} s`, 'DER', '', 'The jets fire for 22 % of the roll time, coast, then the opposite jets fire for the same time');
+    R('Coasting spin rate', `${i.omegaDeg.toFixed(0)} °/s`, 'DER', '', 'ω = α · push time');
+    R('Roll torque (pulse)', `${(i.tau / 1000).toFixed(1)} kN·m`, 'DER', '', 'τ = I·α with push-coast-brake. The gentlest possible bang-bang roll would need ' + (i.tauBB / 1000).toFixed(1) + ' kN·m (data pack §6: 6.4 kN·m at 2,350 kg, 2.0 s)');
+    R('Moment of inertia', `${i.I.toFixed(0)} kg·m²`, 'EST', '', 'Box 2.0 × 1.1 m: I = m(w²+h²)/12');
+    R('Rolled at landing', `${i.rolledDeg.toFixed(0)}°`, 'DER', i.landOK ? 'ok' : 'warn', '360° = lands on its wheels');
+    R('Air used', `${i.air.toFixed(0)} kg`, 'DER');
+    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Altitude', `${o.y.toFixed(1)} m`); R('Roll angle', `${(o.rol * 180 / Math.PI).toFixed(0)}°`);
+    R('Jets firing', ((o.JLd > 0 ? 'L↓ R↑' : o.JLu > 0 ? 'L↑ R↓' : 'none')), '', o.JLd > 0 || o.JLu > 0 ? 'hi' : ''); tank();
+  } else if (pre === 'corner') {
+    R('Cornering limit (fans)', `${i.gLim.toFixed(2)} g`, 'DER', 'hi', 'μ0·(1+s)^(1−0.49) — the load-sensitivity exponent is fitted so 2 g suction gives ≈2.2 g (Tesla: ">2 g")');
+    R('Cornering (tyres only)', `${i.gLim0.toFixed(2)} g`, 'OFF', '', 'Moravy: ≈1.26 g');
+    R('Naïve upper bound', `${i.naive.toFixed(2)} g`, 'EST', '', 'μ0·(1+s) with no tyre load-sensitivity. Real tyres give back less grip per extra load');
+    SEP(); R('Lateral now', `${o.ag.toFixed(2)} g`, 'DER', 'hi'); R('Speed now', `${(o.ag * G0 * i.Rc) ** .5 * 3.6 | 0} km/h`, 'DER', '', 'v = √(a·R), R = 28 m');
+    R('Fan suction now', `${o.s.toFixed(2)} g · ${(o.s * m * G0 / 1000).toFixed(1)} kN`, 'DER');
+    R('Downforce readout', `${(DOWNFORCE_N / 1000).toFixed(1)} kN = ${(DOWNFORCE_N / (m * G0)).toFixed(2)} g`, 'REP', Math.abs(DOWNFORCE_N / (m * G0) - 2) < 0.05 ? 'ok' : 'warn', '4,700 kg on the live telemetry. At 1,700 kg that is 2.76 g — more than the "up to 2 g" claim. At 2,350 kg it is exactly 2.0 g');
+  } else {
+    const deg = o.pit * 180 / Math.PI, st = !isNaN(i.detachT) && S.t >= i.detachT ? (o.FL > 100 ? 'LANDING BURN' : (i.landed && o.y <= 0.01 ? 'LANDED' : 'FALLING')) : (!isNaN(i.slipT) && S.t >= i.slipT ? 'SLIPPING' : (o.pit > 2.9 ? 'HOLDING' : (pre === 'climb' ? 'CLIMBING' : 'PARKED')));
+    R('State', st, '', st === 'SLIPPING' || st === 'FALLING' ? 'warn' : 'ok');
+    R('Max pitch held', `${i.thMax.toFixed(0)}°`, 'DER', 'hi', 'Largest θ with μ·N ≥ m·g·sinθ and N > 0, at the current suction' + (pre === 'climb' ? ' and climb speed' : ''));
+    R('Min suction → 170°', `${i.minS170.toFixed(2)} g`, 'DER', '', 'Bisection on the same inequality. Upside-down needs only > 1 g to STAY; getting there needs more');
+    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Pitch now', `${deg.toFixed(0)}°`); R('Height', `${o.y.toFixed(1)} m`);
+    R('Fan suction now', `${o.s.toFixed(2)} g · ${(o.s * m * G0 / 1000).toFixed(1)} kN`, 'DER');
+    R('Surface load N/mg', o.nl > 0 ? o.nl.toFixed(2) : '–', 'DER', o.nl <= 0 && o.s >= 0 && !isNaN(i.detachT) && S.t >= i.detachT ? 'warn' : '', 'N = m·g·(s + cosθ) (+ v²/R when moving). Zero means the car lets go');
+    R('Friction margin', o.nl > 0 ? (o.mg >= 0 ? '+' : '') + o.mg.toFixed(2) + ' mg' : '–', 'DER', o.mg < 0 && o.nl > 0 ? 'warn' : 'ok', 'μ_eff·N/mg − sinθ');
+    R('Downforce readout', `${(DOWNFORCE_N / 1000).toFixed(1)} kN = ${(DOWNFORCE_N / (m * G0)).toFixed(2)} g`, 'REP', Math.abs(DOWNFORCE_N / (m * G0) - 2) < 0.05 ? 'ok' : 'warn', '4,700 kg on the live telemetry. At 1,700 kg that is 2.76 g — more than the "up to 2 g" claim. At 2,350 kg it is exactly 2.0 g');
+    if (!isNaN(i.detachT)) { SEP(); R('Landing burn from', `${f1(i.brakeY, 1)} m`, 'DER', '', 'Reported: 3.3 g reading at ≈6.5 m'); R('Peak burn', `${f1(i.gPeak, 1)} g`, 'REP'); R('Touch-down', `${f1(i.vTouch, 1)} m/s`, 'DER', i.vTouch > 6 ? 'warn' : 'ok'); R('Air for the burn', `${i.air.toFixed(0)} kg`, 'DER'); tank(); }
+  }
+  const html = RW.join(''); if (html !== S._rd) { $('rdl').innerHTML = html; S._rd = html; }
+}
+
+/* ---- explainer cards ---- */
+const CARDS = {
+  air: [
+    ['What you are looking at', '<p>A true-scale pad at McGregor, drawn like a retro arcade racer. The big neon car is the Roadster. The four <b>wire cars</b> are Tesla\'s own claims — 2017 Roadster, Performance, Thrust, Rocket — all racing to 60 mph on the same clock.</p><p>The white-hot jets at the tail are four cold-air nozzles. Nothing burns.</p>'],
+    ['The one equation', '<p>Thrust is air thrown backwards: <code>F = ṁ · vₑ</code>. Cold air leaves at ~530–700 m/s, an <code>Isp</code> of 54–71 s, so 80 kN costs <b>115–150 kg of air every second</b>.</p><p>A real rocket engine gets 300 s or more. That gap is the whole story of this car.</p>'],
+    ['Why it cannot last', '<p>The tank is a blowdown bottle: pressure falls like <code>m^1.4</code> and thrust follows it. At half the air thrust is <b>38 %</b>; at a quarter it is <b>14 %</b>, and the gas has chilled to −105 °C — watch the tanks frost over in X-ray.</p><p>Holding a 1,700 kg car up costs ~28 kg/s. It is a hop, not a flight.</p>'],
+    ['Reading the units', '<p><b>80 kN</b> ≈ 8 tonnes pushing. <b>250 kg of air</b> ≈ three adults, squeezed to ~437 bar (6,300 psi). <b>3.4 g</b> in 0.81 s ≈ a launch-coaster. Tyres alone manage 1.26 g — Tesla says the thrusters add 4–5× what tyres can.</p><p>Every readout wears a chip: OFF stated by Tesla · INT interview · REP reported · DER derived here · EST estimate · ASM assumed.</p>'],
+    ['Model limits and disputes', '<p>Tesla published totals: 80 kN, 600 L, 250 kg, 0.81 s. It did not publish thrust-over-time, nozzle shape, valve behaviour, or the hop and roll jets\' thrust. The 49 % valve opening is <b>fitted</b> to the live run; the down-jets are <b>assumed</b>.</p><p class="cav">Treat every figure as an engineering estimate, ±~2×. Disputed: air (Tesla) vs nitrogen (MotorTrend). The 5,500 psi screen readout holds 228 kg, not 250 kg (that needs ≈6,340 psi). Mass: ~1,700 kg (interview) vs ~2,350 kg (inferred). Production 2028 is a claim. Not affiliated with Tesla.</p>'],
+  ],
+  wall: [
+    ['What you are looking at', '<p>A tall quarter-pipe that curls <b>past vertical to 170°</b>, ~21 m up — the shape of Tesla\'s wall-climb demo. Fans pull air out of a sealed underbody, so the outside air presses the car onto the surface.</p><p>Arrows: <b>cyan</b> suction · <b>white</b> weight · <b>green</b> the surface pushing back · <b>pink</b> friction needed.</p>'],
+    ['The one inequality', '<p>The car stays on while <code>μ · N ≥ m·g·sinθ</code>, with <code>N = m·g·(s + cosθ)</code>. Suction <code>s</code> adds to the load; past 90° gravity pulls the car <i>off</i> (cosθ &lt; 0), so you need <code>s &gt; −cosθ</code> just to keep touching.</p>'],
+    ['Why it sticks', '<p>Upside-down you only need <b>s &gt; 1 g</b> — suction must beat weight. But <i>getting</i> there is harder: tyres give back less grip per extra load, so at 1 g of suction the climb fails near 130°. Drag the suction slider and watch the green curve.</p><p>Cut the fans at the top and the car falls ~21 m — then the thrusters brake it at about 6.5 m.</p>'],
+    ['Reading the units', '<p><b>2 g</b> of suction on a 1,700 kg car is <b>33 kN</b> — a small bus pressing it into the road. Tyres alone corner at 1.26 g; with fans, ≈2.2 g. The <b>4,700 kg</b> downforce on Tesla\'s screen is 46 kN = 2.76 g at 1,700 kg, but exactly 2.0 g at 2,350 kg — tick the box and watch the contradiction.</p>'],
+    ['Model limits and disputes', '<p>The tyre load-sensitivity exponent (0.49) is <b>fitted</b> so 2 g of suction gives ≈2.2 g of cornering. Without it you would get 3.8 g, which nobody claims. The landing burn (3.3 g from ≈6.5 m) reproduces what the telemetry showed.</p><p class="cav">Four fans of ~20 kW each is an interview figure; the fan-power-to-suction link is not modelled. The patent (US 12,377,920) mentions deployable skirts; production use is unconfirmed. Treat figures as ±~2×. Not affiliated with Tesla.</p>'],
+  ],
+};
+function buildCards() { $('explain').innerHTML = CARDS[S.tab].map(c => `<div class="ex"><h4>${c[0]}</h4>${c[1]}</div>`).join(''); }
+
+/* ---- sound (optional, synthesised, no assets) ---- */
+const SND = { ctx: null, on: false };
+function sndInit() {
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const c = SND.ctx = new AC(), mg = c.createGain(); mg.gain.value = 0.18; mg.connect(c.destination);
+  const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const ns = c.createBufferSource(); ns.buffer = nb; ns.loop = true; SND.bp = c.createBiquadFilter(); SND.bp.type = 'bandpass'; SND.ng = c.createGain(); SND.ng.gain.value = 0; ns.connect(SND.bp); SND.bp.connect(SND.ng); SND.ng.connect(mg); ns.start();
+  SND.fan = c.createOscillator(); SND.fan.type = 'sawtooth'; SND.fg = c.createGain(); SND.fg.gain.value = 0; SND.fan.connect(SND.fg); SND.fg.connect(mg); SND.fan.start();
+  SND.mg = mg; SND.step = 0; const notes = [220, 261.6, 329.6, 392, 329.6, 261.6, 196, 246.9];
+  SND.timer = setInterval(() => {
+    if (!SND.on || !S.playing) return; const k = SND.step++, f = notes[k % 8] * (0.5 + 0.5 * SND.fr), o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+    o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14); o.connect(g); g.connect(mg); o.start(t); o.stop(t + 0.15);
+    if (k % 4 === 0) { const b = c.createOscillator(), bg = c.createGain(); b.type = 'triangle'; b.frequency.value = f / 2; bg.gain.setValueAtTime(0.09, t); bg.gain.exponentialRampToValueAtTime(0.001, t + 0.5); b.connect(bg); bg.connect(mg); b.start(t); b.stop(t + 0.55); }
+  }, 150);
+}
+function sndUpdate(o) {
+  if (!SND.ctx) return; const i = S.tr.info; SND.fr = clamp(o.am / (i.m0 || 250), 0, 1);
+  const th = clamp((o.F + o.FL + o.FR) / 90000, 0, 1), on = SND.on && S.playing;
+  SND.ng.gain.value = on ? th * 0.7 : 0; SND.bp.frequency.value = 300 + 1700 * clamp(o.p / 689, 0, 1); SND.fan.frequency.value = 110 + 220 * clamp(o.s, 0, 2); SND.fg.gain.value = on ? clamp(o.s / 2, 0, 1) * 0.05 : 0;
+}
+
+/* ---- wiring ---- */
+function setPlaying(v) { S.playing = v; $('playBtn').textContent = v ? '❚❚ Pause' : '▶ Play'; if (v) S.started = true; }
+function wire() {
+  $('playBtn').onclick = () => { if (!S.playing && S.t >= S.dur - 1e-3) S.t = 0; setPlaying(!S.playing); };
+  $('restartBtn').onclick = () => { S.t = 0; setPlaying(true); };
+  $('rate').oninput = () => { S.rate = +$('rate').value; refreshLabels(); };
+  $('prog').oninput = () => { S.t = +$('prog').value * S.dur; S.started = true; };
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setPreset(b.dataset.s === 'air' ? 'launch' : 'climb'));
+  document.querySelectorAll('#presets button').forEach(b => b.onclick = () => setPreset(b.dataset.p));
+  sliderIds.forEach(k => $(k).oninput = () => { refreshLabels(); reparam(); });
+  $('fixed').onchange = reparam;
+  $('ps').onchange = () => { S.ps = +$('ps').value; };
+  $('snd').onchange = () => { if ($('snd').checked) { if (!SND.ctx) sndInit(); if (SND.ctx) { SND.ctx.resume(); SND.on = true; } } else SND.on = false; };
+  document.querySelectorAll('#cams button').forEach(b => b.onclick = () => { S.cam.mode = b.dataset.c; S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; syncCamBtns(); });
+  const cv = $('gl'); let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId); const r = cv.getBoundingClientRect(); drag = { x: e.clientX, y: e.clientY, car: false };
+    if (S.pre === 'park' && S.lastPose && S.vp) { const q = projPt([S.lastPose.x, S.lastPose.y + .5, S.lastPose.z]); if (q) { const px = (e.clientX - r.left) / r.width * S.W, py = (e.clientY - r.top) / r.height * S.H; if (Math.hypot(px - q[0], py - q[1]) < 28) drag.car = true; } }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.car && S.basis && S.cm) {
+      const r = cv.getBoundingClientRect(), nx = (e.clientX - r.left) / r.width * 2 - 1 - (S.LS || 0), ny = 1 - (e.clientY - r.top) / r.height * 2, L = S.basis, ta = Math.tan(FOV / 2), asp = S.W / S.H;
+      const rd = [L.f[0] + nx * ta * asp * L.s[0] + ny * ta * L.u[0], L.f[1] + nx * ta * asp * L.s[1] + ny * ta * L.u[1], L.f[2] + nx * ta * asp * L.s[2] + ny * ta * L.u[2]], e0 = S.cm.eye;
+      if (Math.abs(rd[2]) > 1e-4) { const tt = -e0[2] / rd[2], px = e0[0] + tt * rd[0], py = e0[1] + tt * rd[1]; const th = Math.atan2(px, RAMP_R - py) * 180 / Math.PI; $('th0').value = clamp(Math.round(th), 30, 180); refreshLabels(); S.t = 0; reparam(); }
+    } else { S.cam.dyaw -= dx * 0.008; S.cam.dpit += dy * 0.006; }
+  });
+  cv.addEventListener('pointerup', () => drag = null); cv.addEventListener('pointercancel', () => drag = null);
+  cv.addEventListener('wheel', e => { e.preventDefault(); S.cam.dd = clamp(S.cam.dd * Math.exp(e.deltaY * 0.001), 0.3, 2.5); }, { passive: false });
+  cv.addEventListener('dblclick', () => { S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; });
+  const ins = $('inset2d'); let gd = false;
+  const setP = e => { if (!$('pres') || $('pres').closest('.hide') || $('pres').parentElement.classList.contains('hide')) return; const r = ins.getBoundingClientRect(), y = (e.clientY - r.top) / r.height * 190; const b = clamp(Math.round(200 + (30 + 140 - y) / 140 * (689 - 200)), 200, 689); $('pres').value = b; refreshLabels(); reparam(); };
+  ins.addEventListener('pointerdown', e => { ins.setPointerCapture(e.pointerId); gd = true; setP(e); }); ins.addEventListener('pointermove', e => { if (gd) setP(e); }); ins.addEventListener('pointerup', () => gd = false);
+  window.addEventListener('resize', () => { S.W = 0; });
+}
+
+/* ---- loop ---- */
+let _last = performance.now();
+function loop(ts) {
+  const dt = Math.min((ts - _last) / 1000, 0.05); _last = ts;
+  try {
+    if (S.playing) { S.t += dt * S.rate; if (S.t >= S.dur) { S.t = S.dur; setPlaying(false); } }
+    $('prog').value = S.dur ? S.t / S.dur : 0; $('progV').textContent = S.t.toFixed(2) + ' s';
+    if (GL.ok && !GL.lost) render(dt); else S.lastPose = poseAt(S.tr, S.t);
+    const o = S.lastPose; updateReadouts(o); drawPlots(); drawInset(); sndUpdate(o);
+  } catch (e) { if (!S._err) { S._err = 1; console.error(e); } }
+  requestAnimationFrame(loop);
+}
+function go() {
+  glSetup(); wire(); refreshLabels(); setPreset('launch'); requestAnimationFrame(loop);
+}
+window.RDX = { S, simLaunch, simHover, simRoll, simWall, simCorner, tankMass, timeToEmpty, thetaMax, minSuction, cornerG, wallState, newTank, tankBurn, thrustAvail, hoverThrust, setPreset, reparam, GL, DOWNFORCE_N, zOf, psi };
+go();
+</script>

@@ -229,3 +229,20 @@ A new piece is not in this collection unless it is:
    accuracy and a units primer with everyday anchors;
 8. carrying an up-front prediction of the worst-case location and magnitude, not only a
    reveal.
+
+---
+
+## 9. Exception — pieces whose subject is 3-D
+
+`tesla-roadster.html` is the one piece that deviates from §3/§4, deliberately:
+
+- The stage is a **true-scale WebGL scene** (raw WebGL 1, hand-written shaders and matrices — still zero
+  dependencies, one file, `file://`, no network) instead of an isotropic 2-D canvas. The "secondary 3-D inset"
+  becomes a **2-D schematic** (there, the air system). Geometry is still metric and un-exaggerated.
+- Its in-scene look is **8-bit synthwave** (low-res FBO, 32-colour palette, Bayer dither, CRT pass, bitmap-font HUD).
+  The UI chrome, readouts, plots and explainer cards keep the house roles and tone.
+- Everything else in §8 still applies: real constants, one kernel per quantity (here the sim is precomputed from
+  that kernel, so scrub == play by construction), an up-front prediction, tabs that reuse the kernel, a caveat
+  card — plus a **confidence chip on every readout** (OFFICIAL / INTERVIEW / REPORTED / DERIVED / ESTIMATE / ASSUMED)
+  because the source data mixes stated, reported and derived numbers.
+- A WebGL piece must still **degrade, never throw**: with no WebGL it shows a message and the readouts and plots keep running.

@@ -117,9 +117,8 @@
         <label class="fld" data-scen="launch hover roll climb park">Tank fill pressure <span class="v" id="presV"></span><input type="range" id="pres" min="200" max="689" step="1" value="437"></label>
         <label class="fld" data-scen="launch hover roll climb park">Specific impulse <span class="v" id="ispV"></span><input type="range" id="isp" min="54" max="70.7" step="0.1" value="60"></label>
         <label class="fld" data-scen="launch hover roll climb park corner">Car mass <span class="v" id="massV"></span><input type="range" id="mass" min="1700" max="2350" step="10" value="1700"></label>
-        <label class="fld" data-scen="launch hover">Valve opening <span class="v" id="thrV"></span><input type="range" id="thr" min="20" max="100" step="1" value="49"></label>
-        <label class="fld" data-scen="roll">Kicker speed <span class="v" id="v0V"></span><input type="range" id="v0" min="8" max="30" step="0.5" value="15"></label>
-        <label class="fld" data-scen="roll">Kicker angle <span class="v" id="angV"></span><input type="range" id="ang" min="20" max="60" step="1" value="50"></label>
+        <label class="fld" data-scen="roll">Drive-in speed <span class="v" id="v0V"></span><input type="range" id="v0" min="2" max="12" step="0.5" value="7"></label>
+        <label class="fld" data-scen="roll">Target height <span class="v" id="apxV"></span><input type="range" id="apx" min="3" max="30" step="0.1" value="7.9"></label>
         <label class="fld" data-scen="roll">Roll time <span class="v" id="rtV"></span><input type="range" id="rt" min="1" max="2.5" step="0.1" value="2"></label>
         <label class="fld" data-scen="launch climb park corner">Fan suction <span class="v" id="supV"></span><input type="range" id="sup" min="0" max="2" step="0.05" value="2"></label>
         <label class="fld" data-scen="launch climb park corner">Tyre grip μ <span class="v" id="muV"></span><input type="range" id="mu" min="0.8" max="1.4" step="0.01" value="1.26"></label>
@@ -204,7 +203,10 @@ const NLS = 0.49;                 // –     tyre load-sensitivity exponent: μ_
 const REAR_SHARE = 0.55;          // –     ASSUMED rear-axle share of tyre load
 const CDA = 0.34;                 // N/(m/s)²  ½ρ·Cd·A with Cd·A≈0.57 m² — ESTIMATE
 const VALVE_T = 0.10;             // s     ASSUMED valve spin-up (slow-motion frames show thrusters lead the car, §4a)
-const ROLL_ARM = 1.05;            // m     lateral position of the side roll-jet pods (couple lever arm = 2 × this)
+const THR_FIT = 0.405;            // –     FITTED effective rear-valve opening so the default launch reproduces the live 0–60 of 0.90 s (user-reported
+                                  //       from the demo; recorded run 1.0 s). Not a control: thrust-vs-time is unpublished, this is the calibration.
+const RUN_SUP = 2.0;              // g     ASSUMED fan suction while driving up to the kicker (grip for the run-up)
+const ROLL_ARM = 1.05;           // m     lateral position of the side roll-jet pods (couple lever arm = 2 × this)
 const ROLL_JET = 8000;            // N     ASSUMED thrust of one side roll jet at P_REF (Tesla published none); scales with tank pressure
 const PULSE_FRAC = 0.22;          // –     fraction of the roll time spent on each of the push and the counter-fire pulses (ASSUMED)
 const BRAKE_G = 3.3;              // g     reading during the landing burn at ~6.5 m (REPORTED telemetry, §6)
@@ -267,13 +269,13 @@ function tyreForce(m, v, sup, mu0) {
 }
 
 // ---- A1: 0–60 launch ----
-// P: {p0, isp, mass, thr (0..1 valve opening), sup (g), mu}
+// P: {p0, isp, mass, sup (g), mu, [thr: valve opening, defaults to the fitted THR_FIT — a test hook, not a UI control]}
 function simLaunch(P) {
   const N = Math.round(3.2 / DT), tr = newTraj(N), tk = newTank(P.p0);
   let x = 0, v = 0, t60 = NaN, x60 = NaN, usedAt60 = NaN, peakA = 0;
   for (let i = 0; i < N; i++) {
     const t = i * DT;
-    const Fth = P.thr * smooth(t / VALVE_T) * thrustAvail(tk.p);
+    const Fth = (P.thr ?? THR_FIT) * smooth(t / VALVE_T) * thrustAvail(tk.p);
     const Ft = tyreForce(P.mass, v, P.sup, P.mu);
     const a = (Fth + Ft - CDA * v * v) / P.mass;
     put(tr, i, { x, F: Fth, p: tk.p, T: tk.T, am: tk.m, s: P.sup, ag: a / G0 });
@@ -295,13 +297,13 @@ function simHover(P) {
   for (let i = 0; i < N; i++) {
     const t = i * DT, Fav = thrustAvail(tk.p);
     let cmd = m * (G0 + 6 * (H - y) - 4 * v);
-    cmd = clamp(cmd, 0, Fav) * smooth(t / VALVE_T) * P.thr;
+    cmd = clamp(cmd, 0, Fav) * smooth(t / VALVE_T) * (P.thr ?? 1);
     if (tk.m <= 1e-6) cmd = 0;
     const a = (cmd - m * G0) / m;
     put(tr, i, { y, FL: cmd / 2, FR: cmd / 2, p: tk.p, T: tk.T, am: tk.m, ag: (a + G0) / G0 });
     tankBurn(tk, cmd, P.isp, DT);
     if (isNaN(lift) && y > 0.05) lift = t;
-    if (!isNaN(lift) && isNaN(sink) && Fav * P.thr < m * G0) sink = t;
+    if (!isNaN(lift) && isNaN(sink) && Fav * (P.thr ?? 1) < m * G0) sink = t;
     if (y > 0 || a > 0) { v += a * DT; y += v * DT; }
     if (y <= 0) { if (v < -0.5 && isNaN(land) && !isNaN(lift)) { land = t; vTouch = -v; } y = 0; if (v < 0) v = 0; }
     ymax = Math.max(ymax, y);
@@ -310,41 +312,79 @@ function simHover(P) {
   return tr;
 }
 
-// ---- A3: kicker jump + barrel roll ----
+// ---- A3: thruster lift-off + barrel roll (no ramp) ----
+// As seen in the demo video: the car drives slowly up to a row of parked Teslas, the four down-jets lift it ~30 m, four side jets roll it
+// while it coasts over the apex, a landing burn brakes the fall, and it rolls to a stop on its wheels. The rear thrusters never fire.
 // Roll comes from four side jets in pods on the flanks (left/right × exhaust up/down), fired as COUPLES so there is no net force:
 //   push  : left jet exhausts DOWN (lifts the left side) + right jet exhausts UP (presses the right side down)
 //   coast : all closed, the car keeps spinning at ω = α·t_push
 //   brake : the opposite jets (left UP, right DOWN) fire for the same time and stop the roll
-// P: {p0, isp, mass, v0 (m/s), ang (deg), rt (s roll time)}
+// P: {p0, isp, mass, v0 (m/s, drive-in speed), apx (m, target height), rt (s roll time)}
 function simRoll(P) {
-  const N = Math.round(4.2 / DT), tr = newTraj(N), tk = newTank(P.p0), m = P.mass, YL = 1.6;   // YL: lip height of the kicker, m
-  const al = P.ang * Math.PI / 180, vx = P.v0 * Math.cos(al), vy0 = P.v0 * Math.sin(al);
-  const tf = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G0 * YL)) / G0, apex = YL + vy0 * vy0 / (2 * G0);
-  const I = m * (2.0 * 2.0 + 1.1 * 1.1) / 12;              // kg·m² box w=2.0 h=1.1 (data pack §6)
-  const TH = 2 * Math.PI, t0 = 0.12;                        // roll starts just after the kicker (ASSUMED)
-  const jetCap = ROLL_JET * P.p0 / P_REF, aMax = 2 * jetCap * ROLL_ARM / I;
+  const m = P.mass, H = P.apx, I = m * (2.0 * 2.0 + 1.1 * 1.1) / 12;   // kg·m² box w=2.0 h=1.1 (data pack §6)
+  const TH = 2 * Math.PI, jetCap = ROLL_JET * P.p0 / P_REF, aMax = 2 * jetCap * ROLL_ARM / I;
   let T = P.rt, ta = PULSE_FRAC * T, alpha = TH / (ta * (T - ta)), limited = false;
   if (alpha > aMax) { limited = true; alpha = aMax; T = Math.sqrt(4 * TH / alpha); ta = T / 2; }   // jets too weak: pure push/brake, no coast
   const tau = I * alpha, Fj = tau / (2 * ROLL_ARM), omega = alpha * ta, tauBB = I * 4 * TH / (P.rt * P.rt);
-  let air = 0, landRoll = NaN;
-  for (let i = 0; i < N; i++) {
-    const t = i * DT, ft = Math.min(t, tf), x = vx * t;
-    const y = t >= tf ? 0 : Math.max(YL + vy0 * ft - 0.5 * G0 * ft * ft, 0), tq = t - t0;
-    let rol = 0, dir = 0;
-    if (tq > 0 && tq < ta) { rol = 0.5 * alpha * tq * tq; dir = 1; }
-    else if (tq >= ta && tq < T - ta) rol = 0.5 * alpha * ta * ta + omega * (tq - ta);
-    else if (tq >= T - ta && tq < T) { const d = T - tq; rol = TH - 0.5 * alpha * d * d; dir = -1; }
-    else if (tq >= T) rol = TH;
-    if (t >= tf) { if (isNaN(landRoll)) landRoll = tr.c.rol[Math.max(i - 1, 0)]; rol = landRoll; dir = 0; }
-    const F = tk.m > 0 ? Fj : 0;
-    put(tr, i, { x, y, pit: 0, rol, JLd: dir > 0 ? F : 0, JRu: dir > 0 ? F : 0, JLu: dir < 0 ? F : 0, JRd: dir < 0 ? F : 0,
-      p: tk.p, T: tk.T, am: tk.m, ag: t < tf ? 0 : 1 });
-    const used = dir ? 2 * F : 0; air += used / (P.isp * G0) * DT; tankBurn(tk, used, P.isp, DT);
-  }
-  const rolledDeg = landRoll * 180 / Math.PI;
-  tr.info = { tf, apex, I, tau, tauBB, Fj, jetCap, alpha, omegaDeg: omega * 180 / Math.PI, ta, limited, Teff: T, air, rollEnd: t0 + T, rolledDeg,
-              landOK: Math.abs(rolledDeg - 360) < 20, dist: vx * tf, m0: tk.m0, tEnd: (N - 1) * DT, t0 };
-  return tr;
+  // drive-in (no air): motors + fan grip from rest to the drive-in speed on the flat; the car ends the run at x = 0
+  const xs = [0]; { let x = 0, v = 0; while (v < P.v0 && xs.length < 1000) { const a = (tyreForce(m, v, RUN_SUP, MU_TYRE) - CDA * v * v) / m; x += v * DT + 0.5 * a * DT * DT; v += a * DT; xs.push(x); } }
+  const tp = (xs.length - 1) * DT, dFlat = xs[xs.length - 1], N = Math.round((tp + 12) / DT), DEC = 6;   // DEC: m/s² rolling-stop deceleration, ASSUMED
+  const run = tRoll => {
+    const tr = newTraj(N), tk = newTank(P.p0), cap = BRAKE_G * m * G0;
+    let mode = 'drive', y = 0, vy = 0, x = 0, vh = P.v0, tCut = NaN, tApex = NaN, tBrake = NaN, tLand = NaN, vTouch = NaN, ymax = 0, airClimb = 0, airLand = 0, landRoll = NaN, gPeak = 1;
+    let plan = null;
+    const predict = delay => {                         // touch-down speed if the landing burn starts after `delay` s of free fall (99 = never lands softly)
+      const k2 = { ...tk }; let yy = y, vv = vy;
+      for (let k = 0; k < 800; k++) {
+        const Fa = thrustAvail(k2.p) * (k2.m > 0 ? 1 : 0), F2 = k * 0.02 < delay ? 0 : vv < -1.5 ? Math.min(Fa, cap) : Math.min(m * G0, Fa);
+        vv += (F2 / m - G0) * 0.02; yy += vv * 0.02; tankBurn(k2, F2, P.isp, 0.02);
+        if (yy <= 0) return -vv;
+      }
+      return 99;
+    };
+    for (let i = 0; i < N; i++) {
+      const t = i * DT, Fav = thrustAvail(tk.p) * (tk.m > 0 ? 1 : 0);
+      let F = 0;
+      if (mode === 'drive' && t >= tp) mode = 'lift';
+      if (mode === 'lift') { F = Math.min(Fav, cap); if (y + vy * vy / (2 * G0) >= H || F <= 0) { mode = 'coast'; tCut = t; F = 0; } }
+      else if (mode === 'coast') {
+        if (vy < 0) {                                  // start the landing burn at the last moment from which a full burn still lands softly
+          if (plan === null) { plan = NaN; for (let d = 6; d >= 0; d -= 0.05) if (predict(d) <= 2.5) { plan = t + d; break; } }   // latest start that still lands softly
+          if (isNaN(plan) ? y <= (vy * vy) / (2 * Math.max(Fav / m - G0, 1)) + 0.3 : t >= plan) { mode = 'brake'; tBrake = t; }
+        }
+      }
+      if (mode === 'brake') F = vy < -1.5 ? Math.min(Fav, cap) : Math.min(m * G0, Fav);
+      if (mode === 'drive') { x = -dFlat + xs[Math.min(i, xs.length - 1)]; }
+      else if (mode !== 'land') {
+        const a = F / m - G0; if (mode === 'lift' && y <= 0 && a <= 0) { vy = 0; y = 0; } else { vy += a * DT; y += vy * DT; }
+        x += vh * DT; ymax = Math.max(ymax, y); gPeak = Math.max(gPeak, F / (m * G0));
+        if (isNaN(tApex) && vy <= 0 && mode !== 'lift') tApex = t;
+        if (mode === 'brake') airLand += F / (P.isp * G0) * DT; else if (mode === 'lift') airClimb += F / (P.isp * G0) * DT;
+        if (y <= 0 && vy < 0) { y = 0; vTouch = -vy; vy = 0; mode = 'land'; tLand = t; }
+      } else { vh = Math.max(vh - DEC * DT, 0); x += vh * DT; }
+      // roll (side jets), scheduled in absolute time
+      const tq = t - tRoll; let rol = 0, dir = 0;
+      if (tq > 0 && tq < ta) { rol = 0.5 * alpha * tq * tq; dir = 1; }
+      else if (tq >= ta && tq < T - ta) rol = 0.5 * alpha * ta * ta + omega * (tq - ta);
+      else if (tq >= T - ta && tq < T) { const d = T - tq; rol = TH - 0.5 * alpha * d * d; dir = -1; }
+      else if (tq >= T) rol = TH;
+      if (mode === 'land') { if (isNaN(landRoll)) landRoll = tr.c.rol[Math.max(i - 1, 0)]; rol = landRoll; dir = 0; }
+      const Fs = tk.m > 0 ? Fj : 0, used = dir ? 2 * Fs : 0;
+      put(tr, i, { x, y, pit: 0, rol, FL: F / 2, FR: F / 2, JLd: dir > 0 ? Fs : 0, JRu: dir > 0 ? Fs : 0, JLu: dir < 0 ? Fs : 0, JRd: dir < 0 ? Fs : 0, s: mode === 'drive' ? RUN_SUP : 0,
+        p: tk.p, T: tk.T, am: tk.m, ag: F > 0 ? F / (m * G0) : (mode === 'drive' || mode === 'land' ? 1 : 0) });
+      tankBurn(tk, F + used, P.isp, DT);
+    }
+    return { tr, tk, tCut, tApex, tBrake, tLand, vTouch, ymax, airClimb, airLand, landRoll, gPeak };
+  };
+  let r = run(1e9);                                                    // pass 1: find the apex time
+  const tApex1 = isNaN(r.tApex) ? tp + 2 : r.tApex, tRoll = Math.max(tApex1 - T / 2, tp + 0.2);   // roll centred on the apex
+  r = run(tRoll);
+  const rolledDeg = (isNaN(r.landRoll) ? r.tr.c.rol[N - 1] : r.landRoll) * 180 / Math.PI, landed = !isNaN(r.tLand);
+  r.tr.info = { tp, dFlat, apex: r.ymax, hit: r.ymax >= H - 0.5, tCut: r.tCut, tApex: r.tApex, tBrake: r.tBrake, tf: r.tLand, tfl: r.tLand - tp, dist: P.v0 * (r.tLand - tp), vTouch: r.vTouch,
+    landed, crashed: !landed || r.vTouch > 6, airClimb: r.airClimb, airLand: r.airLand, gPeak: r.gPeak, I, tau, tauBB, Fj, jetCap, alpha, omegaDeg: omega * 180 / Math.PI, ta, limited, Teff: T,
+    air: r.tk.m0 - r.tk.m, rollEnd: tRoll + T, rolledDeg, landOK: landed && Math.abs(rolledDeg - 360) < 20, m0: r.tk.m0, tEnd: (N - 1) * DT, t0: tRoll,
+    stopX: r.tr.c.x[N - 1] };
+  return r.tr;
 }
 
 // ---- B: fan suction / wall ----
@@ -767,29 +807,29 @@ const txtW = (s, sc) => String(s).length * 6 * sc;
    ==================================================================================== */
 const $ = id => document.getElementById(id);
 const PRE = {
-  launch: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, thr: 49, sup: 2, mu: 1.26 } },
-  hover: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, thr: 100 } },
-  roll: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, v0: 14, ang: 49, rt: 2 } },
+  launch: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26 } },
+  hover: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700 } },
+  roll: { tab: 'air', def: { pres: 437, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 } },
   climb: { tab: 'wall', def: { pres: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26, vc: 6 } },
   park: { tab: 'wall', def: { pres: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26, th0: 180, fade: 0.25 } },
   corner: { tab: 'wall', def: { mass: 1700, sup: 2, mu: 1.26 } },
 };
 const FMT = {
-  pres: v => `${v} bar · ${Math.round(psi(+v))} psi · ${tankMass(+v).toFixed(0)} kg`, isp: v => `${(+v).toFixed(1)} s`, mass: v => `${v} kg`, thr: v => `${v} %`,
-  sup: v => `${(+v).toFixed(2)} g`, mu: v => (+v).toFixed(2), v0: v => `${(+v).toFixed(1)} m/s`, ang: v => `${v}°`, rt: v => `${(+v).toFixed(1)} s`,
+  pres: v => `${v} bar · ${Math.round(psi(+v))} psi · ${tankMass(+v).toFixed(0)} kg`, isp: v => `${(+v).toFixed(1)} s`, mass: v => `${v} kg`,
+  sup: v => `${(+v).toFixed(2)} g`, mu: v => (+v).toFixed(2), v0: v => `${(+v).toFixed(1)} m/s`, apx: v => `${(+v).toFixed(1)} m · ${Math.round(v * 3.281)} ft`, rt: v => `${(+v).toFixed(1)} s`,
   vc: v => `${(+v).toFixed(1)} m/s`, th0: v => `${v}°`, fade: v => `${(+v).toFixed(2)} g/s`,
 };
 const S = {
   tab: 'air', pre: 'launch', playing: false, t: 0, dur: 3, rate: 1, tr: null, P: null, started: false,
   cam: { mode: 'chase', dyaw: 0, dpit: 0, dd: 1, cur: null }, ov: {}, W: 160, H: 90, ps: 3, vp: null, camPos: [0, 5, 20], basis: null,
-  ptime: 0, p2: null, _rd: '', labels: [],
+  ptime: 0, p2: null, _rd: '', labels: [], cd: 0, go: 0,   // cd/go: start countdown seconds left / GO! flash
 };
 const sliderIds = Object.keys(FMT);
 function refreshLabels() { sliderIds.forEach(k => { const el = $(k); if (el) $(k + 'V').textContent = FMT[k](el.value); }); $('rateV').textContent = (+$('rate').value).toFixed(2) + '×'; }
 function readParams() {
   const g = k => $(k) ? +$(k).value : 0;
   const mode = S.pre === 'park' ? 'park' : 'climb';
-  return { p0: g('pres'), isp: g('isp'), mass: g('mass'), thr: g('thr') / 100, sup: g('sup'), s: g('sup'), mu: g('mu'), v0: g('v0'), ang: g('ang'), rt: g('rt'),
+  return { p0: g('pres'), isp: g('isp'), mass: g('mass'), sup: g('sup'), s: g('sup'), mu: g('mu'), v0: g('v0'), apx: g('apx'), rt: g('rt'),
     vc: g('vc'), th0: g('th0'), fade: g('fade'), fixed: $('fixed').checked, hold: 1.0, mode };
 }
 function activeEnd(tr, keys) {
@@ -800,9 +840,9 @@ function activeEnd(tr, keys) {
 function reparam() {
   const P = S.P = readParams(), pre = S.pre;
   let tr;
-  if (pre === 'launch') { tr = simLaunch(P); S.dur = Math.min(3.2, (isNaN(tr.info.t60) ? 2.5 : tr.info.t60) + 1.2); }
+  if (pre === 'launch') { tr = simLaunch(P); assignLanes(tr.info.t60); tr.c.z.fill(YZ); S.dur =Math.min(3.2, (isNaN(tr.info.t60) ? 2.5 : tr.info.t60) + 1.2); }
   else if (pre === 'hover') { tr = simHover(P); S.dur = Math.min(12, (isNaN(tr.info.land) ? 12 : tr.info.land + 1.5)); }
-  else if (pre === 'roll') { tr = simRoll(P); S.dur = Math.min(4.2, tr.info.tf + 1.3); }
+  else if (pre === 'roll') { tr = simRoll(P); S.dur = Math.min(tr.info.tEnd, (tr.info.landed ? tr.info.tf : tr.info.tEnd - 2.5) + 2.5); }
   else if (pre === 'corner') { tr = simCorner(P); S.dur = 9; }
   else { tr = simWall(P); S.dur = Math.max(2.5, Math.min(12.5, activeEnd(tr, ['x', 'y', 'pit', 'FL']) + 1.4)); }
   S.tr = tr; S.t = clamp(S.t, 0, S.dur);
@@ -818,14 +858,14 @@ function setPreset(p) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === S.tab));
   const d = PRE[p].def; for (const k in d) if ($(k)) $(k).value = d[k];
   if (S.tab === 'wall' && p !== 'corner') $('fixed').checked = false;
-  S.t = 0; S.playing = false; S.started = false; $('playBtn').textContent = '▶ Play';
+  S.t = 0; S.cd = S.go = 0; S.playing = false; S.started = false; $('playBtn').textContent = '▶ Play';
   S.cam.mode = p === 'corner' ? 'top' : (p === 'launch' || p === 'roll' ? 'pad' : 'chase'); S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; S.cam.cur = null; syncCamBtns();
   refreshLabels(); applyScen(); buildCards(); reparam();
 }
 const HINTS = {
-  launch: 'Valve opening is the one unpublished number — it is fitted so the run lands on Tesla\'s live 0.81 s. Drag the gauge to change the tank.',
+  launch: 'Press Play for a 3-2-1 start. The cars are lined up by their time to 60 mph, slowest at the back lane. The default run is calibrated to the live demo\'s 0.90 s; drag the gauge to change the tank.',
   hover: 'The four down-jets hold a 3 m hop until the tank can no longer push back on the car\'s weight. Heavier car ⇒ shorter hop.',
-  roll: 'Four side jets fire in couples: a push to start the spin, a coast, then the opposite jets fire to stop it. A shorter roll needs harder pulses; if the jets can\'t deliver, the roll takes longer than you asked.',
+  roll: 'No ramp: the car creeps up to a row of parked Teslas, the four down-jets lift it, four side jets roll it at the top, and a landing burn sets it down on its wheels. The rear thrusters never fire. Ask for more height than the air allows and the landing gets hard.',
   climb: 'Slow the climb or cut the fans: friction fails first at high pitch. Crawl speed removes the centrifugal help.',
   park: 'Drag the car along the ramp (or use the slider). The fans fade; when suction drops under 1 g the car lets go.',
   corner: 'The ghost has no fans. Same tyres, same corner — suction adds load, load adds grip.',
@@ -835,6 +875,12 @@ function syncCamBtns() { document.querySelectorAll('#cams button').forEach(b => 
 /* ---- static scene bits per run: lanes, finish ticks, rulers, kicker ---- */
 const GHOSTS = [{ t: 1.9, n: '2017 ROADSTER', z: -6.4, c: hex('8070b0') }, { t: 1.6, n: 'PERFORMANCE', z: -3.2, c: hex('00b8d9') },
   { t: 0.9, n: 'THRUST', z: 3.2, c: hex('ffc93c') }, { t: 0.59, n: 'ROCKET', z: 6.4, c: hex('ff6ec7') }];
+const LANE_Z = [-6.4, -3.2, 0, 3.2, 6.4]; let YZ = 0;      // YZ: the lane of the player's car
+function assignLanes(t60) {                               // lanes follow the 0–60 time: slowest in the first lane, fastest in the last
+  const rows = GHOSTS.map(g => ({ g, t: g.t })).concat([{ g: null, t: isNaN(t60) ? 99 : t60 }]);
+  rows.sort((a, b) => b.t - a.t || (a.g ? 1 : -1));       // a tie puts you on the slower side of the claim ("under 0.90 s")
+  rows.forEach((r, k) => { if (r.g) r.g.z = LANE_Z[k]; else YZ = LANE_Z[k]; });
+}
 const ghostX = (g, t) => t < g.t ? 0.5 * V60 / g.t * t * t : 0.5 * V60 * g.t + V60 * (t - g.t);
 function buildStatic() {
   const lb = LB(), tb = TB(); S.labels = [];
@@ -843,24 +889,29 @@ function buildStatic() {
     for (let y = 0; y <= h + 1e-6; y += step) { lb.line([x - .3, y, z], [x + .3, y, z], CCY); if (lab && Math.round(y / step) % lab === 0 && y > 0) S.labels.push({ p: [x + .4, y, z], t: Math.round(y) + 'M', c: CCY }); }
   };
   if (S.pre === 'launch') {
-    for (const z of [-6.4, -3.2, 0, 3.2, 6.4]) { const c = z === 0 ? CPINK : hex('44167f'); lb.line([-5, .02, z - 1.5], [45, .02, z - 1.5], c); lb.line([-5, .02, z + 1.5], [45, .02, z + 1.5], c); }
+    for (const z of [-6.4, -3.2, 0, 3.2, 6.4]) { const c = z === YZ ? CPINK : hex('44167f'); lb.line([-5, .02, z - 1.5], [45, .02, z - 1.5], c); lb.line([-5, .02, z + 1.5], [45, .02, z + 1.5], c); }
     lb.line([0, .03, -8], [0, .03, 8], CWHT);
     for (const g of GHOSTS) {
       const x = 0.5 * V60 * g.t; lb.line([x, .03, g.z - 1.5], [x, .03, g.z + 1.5], g.c); lb.line([x, 0, g.z - 1.5], [x, 2.2, g.z - 1.5], g.c);
       S.labels.push({ p: [x, 2.7, g.z - 1.5], t: g.t.toFixed(2) + 'S', c: g.c });
     }
-    const i = S.tr.info; if (!isNaN(i.x60)) { lb.line([i.x60, .03, -1.5], [i.x60, .03, 1.5], CAMB); lb.line([i.x60, 0, 1.5], [i.x60, 2.6, 1.5], CAMB); S.labels.push({ p: [i.x60, 3.2, 1.5], t: i.t60.toFixed(2) + 'S', c: CAMB }); }
+    const i = S.tr.info; if (!isNaN(i.x60)) { lb.line([i.x60, .03, YZ - 1.5], [i.x60, .03, YZ + 1.5], CAMB); lb.line([i.x60, 0, YZ + 1.5], [i.x60, 2.6, YZ + 1.5], CAMB); S.labels.push({ p: [i.x60, 3.2, YZ + 1.5], t: i.t60.toFixed(2) + 'S', c: CAMB }); }
   } else if (S.pre === 'hover') {
     ruler(3.2, 0, 8, 1, 2);
     for (let a = 0; a < 24; a++) lb.line([2.2 * Math.cos(a / 24 * 6.2832), .03, 2.2 * Math.sin(a / 24 * 6.2832)], [2.2 * Math.cos((a + 1) / 24 * 6.2832), .03, 2.2 * Math.sin((a + 1) / 24 * 6.2832)], CPINK);
     lb.line([2.8, 3.0, 0], [3.6, 3.0, 0], CAMB);
   } else if (S.pre === 'roll') {
-    const i = S.tr.info; ruler(i.dist * 0.5, -3.5, 9, 1, 2);
-    const a = S.P.ang * Math.PI / 180, L = 1.6 / Math.tan(a);
-    tb.quad([-L, 0, -1.4], [0, 1.6, -1.4], [0, 1.6, 1.4], [-L, 0, 1.4], hex('44167f'), 0); tb.quad([-L, 0, -1.4], [0, 0, -1.4], [0, 1.6, -1.4], [-L, 0, -1.4], hex('2d1160'), 0);
-    lb.line([-L, 0, -1.4], [0, 1.6, -1.4], CCY); lb.line([-L, 0, 1.4], [0, 1.6, 1.4], CPINK); lb.line([0, 1.6, -1.4], [0, 1.6, 1.4], CYEL);
-    for (let k = 0; k < 5; k++) { const x = (k + .5) * 4.2 + 4, c = [hex('b9a8e0'), hex('8e24aa'), hex('00b8d9'), hex('ff6ec7'), hex('ffc93c')][k]; tb.quad([x, 0, -.9], [x + 3.4, 0, -.9], [x + 3.4, 1.4, -.9], [x, 1.4, -.9], c, 0); tb.quad([x, 1.4, -.9], [x + 3.4, 1.4, -.9], [x + 3.4, 1.4, .9], [x, 1.4, .9], c, 0); }
-    lb.line([0, i.apex, 3.5], [i.dist, i.apex, 3.5], CAMB); S.labels.push({ p: [i.dist * .5, i.apex + .6, 3.5], t: 'APEX ' + i.apex.toFixed(1) + 'M', c: CAMB });
+    // the row of five Teslas stands side by side (long axes across the path), Semi trailer in the middle; the car lifts just in front of them
+    const i = S.tr.info, c = S.tr.c; let k = 0; while (k < S.tr.n - 1 && c.y[k] < 2.2) k++;
+    let x = c.x[k] + 2.1 - 0.3;                                   // first car starts where the nose is already above its roof
+    ruler(x - 2.5, -9, Math.ceil(S.P.apx / 5) * 5 + 2, 1, 5);
+    for (const [w, L, h, col] of [[1.85, 4.7, 1.44, 'b9a8e0'], [1.9, 4.2, 1.45, '00b8d9'], [2.6, 13, 4.1, 'e8e8f0'], [2.03, 5.9, 1.91, '8e24aa'], [1.98, 4.75, 1.62, 'ff6ec7']]) {
+      box(tb, [x + w / 2, h / 2, 0], w, h, L, hex(col), 0);
+      lb.line([x, h, -L / 2], [x + w, h, -L / 2], CWHT); lb.line([x, h, L / 2], [x + w, h, L / 2], CWHT); lb.line([x, h, -L / 2], [x, h, L / 2], CWHT); lb.line([x + w, h, -L / 2], [x + w, h, L / 2], CWHT);
+      x += w + 0.6;
+    }
+    S.labels.push({ p: [x - 6.4, 5.0, 0], t: 'SEMI TRAILER 4M', c: CWHT });
+    lb.line([0, i.apex, 9], [i.dist + 8, i.apex, 9], CAMB); S.labels.push({ p: [i.dist * .5, i.apex + 1.2, 9], t: 'APEX ' + i.apex.toFixed(1) + 'M', c: CAMB });
   } else if (S.tab === 'wall' && S.pre !== 'corner') {
     ruler(RAMP_R + 3, 0, 22, 2, 5);
     for (let a = 0; a < 7; a++) lb.line([-8 - a * 6, .02, -3.2], [-8 - a * 6, .02, 3.2], hex('44167f'));
@@ -927,7 +978,7 @@ function flowParticles(t, o, M) {
 const CAMDEF = {
   launch: { pad: { t: [8, .6, 0], yaw: .3, pit: .42, d: 25 }, top: { t: [9, 0, 0], yaw: 0, pit: 1.45, d: 28 }, chase: { off: [3, .9, 0], d: 9, pit: .18 } },
   hover: { pad: { t: [0, 2.2, 0], yaw: .5, pit: .15, d: 14 }, top: { t: [0, 0, 0], yaw: 0, pit: 1.45, d: 20 }, chase: { off: [0, 1.6, 0], d: 10, pit: .15 } },
-  roll: { pad: { t: [10.5, 4, 0], yaw: .3, pit: .12, d: 25 }, top: { t: [11, 0, 0], yaw: 0, pit: 1.45, d: 44 }, chase: { off: [4, 1, 0], d: 13, pit: .15 } },
+  roll: { pad: { t: [9, 3.5, 0], yaw: .7, pit: .14, d: 27 }, top: { t: [11, 0, 0], yaw: 0, pit: 1.45, d: 36 }, chase: { off: [0, 1, 0], d: 11, pit: .15 } },
   climb: { pad: { t: [4.5, 10.5, 0], yaw: .45, pit: .08, d: 27 }, top: { t: [5, 10.5, 0], yaw: 1.3, pit: .2, d: 52 }, chase: { off: [0, 1, 0], d: 16, pit: .12 } },
   corner: { pad: { t: [0, 0, 28], yaw: .6, pit: .5, d: 50 }, top: { t: [0, 0, 28], yaw: 0, pit: 1.5, d: 68 }, chase: { off: [0, 1, 0], d: 11, pit: .2 } },
 };
@@ -994,6 +1045,7 @@ function buildForces(o, M) {
     const sg = S.P.sup * m * G0; DL.arrow(c0, [-up[0], -up[1], -up[2]], sg * k, SU);
     const r = mat.pt(M, [-2.1, .45, 0]); DL.arrow(r, fw, o.F * k, TH);
   } else if (pre === 'roll') {
+    for (const [z, F] of [[-.86, o.FL], [.86, o.FR]]) DL.arrow(mat.pt(M, [0, .3, z]), up, F * k, TH);
     const jf = [o.JLu, o.JLd, o.JRu, o.JRd]; ROLL_NOZ.forEach((n, i) => { if (jf[i] > 50) DL.arrow(mat.pt(M, n), nrm(mat.dir(M, [0, -ROLL_EXH[i][1], 0])), jf[i] / 2500, TH); });
   } else if (pre === 'hover') {
     const Fz = o.FL + o.FR; for (const [z, F] of [[-.86, o.FL], [.86, o.FR]]) DL.arrow(mat.pt(M, [0, .3, z]), up, F * k * 1, TH);
@@ -1072,7 +1124,12 @@ function shout(o) {
   const i = S.tr.info, t = S.t, pre = S.pre;
   if (pre === 'launch') { if (!isNaN(i.t60) && t >= i.t60 && t < i.t60 + 1.0) return ['60 MPH IN ' + i.t60.toFixed(2) + ' S', CGRN]; if (o.am < 0.06 * i.m0) return ['AIR TANK EMPTY', CRED]; if (t > 0.05 && t < i.t60) return ['GO GO GO', CYEL]; return null; }
   if (pre === 'hover') { if (!isNaN(i.land) && t >= i.land) return ['TOUCHDOWN ' + i.vTouch.toFixed(1) + ' M/S', i.vTouch > 6 ? CRED : CGRN]; if (!isNaN(i.sink) && t >= i.sink) return ['TANK CANNOT HOLD THE CAR', CRED]; if (!isNaN(i.lift) && t >= i.lift) return ['HOVER', CCY]; return null; }
-  if (pre === 'roll') { if (t >= i.tf) return [i.landOK ? 'LANDED ON WHEELS' : 'LANDED AT ' + Math.round(i.rolledDeg) + ' DEG', i.landOK ? CGRN : CRED]; const tq = t - i.t0; if (tq >= 0 && tq < i.ta) return ['ROLL PUSH - SIDE JETS', CPINK]; if (tq >= i.ta && tq < i.Teff - i.ta) return ['SPINNING ' + Math.round(i.omegaDeg) + ' DEG/S', CCY]; if (tq >= i.Teff - i.ta && tq < i.Teff) return ['COUNTER-FIRE - BRAKE', CAMB]; return null; }
+  if (pre === 'roll') {
+    if (t >= i.tf) return i.crashed ? ['HARD LANDING ' + i.vTouch.toFixed(1) + ' M/S', CRED] : [i.landOK ? 'LANDED ON WHEELS' : 'LANDED AT ' + Math.round(i.rolledDeg) + ' DEG', i.landOK ? CGRN : CRED];
+    if (o.FL > 100 && t >= i.tBrake) return ['LANDING BURN', CAMB];
+    const tq = t - i.t0; if (tq >= 0 && tq < i.ta) return ['ROLL PUSH - SIDE JETS', CPINK]; if (tq >= i.ta && tq < i.Teff - i.ta) return ['SPINNING ' + Math.round(i.omegaDeg) + ' DEG/S', CCY]; if (tq >= i.Teff - i.ta && tq < i.Teff) return ['COUNTER-FIRE - BRAKE', CAMB];
+    if (o.FL > 100) return ['LIFT - DOWN JETS', CYEL]; if (t < i.tp) return ['CREEPING UP TO THE ROW', CWHT]; if (o.y > 1) return ['COASTING OVER THE ROW', CCY]; return null;
+  }
   if (pre === 'corner') { return o.ag >= i.gLim - 0.01 ? ['AT THE LIMIT ' + o.ag.toFixed(2) + ' G', CRED] : null; }
   if (!isNaN(i.slipT) && t >= i.slipT) return o.y < 0.5 ? null : ['FRICTION LOST AT ' + Math.round(i.slipTh) + ' DEG', CRED];
   if (!isNaN(i.detachT) && t >= i.detachT) { if (i.landed && o.y <= 0.01) return ['TOUCHDOWN ' + i.vTouch.toFixed(1) + ' M/S', i.vTouch > 6 ? CRED : CGRN]; if (o.FL > 100) return ['LANDING BURN ' + (i.gPeak).toFixed(1) + ' G', CAMB]; return ['FANS OFF - FALLING', CRED]; }
@@ -1105,6 +1162,10 @@ function drawHud(o) {
   if ($('ovForce').checked) {
     const lg = S.tab === 'air' ? (S.pre === 'launch' ? [['THRUST', CAMB], ['SUCTION', CCY], ['WEIGHT', CWHT]] : [['JETS', CAMB], ['WEIGHT', CWHT]]) : [['SUCTION', CCY], ['WEIGHT', CWHT], ['SURFACE', CGRN], ['FRICTION', CPINK]];
     lg.forEach((e, k) => txt(cx, '> ' + e[0], 4 * sc, H - (lg.length - k) * 9 * sc - 2 * sc, sc, e[1]));
+  }
+  if (S.cd > 0 || S.go > 0) {
+    const n = Math.ceil(S.cd), s5 = sc * 8, str = S.cd > 0 ? String(n) : 'GO', col = S.cd > 0 ? [CRED, CAMB, CYEL][n - 1] || CYEL : CGRN, w = txtW(str, s5);
+    txt(cx, str, Math.round(WC - w / 2), Math.round(H * 0.18), s5, col);
   }
   if (!S.started && S.t === 0) {
     const s3 = sc * 4, w = txtW('TESLA', s3), x = Math.round(WC - w / 2), y = Math.round(H * 0.28), bands = [CPINK, CAMB, CYEL];
@@ -1173,7 +1234,7 @@ function drawPlots() {
     let ser;
     if (pre === 'launch') { $('cap1').textContent = 'Lived signal · what the occupant feels, and the thrust behind it'; ser = [norm(t => sampleT(tr, 'ag', t), '#fbbf24', 'ACCEL', 'G', 1), norm(t => sampleT(tr, 'F', t) / 1000, '#38bdf8', 'THRUST', 'KN', 0)]; }
     else if (pre === 'hover') { $('cap1').textContent = 'Lived signal · altitude and jet thrust ÷ weight'; ser = [norm(t => sampleT(tr, 'y', t), '#fbbf24', 'ALTITUDE', 'M', 1), norm(t => (sampleT(tr, 'FL', t) + sampleT(tr, 'FR', t)) / (P.mass * G0), '#38bdf8', 'THRUST/WEIGHT', '×', 1)]; }
-    else { $('cap1').textContent = 'Lived signal · altitude, roll angle and the side-jet pulses'; ser = [norm(t => sampleT(tr, 'y', t), '#fbbf24', 'ALTITUDE', 'M', 1), norm(t => sampleT(tr, 'rol', t) * 180 / Math.PI, '#ff2e97', 'ROLL', 'DEG', 0), norm(t => (sampleT(tr, 'JLu', t) + sampleT(tr, 'JLd', t)) / 1000, '#38bdf8', 'SIDE JET', 'KN', 1)]; }
+    else { $('cap1').textContent = 'Lived signal · altitude, roll angle, lift jets and the side-jet pulses'; ser = [norm(t => sampleT(tr, 'y', t), '#fbbf24', 'ALTITUDE', 'M', 1), norm(t => (sampleT(tr, 'FL', t) + sampleT(tr, 'FR', t)) / 1000, '#34d399', 'LIFT JETS', 'KN', 0), norm(t => sampleT(tr, 'rol', t) * 180 / Math.PI, '#ff2e97', 'ROLL', 'DEG', 0), norm(t => (sampleT(tr, 'JLu', t) + sampleT(tr, 'JLd', t)) / 1000, '#38bdf8', 'SIDE JET', 'KN', 1)]; }
     const ax = axes(cx, a.w, a.h, 0, dur, 0, 1.05); ser.forEach(s => curve(cx, s.pts, ax.X, ax.Y, s.col, 2));
     legend(cx, ser.map(s => [s.name, s.col]), a.w - 150, 34);
     cx.strokeStyle = '#ff2e97'; cx.beginPath(); cx.moveTo(ax.X(S.t), ax.T); cx.lineTo(ax.X(S.t), a.h - ax.B); cx.stroke();
@@ -1254,11 +1315,11 @@ function updateReadouts(o) {
   };
   const vNow = (sampleT(S.tr, 'x', S.t + .02) - sampleT(S.tr, 'x', Math.max(S.t - .02, 0))) / (S.t < .02 ? .02 + S.t : .04);
   if (pre === 'launch') {
-    R('Predicted 0–60 mph', `≈ ${f1(i.t60, 2)} s`, 'DER', 'hi', 'Same kernel that moves the car. Valve opening is fitted so the default lands on Tesla\'s live 0.81 s run');
-    R('Distance to 60', `≈ ${f1(i.x60, 1)} m`, 'DER', '', 'Reported ≈ 11 m for the live run');
+    R('Predicted 0–60 mph', `≈ ${f1(i.t60, 2)} s`, 'DER', 'hi', 'Same kernel that moves the car. Its one fitted constant (effective valve opening, 40 %) makes the default land on the live demo\'s 0.90 s; the recorded run before it was 1.0 s');
+    R('Distance to 60', `≈ ${f1(i.x60, 1)} m`, 'DER', '', 'Reported ≈ 11 m for the live run (by v̄·t, 0.90 s ⇒ 12 m)');
     R('Peak acceleration', `≈ ${f1(i.peakA, 1)} g`, 'DER', '', '(thrust + tyres − drag) / mass');
     R('Air burned by 60', `≈ ${f1(i.usedAt60, 0)} kg`, 'DER', '', 'ṁ = F/(Isp·g0) integrated to 60 mph');
-    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Speed now', `${(Math.abs(vNow) / MPH).toFixed(0)} mph`); R('Thrust now', `${(o.F / 1000).toFixed(0)} kN`, 'ASM', 'hi', 'F = valve opening × 80 kN × (p/379 bar) × valve spin-up (0.1 s, assumed)');
+    SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Speed now', `${(Math.abs(vNow) / MPH).toFixed(0)} mph`); R('Thrust now', `${(o.F / 1000).toFixed(0)} kN`, 'ASM', 'hi', 'F = fitted valve opening × 80 kN × (p/379 bar) × valve spin-up (0.1 s, assumed)');
     tank(); SEP();
     R('80 kN empties in', `${timeToEmpty(i.m0, F_REF, P.isp).toFixed(2)} s`, 'DER', '', 'm·Isp·g0 / F — upper bound, ignores blowdown (data pack: 1.65–2.17 s)');
     R('Thrust ÷ tyre limit', `${(F_REF * P.p0 / P_REF / Math.max(tyreForce(m, 5, P.sup, P.mu), 1)).toFixed(1)} ×`, 'DER', '', 'Tesla: thrusters give 4–5× what the tyres can. Tyre force = rear tyres only, with fan load');
@@ -1271,8 +1332,12 @@ function updateReadouts(o) {
     SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Altitude', `${o.y.toFixed(2)} m`); R('Jet thrust ÷ weight', `${((o.FL + o.FR) / (m * G0)).toFixed(2)} ×`, 'ASM', 'hi', 'The four down-jets are assumed to share the 4 × 20 kN scale of the rear nozzles — Tesla published no figure');
     tank(); SEP(); R('Touch-down speed', isNaN(i.vTouch) ? '–' : `${i.vTouch.toFixed(1)} m/s`, 'DER', i.vTouch > 6 ? 'warn' : 'ok', 'Once the tank can\'t hold the car it simply falls: no landing burn in this run');
   } else if (pre === 'roll') {
-    R('Apex height', `≈ ${i.apex.toFixed(1)} m`, 'DER', 'hi', 'Reported kick-flip apex ≈ 7 m');
-    R('Flight time · distance', `${i.tf.toFixed(2)} s · ${i.dist.toFixed(0)} m`, 'DER', '', 'Reported: five parked vehicles cleared');
+    R('Apex height', `≈ ${i.apex.toFixed(1)} m`, 'REP', i.hit ? 'hi' : 'warn', 'Reported peak: 26 ft (7.9 m) in the demo; the data pack says ≈7 m. The down-jets lift the car until its coasting height reaches the target — ask for more than the air allows and the landing gets hard');
+    R('Drive-in', `${i.dFlat.toFixed(1)} m · ${i.tp.toFixed(1)} s to ${P.v0.toFixed(1)} m/s`, 'ASM', '', 'Motors with 2 g of fan grip, no air, no rear thrusters. In the air nothing pushes sideways: the horizontal speed is the drive-in speed');
+    R('Lift burn', `${i.airClimb.toFixed(0)} kg of air · ${(i.tCut - i.tp).toFixed(1)} s`, 'DER', '', 'Down-jets at up to 3.3 × weight until the coasting height reaches the target');
+    R('Landing burn', `${i.airLand.toFixed(0)} kg of air`, 'DER', '', 'Started at the last moment from which a full burn still sets the car down; thrust sags as the tank empties');
+    R('Touch-down speed', `${i.vTouch.toFixed(1)} m/s`, 'DER', i.crashed ? 'warn' : 'ok', 'Above ~6 m/s the landing is hard. Blowdown leaves too little thrust for the last metres if too much air went into the climb');
+    R('Flight time · distance', `${i.tfl.toFixed(1)} s · ${i.dist.toFixed(0)} m`, 'DER', '', 'Horizontal speed × time in the air');
     R('Side jet thrust', `${(i.Fj / 1000).toFixed(1)} kN of ${(i.jetCap / 1000).toFixed(1)} max`, 'ASM', i.limited ? 'warn' : 'hi', 'Two jets fire as a couple (lever 2 × 1.05 m). Tesla published no side-jet thrust; 8 kN at 379 bar is assumed');
     R('Push·coast·brake', `${i.ta.toFixed(2)} · ${(i.Teff - 2 * i.ta).toFixed(2)} · ${i.ta.toFixed(2)} s`, 'DER', '', 'The jets fire for 22 % of the roll time, coast, then the opposite jets fire for the same time');
     R('Coasting spin rate', `${i.omegaDeg.toFixed(0)} °/s`, 'DER', '', 'ω = α · push time');
@@ -1310,8 +1375,8 @@ const CARDS = {
     ['What you are looking at', '<p>A true-scale pad at McGregor, drawn like a retro arcade racer. The big neon car is the Roadster. The four <b>wire cars</b> are Tesla\'s own claims — 2017 Roadster, Performance, Thrust, Rocket — all racing to 60 mph on the same clock.</p><p>The white-hot jets at the tail are four cold-air nozzles. Nothing burns.</p>'],
     ['The one equation', '<p>Thrust is air thrown backwards: <code>F = ṁ · vₑ</code>. Cold air leaves at ~530–700 m/s, an <code>Isp</code> of 54–71 s, so 80 kN costs <b>115–150 kg of air every second</b>.</p><p>A real rocket engine gets 300 s or more. That gap is the whole story of this car.</p>'],
     ['Why it cannot last', '<p>The tank is a blowdown bottle: pressure falls like <code>m^1.4</code> and thrust follows it. At half the air thrust is <b>38 %</b>; at a quarter it is <b>14 %</b>, and the gas has chilled to −105 °C — watch the tanks frost over in X-ray.</p><p>Holding a 1,700 kg car up costs ~28 kg/s. It is a hop, not a flight.</p>'],
-    ['Reading the units', '<p><b>80 kN</b> ≈ 8 tonnes pushing. <b>250 kg of air</b> ≈ three adults, squeezed to ~437 bar (6,300 psi). <b>3.4 g</b> in 0.81 s ≈ a launch-coaster. Tyres alone manage 1.26 g — Tesla says the thrusters add 4–5× what tyres can.</p><p>Every readout wears a chip: OFF stated by Tesla · INT interview · REP reported · DER derived here · EST estimate · ASM assumed.</p>'],
-    ['Model limits and disputes', '<p>Tesla published totals: 80 kN, 600 L, 250 kg, 0.81 s. It did not publish thrust-over-time, nozzle shape, valve behaviour, or the hop and roll jets\' thrust. The 49 % valve opening is <b>fitted</b> to the live run; the down-jets are <b>assumed</b>.</p><p class="cav">Treat every figure as an engineering estimate, ±~2×. Disputed: air (Tesla) vs nitrogen (MotorTrend). The 5,500 psi screen readout holds 228 kg, not 250 kg (that needs ≈6,340 psi). Mass: ~1,700 kg (interview) vs ~2,350 kg (inferred). Production 2028 is a claim. Not affiliated with Tesla.</p>'],
+    ['Reading the units', '<p><b>80 kN</b> ≈ 8 tonnes pushing. <b>250 kg of air</b> ≈ three adults, squeezed to ~437 bar (6,300 psi). <b>3 g</b> for 0.9 s ≈ a launch-coaster. Tyres alone manage 1.26 g — Tesla says the thrusters add 4–5× what tyres can.</p><p>Every readout wears a chip: OFF stated by Tesla · INT interview · REP reported · DER derived here · EST estimate · ASM assumed.</p>'],
+    ['Model limits and disputes', '<p>Tesla published totals: 80 kN, 600 L, 250 kg, and the demo runs (1.0 s recorded, 0.90 s live). It did not publish thrust-over-time, nozzle shape, valve behaviour, or the hop and roll jets\' thrust. The model\'s one valve constant (40 % effective opening) is <b>fitted</b> to the live run, not a control; the down-jets are <b>assumed</b>.</p><p class="cav">Treat every figure as an engineering estimate, ±~2×. Disputed: air (Tesla) vs nitrogen (MotorTrend). The 5,500 psi screen readout holds 228 kg, not 250 kg (that needs ≈6,340 psi). Mass: ~1,700 kg (interview) vs ~2,350 kg (inferred). Production 2028 is a claim. Not affiliated with Tesla.</p>'],
   ],
   wall: [
     ['What you are looking at', '<p>A tall quarter-pipe that curls <b>past vertical to 170°</b>, ~21 m up — the shape of Tesla\'s wall-climb demo. Fans pull air out of a sealed underbody, so the outside air presses the car onto the surface.</p><p>Arrows: <b>cyan</b> suction · <b>white</b> weight · <b>green</b> the surface pushing back · <b>pink</b> friction needed.</p>'],
@@ -1344,12 +1409,12 @@ function sndUpdate(o) {
 }
 
 /* ---- wiring ---- */
-function setPlaying(v) { S.playing = v; $('playBtn').textContent = v ? '❚❚ Pause' : '▶ Play'; if (v) S.started = true; }
+function setPlaying(v) { if (v && S.pre === 'launch' && S.t === 0 && S.cd <= 0) S.cd = 3; S.playing = v; $('playBtn').textContent = v ? '❚❚ Pause' : '▶ Play'; if (v) S.started = true; }
 function wire() {
   $('playBtn').onclick = () => { if (!S.playing && S.t >= S.dur - 1e-3) S.t = 0; setPlaying(!S.playing); };
   $('restartBtn').onclick = () => { S.t = 0; setPlaying(true); };
   $('rate').oninput = () => { S.rate = +$('rate').value; refreshLabels(); };
-  $('prog').oninput = () => { S.t = +$('prog').value * S.dur; S.started = true; };
+  $('prog').oninput = () => { S.cd = S.go = 0; S.t = +$('prog').value * S.dur; S.started = true; };
   document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setPreset(b.dataset.s === 'air' ? 'launch' : 'climb'));
   document.querySelectorAll('#presets button').forEach(b => b.onclick = () => setPreset(b.dataset.p));
   sliderIds.forEach(k => $(k).oninput = () => { refreshLabels(); reparam(); });
@@ -1384,7 +1449,8 @@ let _last = performance.now();
 function loop(ts) {
   const dt = Math.min((ts - _last) / 1000, 0.05); _last = ts;
   try {
-    if (S.playing) { S.t += dt * S.rate; if (S.t >= S.dur) { S.t = S.dur; setPlaying(false); } }
+    if (S.playing && S.cd > 0) { S.cd -= dt; if (S.cd <= 0) { S.cd = 0; S.go = 0.8; } }          // 3-2-1 is real time, before the clock starts
+    else if (S.playing) { S.go = Math.max(S.go - dt, 0); S.t += dt * S.rate; if (S.t >= S.dur) { S.t = S.dur; setPlaying(false); } }
     $('prog').value = S.dur ? S.t / S.dur : 0; $('progV').textContent = S.t.toFixed(2) + ' s';
     if (GL.ok && !GL.lost) render(dt); else S.lastPose = poseAt(S.tr, S.t);
     const o = S.lastPose; updateReadouts(o); drawPlots(); drawInset(); sndUpdate(o);
@@ -1394,6 +1460,6 @@ function loop(ts) {
 function go() {
   glSetup(); wire(); refreshLabels(); setPreset('launch'); requestAnimationFrame(loop);
 }
-window.RDX = { S, simLaunch, simHover, simRoll, simWall, simCorner, tankMass, timeToEmpty, thetaMax, minSuction, cornerG, wallState, newTank, tankBurn, thrustAvail, hoverThrust, setPreset, reparam, GL, DOWNFORCE_N, zOf, psi };
+window.RDX = { lanes: () => ({ YZ, rows: GHOSTS.map(g => ({ n: g.n, t: g.t, z: g.z })).concat([{ n: 'YOU', t: S.tr.info.t60, z: YZ }]) }), S, simLaunch, simHover, simRoll, simWall, simCorner, tankMass, timeToEmpty, thetaMax, minSuction, cornerG, wallState, newTank, tankBurn, thrustAvail, hoverThrust, setPreset, reparam, GL, DOWNFORCE_N, zOf, psi };
 go();
 </script>

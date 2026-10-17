@@ -45,16 +45,19 @@ One shared kernel per quantity (`tankMass`, `tankBurn`, `thrustAvail`, `simLaunc
 | B1 | 600 L: 228 ± 3 kg @379 bar, 250 ± 3 kg @437 bar | 228.4 / 250.0 |
 | B2 | blowdown thrust fraction 0.67/0.38/0.14, gas T −12/−51/−105 °C | 0.67/0.38/0.14, −12/−51/−105 |
 | B3 | constant-80 kN time to empty 250 kg, Isp 54/60/70.7 | 1.65 / 1.84 / 2.17 s |
-| B4 | default launch 0.81 ± 0.03 s, 10–12 m | 0.808 s, 10.7 m |
+| B4 | default launch 0.90 ± 0.03 s, 11–13 m (live demo 0.90 s) | 0.900 s, 12.0 m |
 | B5 | hover thrust 16.7 / 23.0 kN | 16.67 / 23.05 |
 | B6 | usable hover at 2,350 kg 3.5–5.5 s | 3.91 s |
 | B7 | 4,700 kg readout = 46.1 kN = 2.76 g @1,700 / 2.00 g @2,350 | 46.1 / 2.76 / 2.00 |
 | B8 | upside-down holds iff s > 1 g; corner 1.26 g tyres only, 2.2 ± 0.1 g with 2 g | true/false; 1.26 / 2.21 |
 | B9 | landing burn from 5.5–7.5 m, 3.3 ± 0.1 g, touch-down < 3 m/s | 6.4 m, 3.30 g, 1.4 m/s |
 | B10 | I ≈ 1,020 kg·m²; gentlest 2.0 s roll at 2,350 kg needs 6.4 kN·m; the push-coast-brake pulse needs 1.3–1.8× that | 1020, 6.41, 9.34 |
-| B11 | kick-flip apex 7 ± 0.6 m, lands after 360° | 7.3 m, 360° |
+| B11 | default roll: apex 7.9 ± 0.4 m (26 ft, from the video), 360°, soft landing on 250 kg; a 30 m hop on the same air lands hard | 8.0 m, 360°, 1.5 m/s; 10.4 m/s for 30 m |
 | B12 | min suction to reach 170° slightly > 1 g; fails at 110–140° at 1 g | 1.03 g; 124° |
 | B13 | side jets fire push couple → none while coasting → opposite couple; ends at 360° | true / true / true, ω 231 °/s, 360° |
+| B14 | roll has no ramp and no rear thrust: drives in from rest at 7 m/s without air, lifts on the down-jets (55 kN), constant 7 m/s horizontal in the air, clears the 13 m row, lands and stops | all met (lands at 22 m) |
+| B15 | lanes ordered by time to 60 mph | 1.90 1.60 0.90 0.90 0.59 |
+| C8 | Play on the launch runs a 3-2-1 with the clock held at 0 | met |
 | C1–C7 | prediction up front, headline value per preset, confidence chips, 5 cards + caveat, 4,700 kg toggle, gauge drag, orbit/recentre | all met (63/78 rows chipped) |
 
 Numbers that match the reported demo *without being fitted to it*: the landing burn (3.3 g from ≈6.4 m vs reported ≈6.5 m),
@@ -62,7 +65,9 @@ the kick-flip apex (7.3 m vs ≈7 m), gentlest-roll torque and inertia (6.4 kN·
 
 ## What is fitted or assumed (also printed in the piece, with chips)
 
-- **Valve opening 49 %** is fitted so the default run lands on Tesla's live 0.81 s (`ASM`). Tesla published no thrust-vs-time.
+- **Effective valve opening 40.5 %** (`THR_FIT`) is a calibration constant, not a control: it is fitted so the default run lands on the live demo's 0.90 s (user-reported; the recorded run before it was 1.0 s). Tesla published no thrust-vs-time. It is no longer a slider.
+- **Barrel roll (from the user's re-watch of the video; the data pack's ramp is superseded; peak altitude 26 ft = 7.9 m, matching the pack's ≈7 m)**: no ramp, rear thrusters never fire. The car creeps in at 7 m/s on motors with 2 g of fan grip (`ASM`), the down-jets lift it to the target height (3.3 × weight cap, `ASM`), side jets roll it at the apex, a landing burn sets it down (start time chosen as the latest that still lands softly), and it brakes on its wheels at 6 m/s² (`ASM`). The row is five Teslas side by side with the Semi trailer in the middle; 7 m/s is the slowest round figure that clears the 13 m row.
+- **Air budget finding**: the 7.9 m hop uses ~95 kg of the 250 kg. With pure blowdown the highest soft-landing hop on 250 kg is ≈25 m; a 30 m hop lands at ~10 m/s.
 - **Tyre load-sensitivity exponent 0.49** is fitted so 2 g of suction gives ≈2.2 g of cornering (Tesla: ">2 g"). Without it 3.78 g.
 - **Down-jet thrust** (hover, landing burn) is assumed to share the 4 × 20 kN·(p/379 bar) scale of the rear nozzles. **Side roll-jet thrust** (8 kN each at 379 bar, pods 1.05 m off the centreline, push for 22 % of the roll time) is assumed; the report says only that attitude jets exist.
 - Valve spin-up 0.1 s, rear-tyre load share 0.55, tyre/torque force cap 36 kN, drag area 0.57 m² are assumptions (`ASM`/`EST`).

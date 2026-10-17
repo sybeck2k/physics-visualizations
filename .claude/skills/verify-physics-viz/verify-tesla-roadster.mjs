@@ -30,8 +30,9 @@ await sleep(1800);
 
 const rows = () => page.evaluate(() => { const o = {}; document.querySelectorAll('#rdl dt').forEach(dt => { const dd = dt.nextElementSibling; if (dd && dd.tagName === 'DD') o[dt.textContent.trim()] = dd.textContent || ''; }); return o; });
 const val = async name => { const o = await rows(); const k = Object.keys(o).find(x => x === name) || Object.keys(o).find(x => x.includes(name)); return k ? o[k] : null; };
-const setRange = async (sel, v) => { await page.$eval(sel, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v); await sleep(200); };
-const preset = async p => { await page.evaluate(p => { RDX.setPreset(p); }, p); await sleep(500); };
+const frames = () => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 50)))));   // software GL is slow: wait for fresh frames before reading
+const setRange = async (sel, v) => { await page.$eval(sel, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v); await sleep(200); await frames(); };
+const preset = async p => { await page.evaluate(p => { RDX.setPreset(p); }, p); await sleep(500); await frames(); };
 const playing = () => page.$eval('#playBtn', b => /Pause/.test(b.textContent));
 const K = (fn, ...a) => page.evaluate((fn, a) => { const r = RDX[fn](...a); return r && r.info ? r.info : r; }, fn, a);
 const E = expr => page.evaluate(expr);
@@ -62,7 +63,7 @@ for (const p of PRESETS) { await preset(p); const o = await rows(); rowsOK[p] = 
 rec('A3', 'render', PRESETS.every(p => rowsOK[p] >= 6) && errors.length === 0, PRESETS.map(p => `${p}:${rowsOK[p]}`).join(' '), 'every preset fills ≥6 readout rows, no errors while switching');
 
 // A4 every slider is wired: moving it changes a label and the readouts/plots change
-const sliderTests = { launch: ['pres', 'isp', 'mass', 'thr', 'sup', 'mu'], roll: ['v0', 'ang', 'rt'], climb: ['vc'], park: ['th0', 'fade'] };
+const sliderTests = { launch: ['pres', 'isp', 'mass', 'sup', 'mu'], roll: ['v0', 'apx', 'rt'], climb: ['vc'], park: ['th0', 'fade'] };
 let wired = 0, total = 0; const bad = [];
 for (const [p, ids] of Object.entries(sliderTests)) for (const id of ids) {
   await preset(p); const before = await E(`document.getElementById('${id}V').textContent + '|' + document.getElementById('rdl').textContent`);
@@ -75,7 +76,7 @@ rec('A4', 'render', wired === total, `${wired}/${total} wired${bad.length ? ' �
 // A5 scrub == play: rows at time t are identical after scrubbing from 0, from the end, and after a re-parameterise
 let scrubOK = true, scrubNote = [];
 for (const p of ['launch', 'climb']) {
-  await preset(p); await page.click('#playBtn'); await sleep(900); if (await playing()) await page.click('#playBtn'); await sleep(150);
+  await preset(p); await page.click('#playBtn'); if (p === 'launch') await page.waitForFunction('RDX.S.cd === 0 && RDX.S.t > 0.4', { timeout: 40000 }); else await sleep(900); if (await playing()) await page.click('#playBtn'); await sleep(150);
   const frac = Math.round(await E('RDX.S.t / RDX.S.dur * 1000')) / 1000; await setRange('#prog', frac); await sleep(250); const snap = async () => { const o = await rows(); delete o['Time']; return JSON.stringify(o); };
   const a = await snap();
   await setRange('#prog', 0); await setRange('#prog', frac); const b = await snap();
@@ -105,8 +106,8 @@ const blow = await page.evaluate(() => [0.75, 0.5, 0.25].map(f => { const tk = R
 rec('B2', 'physics', blow.every((b, i) => near(b[0], [0.67, 0.38, 0.14][i], 0.02) && near(b[1], [-12, -51, -105][i], 3)), blow.map(b => `${b[0].toFixed(2)}/${b[1].toFixed(0)}°C`).join('  '), 'thrust fraction 0.67/0.38/0.14 and gas T −12/−51/−105 °C at 75/50/25 % air (§4c)');
 const te = await page.evaluate(() => [54, 60, 70.7].map(i => RDX.timeToEmpty(250, 80000, i)));
 rec('B3', 'physics', te.every((v, i) => near(v, [1.65, 1.84, 2.17][i], 0.05)), te.map(v => v.toFixed(2)).join(' / ') + ' s', '1.65 / 1.84 / 2.17 s to empty 250 kg at 80 kN, Isp 54/60/70.7 (§4c)');
-const L = await K('simLaunch', { p0: 437, isp: 60, mass: 1700, thr: 0.49, sup: 2, mu: 1.26 });
-rec('B4', 'physics', near(L.t60, 0.81, 0.03) && L.x60 >= 10 && L.x60 <= 12, `t60 ${L.t60.toFixed(3)} s · ${L.x60.toFixed(1)} m`, '0.81 ± 0.03 s and 10–12 m (live run, reported ≈11 m)');
+const L = await K('simLaunch', { p0: 437, isp: 60, mass: 1700, sup: 2, mu: 1.26 });
+rec('B4', 'physics', near(L.t60, 0.90, 0.03) && L.x60 >= 11 && L.x60 <= 13, `t60 ${L.t60.toFixed(3)} s · ${L.x60.toFixed(1)} m`, '0.90 ± 0.03 s and 11–13 m (live demo 0.90 s; v̄·t = 12 m)');
 const h1 = await K('hoverThrust', 1700), h2 = await K('hoverThrust', 2350);
 rec('B5', 'physics', near(h1 / 1000, 16.7, 0.1) && near(h2 / 1000, 23.0, 0.1), `${(h1 / 1000).toFixed(2)} / ${(h2 / 1000).toFixed(2)} kN`, '16.7 / 23.0 kN to hover 1,700 / 2,350 kg (§6)');
 const H = await K('simHover', { p0: 437, isp: 60, mass: 2350, thr: 1 });
@@ -117,16 +118,17 @@ const hold = await page.evaluate(() => [RDX.wallState(Math.PI, 1.05, 1.26, 0).ok
 rec('B8', 'physics', hold[0] === true && hold[1] === false && near(hold[2], 1.26, 0.01) && near(hold[3], 2.2, 0.1), `hold@1.05g=${hold[0]} hold@0.95g=${hold[1]} corner ${hold[2].toFixed(2)} / ${hold[3].toFixed(2)} g`, 'upside-down holds iff s > 1 g; corner 1.26 g without fans, 2.2 ± 0.1 g with 2 g');
 const W = await K('simWall', { mode: 'climb', s: 2, mass: 1700, mu: 1.26, vc: 6, p0: 437, isp: 60, hold: 1, fade: 0.25 });
 rec('B9', 'physics', W.brakeY >= 5.5 && W.brakeY <= 7.5 && near(W.gPeak, 3.3, 0.1) && W.vTouch < 3 && W.landed, `burn from ${W.brakeY.toFixed(1)} m · peak ${W.gPeak.toFixed(2)} g · touch ${W.vTouch.toFixed(1)} m/s`, 'landing burn from 5.5–7.5 m (reported ≈6.5 m), 3.3 ± 0.1 g, touch-down < 3 m/s');
-const R2 = await K('simRoll', { p0: 437, isp: 60, mass: 2350, v0: 14, ang: 49, rt: 2 });
+const R2 = await K('simRoll', { p0: 437, isp: 60, mass: 2350, v0: 7, apx: 7.9, rt: 2 });
 rec('B10', 'physics', near(R2.I, 1020, 5) && near(R2.tauBB / 1000, 6.4, 0.1) && R2.tau / R2.tauBB > 1.3 && R2.tau / R2.tauBB < 1.8, `I ${R2.I.toFixed(0)} kg·m² · gentlest roll ${(R2.tauBB / 1000).toFixed(2)} kN·m · push-coast-brake ${(R2.tau / 1000).toFixed(2)} kN·m`, 'I ≈ 1,020 kg·m² and 6.4 kN·m for the gentlest 2.0 s roll at 2,350 kg (§6); the push-coast-brake pulse needs 1.3–1.8× that');
-const Rn = await K('simRoll', { p0: 437, isp: 60, mass: 1700, v0: 14, ang: 49, rt: 2 });
-rec('B11', 'physics', Rn.landOK && near(Rn.apex, 7, 0.6), `apex ${Rn.apex.toFixed(1)} m · rolled ${Rn.rolledDeg.toFixed(0)}°`, 'default kick-flip: apex 7 ± 0.6 m (reported ≈7 m), lands after 360°');
+const Rn = await K('simRoll', { p0: 437, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 });
+const Rlow = await K('simRoll', { p0: 437, isp: 60, mass: 1700, v0: 7, apx: 30, rt: 2 });
+rec('B11', 'physics', Rn.landOK && !Rn.crashed && near(Rn.apex, 7.9, 0.4) && Rlow.crashed && near(Rlow.apex, 30, 1), `default: apex ${Rn.apex.toFixed(1)} m · rolled ${Rn.rolledDeg.toFixed(0)}° · touch ${Rn.vTouch.toFixed(1)} m/s · a 30 m hop on the same 250 kg: touch ${Rlow.vTouch.toFixed(1)} m/s`, 'default roll: apex 7.9 ± 0.4 m (26 ft, video), 360°, soft landing on 250 kg; a 30 m hop on the same air lands hard');
 const climb = await E('(()=>{const a=RDX.minSuction(170,1.26,0);const b=RDX.thetaMax(1,1.26,0);return [a,b]})()');
 rec('B12', 'physics', climb[0] > 1.0 && climb[0] < 1.1 && climb[1] > 110 && climb[1] < 140, `min suction to 170° ${climb[0].toFixed(2)} g · max pitch at 1 g ${climb[1].toFixed(0)}°`, 'getting there needs slightly more than 1 g; at exactly 1 g the climb fails at 110–140°');
 
 // B13 the side jets fire in sequence: push (L-down + R-up), coast (none), brake (L-up + R-down), and the roll ends at 360°
 const seq = await page.evaluate(() => {
-  const tr = RDX.simRoll({ p0: 437, isp: 60, mass: 1700, v0: 14, ang: 49, rt: 2 }), i = tr.info, c = tr.c, at = t => Math.round(t / tr.dt), g = (k, t) => c[k][at(t)];
+  const tr = RDX.simRoll({ p0: 560, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 }), i = tr.info, c = tr.c, at = t => Math.round(t / tr.dt), g = (k, t) => c[k][at(t)];
   const tp = i.t0 + i.ta / 2, tc = i.t0 + i.Teff / 2, tb = i.t0 + i.Teff - i.ta / 2;
   return { push: g('JLd', tp) > 0 && g('JRu', tp) > 0 && g('JLu', tp) === 0 && g('JRd', tp) === 0,
            coast: g('JLd', tc) + g('JRu', tc) + g('JLu', tc) + g('JRd', tc) === 0,
@@ -138,7 +140,7 @@ rec('B13', 'physics', seq.push && seq.coast && seq.brake && seq.ok, `push ${seq.
 /* ============ C. insight legible ============ */
 await preset('launch'); let r = await rows();
 const pred = firstNum(r['Predicted 0–60 mph']);
-rec('C1', 'insight', near(pred, 0.81, 0.03) && /≈/.test(r['Predicted 0–60 mph'] || ''), r['Predicted 0–60 mph'], 'prediction printed up front with a leading ≈ before Play');
+rec('C1', 'insight', near(pred, 0.90, 0.03) && /≈/.test(r['Predicted 0–60 mph'] || ''), r['Predicted 0–60 mph'], 'prediction printed up front with a leading ≈ before Play');
 const preds = {};
 for (const [p, k] of [['hover', 'Predicted hover time'], ['roll', 'Apex height'], ['climb', 'Max pitch held'], ['corner', 'Cornering limit (fans)']]) { await preset(p); preds[p] = await val(k); }
 rec('C2', 'insight', Object.values(preds).every(v => v && !isNaN(firstNum(v))), JSON.stringify(preds), 'every preset shows its headline prediction at t = 0');
@@ -146,7 +148,7 @@ let chipped = 0, all = 0; for (const p of PRESETS) { await preset(p); const c = 
 rec('C3', 'insight', chipped / all >= 0.6, `${chipped}/${all} rows carry a confidence chip`, '≥ 60 % of readout rows carry an OFFICIAL/INTERVIEW/REPORTED/DERIVED/ESTIMATE/ASSUMED chip');
 const cards = {}; for (const s of ['launch', 'climb']) { await preset(s); cards[s] = await page.evaluate(() => [document.querySelectorAll('#explain .ex').length, document.querySelectorAll('#explain p.cav').length]); }
 rec('C4', 'insight', Object.values(cards).every(c => c[0] === 5 && c[1] >= 1), JSON.stringify(cards), 'five explainer cards per tab, at least one italic model caveat');
-await preset('climb'); await page.click('#fixed'); await sleep(250);
+await preset('climb'); await page.click('#fixed'); await sleep(250); await frames();
 const fan = await val('Fan suction now'); await page.click('#fixed');
 await E('RDX.S.t = RDX.S.dur * 0.2'); await sleep(300);
 rec('C5', 'insight', /2\.76/.test(fan || '') || near(firstNum(fan), 2.76, 0.02) , fan, 'ticking the 4,700 kg box makes the fans read 2.76 g at 1,700 kg');
@@ -161,6 +163,23 @@ const cam0 = await E('RDX.S.cam.dyaw'); const gb = await page.$eval('#gl', e => 
 await page.mouse.move(gb[0] + 300, gb[1] + 200); await page.mouse.down(); await page.mouse.move(gb[0] + 380, gb[1] + 210, { steps: 5 }); await page.mouse.up(); const cam1 = await E('RDX.S.cam.dyaw');
 await page.mouse.click(gb[0] + 300, gb[1] + 200, { count: 2 }); await sleep(150); const cam2 = await E('RDX.S.cam.dyaw');
 rec('C7', 'insight', cam1 !== cam0 && cam2 === 0, `dyaw ${cam0} → ${cam1.toFixed(2)} → ${cam2}`, 'dragging the scene orbits the camera, double-click recentres');
+// B14 no ramp, no rear thrusters: creep up from rest, lift on the down-jets, constant horizontal speed in the air, lands and rolls to a stop
+const ru = await page.evaluate(() => {
+  const tr = RDX.simRoll({ p0: 560, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 }), i = tr.info, c = tr.c, n = tr.n, at = t => Math.min(Math.round(t / tr.dt), n - 1), h = tr.dt;
+  const vAt = t => (c.x[at(t) + 1] - c.x[at(t) - 1]) / (2 * h);
+  let maxF = 0, maxY = 0, maxFL = 0; for (let k = 0; k < n; k++) { maxF = Math.max(maxF, c.F[k]); maxFL = Math.max(maxFL, c.FL[k]); maxY = Math.max(maxY, c.y[k]); }
+  return { x0: c.x[0], y1: c.y[at(i.tp - 0.05)], xLift: c.x[at(i.tp)], vAir1: vAt(i.tp + 0.8), vAir2: vAt(i.tf - 0.5), vStop: vAt(tr.dt * (n - 3)), maxF, maxFL, maxY, tpv: vAt(i.tp - 0.05), airBefore: c.am[at(i.tp)] / c.am[0], xLand: c.x[at(i.tf)] };
+});
+rec('B14', 'physics', ru.x0 < -0.5 && ru.y1 === 0 && Math.abs(ru.xLift) < 0.2 && ru.tpv > 6 && ru.tpv < 7.2 && Math.abs(ru.vAir1 - 7) < 0.2 && Math.abs(ru.vAir2 - 7) < 0.2 && ru.maxF === 0 && ru.maxFL > 20000 && ru.maxY > 7.5 && ru.maxY < 8.4 && ru.xLand > 19 && ru.airBefore > 0.999 && Math.abs(ru.vStop) < 0.05,
+  `start x ${ru.x0.toFixed(1)} m · speed at lift ${ru.tpv.toFixed(1)} · air vx ${ru.vAir1.toFixed(2)}/${ru.vAir2.toFixed(2)} · rear thrust ${ru.maxF} · lands x ${ru.xLand.toFixed(1)} m (row ends ≈17) · lift jets ${(ru.maxFL * 2 / 1000).toFixed(0)} kN · peak ${ru.maxY.toFixed(1)} m · final v ${ru.vStop.toFixed(2)}`, 'roll: drives in from rest at 7 m/s with no air, lifts on the down-jets only (rear thrusters never fire), keeps 7 m/s sideways, clears the 13 m row, lands and stops');
+// B15 lanes follow the 0–60 time, and the 3-2-1 holds the clock
+await preset('launch');
+const ln = await page.evaluate(() => { const l = RDX.lanes(); return l.rows.sort((a, b) => a.z - b.z).map(r => r.t); });
+rec('B15', 'insight', ln.length === 5 && ln.every((t, k) => k === 0 || t <= ln[k - 1]), 'lanes first→last: ' + ln.map(t => t.toFixed(2)).join(' '), 'lanes are ordered by time to 60 mph, slowest first');
+await page.click('#playBtn'); await sleep(1100);
+const cd1 = await E('[RDX.S.t, RDX.S.cd]'); await page.waitForFunction('RDX.S.cd === 0 && RDX.S.t > 0.1', { timeout: 40000 }); const cd2 = await E('[RDX.S.t, RDX.S.cd]');
+rec('C8', 'insight', cd1[0] === 0 && cd1[1] > 0 && cd1[1] < 3 && cd2[1] === 0 && cd2[0] > 0, `after 1.1 s: t=${cd1[0]} cd=${cd1[1].toFixed(2)} · after countdown: t=${cd2[0].toFixed(2)} cd=${cd2[1]}`, 'pressing Play on the launch counts 3-2-1 with the clock held at 0, then runs');
+await page.click('#playBtn');
 rec('A8', 'render', errors.length === 0, `errors=${errors.length}${errors.length ? ' — ' + errors[0] : ''}`, 'no page errors across the whole run');
 
 /* ---------- report ---------- */

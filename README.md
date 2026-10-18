@@ -8,13 +8,13 @@ counter-intuitive fact is obvious.
 
 | Piece | File | The fact |
 |---|---|---|
-| Sonic boom propagation | `sonic-boom.html` | A boom is not a one-off bang at Mach 1 — it is a carpet that sweeps the ground for as long as the vehicle stays supersonic. |
-| Multi-slit diffraction | `diffraction-grating.html` | More slits don't just brighten the lines, they sharpen them; below one wavelength of spacing every order but the centre vanishes. |
-| Gravitational slingshot | `gravitational-slingshot.html` | The flyby only turns the probe's velocity in the planet's frame; the speed gain exists only in the Sun's frame. |
-| SOFAR sound channel | `sofar-sound-channel.html` | A sound-speed minimum is a waveguide: rays are trapped and carry sound across an ocean, while a phone nearby can sit in silence. |
-| Tesla Roadster: air & suction | `tesla-roadster.html` | A cold-air tank is a blowdown bottle — 250 kg of air buys a launch or a hop, not a flight. (WebGL 3-D scene.) |
+| Sonic boom propagation | [`sonic-boom.html`](https://sybeck2k.github.io/physics-visualizations/sonic-boom.html) | A boom is not a one-off bang at Mach 1 — it is a carpet that sweeps the ground for as long as the vehicle stays supersonic. |
+| Multi-slit diffraction | [`diffraction-grating.html`](https://sybeck2k.github.io/physics-visualizations/diffraction-grating.html) | More slits don't just brighten the lines, they sharpen them; below one wavelength of spacing every order but the centre vanishes. |
+| Gravitational slingshot | [`gravitational-slingshot.html`](https://sybeck2k.github.io/physics-visualizations/gravitational-slingshot.html) | The flyby only turns the probe's velocity in the planet's frame; the speed gain exists only in the Sun's frame. |
+| SOFAR sound channel | [`sofar-sound-channel.html`](https://sybeck2k.github.io/physics-visualizations/sofar-sound-channel.html) | A sound-speed minimum is a waveguide: rays are trapped and carry sound across an ocean, while a phone nearby can sit in silence. |
+| Tesla Roadster: air & suction | [`tesla-roadster.html`](https://sybeck2k.github.io/physics-visualizations/tesla-roadster.html) | A cold-air tank is a blowdown bottle — 250 kg of air buys a launch or a hop, not a flight. (WebGL 3-D scene.) |
 
-`index.html` is a landing page that embeds all five behind one set of tabs.
+[`index.html`](https://sybeck2k.github.io/physics-visualizations/) is a landing page that embeds all five behind one set of tabs.
 
 ## Using them
 

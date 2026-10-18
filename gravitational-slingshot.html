@@ -230,6 +230,16 @@
       <code>v = v_planet + w</code>. Turn <code>w</code> so it points more nearly along
       <code>v_planet</code> and that sum gets longer — you speed up ⇒ free Δv. Turn it the other way
       and the sum shortens ⇒ you brake.</p>
+      <p data-scen="trailing">This tab starts at <code>b = +12 R_J</code>: you pass <b>behind</b> Jupiter, <code>w</code> swings
+      toward its motion, and the Sun‑frame speed rises by about <b>+5 km/s</b>.</p>
+      <p data-scen="leading">This tab is the mirror image of tab 1: same speed, same depth, but <code>b = −12 R_J</code> — you
+      pass <b>in front</b>. <code>w</code> swings the other way and the Sun‑frame speed <i>drops</i> by about
+      <b>9 km/s</b>.</p>
+      <p data-scen="retro">Here the probe arrives going the <b>other way round the Sun</b> (<code>α ≈ 172°</code>), so <code>w</code>
+      is huge — about 35 km/s. Even a modest turn (<code>δ ≈ 49°</code>) is worth roughly <b>+9 km/s</b>: the faster
+      the arrival, the more a given turn buys.</p>
+      <p data-scen="voyager">The Voyager preset arrives at <code>v∞ = 12 km/s</code> from <code>α = 130°</code> and dives deep
+      (<code>δ ≈ 96°</code>), for a Sun‑frame gain of roughly <b>+13 km/s</b> at these settings.</p>
       <p>Nothing is free, of course: the probe pulls back on the planet just as hard, and Jupiter
       loses exactly the momentum the probe gains — about one part in 10²⁵ of its orbit.</p>
     </div>
@@ -238,7 +248,8 @@
       <p>Watch the two speed curves. The <b>green</b> one is what an observer riding on the planet
       sees: it rises as the probe falls in, peaks at closest approach, and comes back down to
       <b>the value it started at</b>. Nothing happened. The encounter is elastic.</p>
-      <p>The <b>amber</b> one is the same motion in the Sun's frame — and it <b>steps</b>. Same
+      <p>The <b>amber</b> one is the same motion in the Sun's frame — and it <b>steps</b>
+      <span data-scen="trailing retro voyager">up</span><span data-scen="leading">down</span>. Same
       probe, same instant, two frames, two different stories. The gain is real, and it is
       frame‑dependent: it is momentum borrowed from the planet's orbit.</p>
       <p>Between the two, read the <b>Frame check</b> row: it prints how far apart the planet‑frame
@@ -253,23 +264,47 @@
       tows you forward: <b>boost</b>. Pass the <b>leading</b> edge and it pulls you backwards:
       <b>brake</b>. The right‑hand plot sweeps b across both sides at your current settings, so you
       can see the whole aim curve before you fly it.</p>
+      <p data-scen="trailing">You are on the boost side now. Drag the aim point toward zero and watch periapsis fall
+      (<code>≈3 R_J</code> at the start) — a deeper pass turns you further, until the planet gets in the way.</p>
+      <p data-scen="leading">You are on the brake side now (periapsis <code>≈3 R_J</code>). Drag the aim point across zero to the other
+      side and the Δv on the plot flips from a loss to a gain.</p>
+      <p data-scen="retro">Here <code>b = +8 R_J</code> gives a shallower pass (periapsis <code>≈5 R_J</code>) at a high approach speed.
+      Fast arrivals bend less for the same aim, so you must aim <i>deeper</i> to turn as much.</p>
+      <p data-scen="voyager">Voyager's preset aims at <code>b = +11 R_J</code> (periapsis <code>≈4 R_J</code>), on the trailing side.
+      The real periapsis was far higher, because the real approach was out of plane — see the caveat below.</p>
       <p>Aim too deep and you hit the planet — the red band on that plot. That, not physics, is the
       real limit on how much a single flyby can buy you.</p>
     </div>
-    <div class="ex">
+    <div class="ex" data-scen="trailing">
+      <h4>Real missions</h4>
+      <p><b>Voyager 2 at Jupiter, July 1979</b> was a trailing‑edge boost: its speed relative to the Sun
+      rose from about <b>10 km/s</b> to about <b>25 km/s</b> (NASA/JPL trajectory data). <b>Cassini</b>
+      strung together Venus–Venus–Earth–Jupiter flybys to reach Saturn — each one a boost like this
+      tab, paid for in time rather than propellant.</p>
+      <p>Switch to the Voyager tab for its numbers.</p>
+    </div>
+    <div class="ex" data-scen="leading">
+      <h4>Real missions</h4>
+      <p><b>Parker Solar Probe</b> runs the trick backwards: seven <b>leading‑edge</b> Venus flybys, each one
+      <i>shedding</i> speed, to drop its perihelion inside 10 solar radii. Braking is how you fall
+      <i>toward</i> the Sun — aiming at a planet that is moving toward you.</p>
+      <p>The same trick also bends a probe <i>out</i> of the ecliptic when you want a polar orbit.</p>
+    </div>
+    <div class="ex" data-scen="retro">
+      <h4>Real missions</h4>
+      <p>Anything launched from Earth is already circling the Sun the same way as the planets, so it arrives
+      <b>prograde</b>. A retrograde arrival is a <b>what‑if</b>: no real probe flew this geometry at Jupiter.</p>
+      <p>It is useful because it is the extreme case — the largest relative speed <code>w</code> you can have,
+      so the same turn <code>δ</code> changes the Sun‑frame speed by the most.</p>
+    </div>
+    <div class="ex" data-scen="voyager">
       <h4>Real missions</h4>
       <p><b>Voyager 2 at Jupiter, July 1979.</b> Its speed relative to the Sun rose from about
       <b>10 km/s</b> to about <b>25 km/s</b> across the encounter (NASA/JPL trajectory data) — a
       ~15 km/s gain no rocket it could carry would have given it. That single pass put it on a
       solar‑escape orbit; Saturn, Uranus and Neptune followed.</p>
-      <p><b>Parker Solar Probe</b> runs the trick backwards: seven <b>leading‑edge</b> Venus flybys,
-      each one <i>shedding</i> speed, to drop its perihelion inside 10 solar radii. <b>Cassini</b>
-      strung together Venus–Venus–Earth–Jupiter to reach Saturn.</p>
-      <p class="cav">Model caveats: the planet rides a perfect circular, coplanar orbit and the probe
-      is massless, so this is the circular restricted three‑body problem, not an ephemeris. The
-      Voyager preset reproduces the published speed change with a deeper ~4 R_J pass than the real
-      ~10 R_J, because the true approach was out of plane. The inset is a schematic. Treat every
-      figure as an engineering estimate, ±~10%.</p>
+      <p class="cav">Voyager caveat: the preset reproduces the published speed change with a deeper ~4 R_J pass than the real
+      ~10 R_J, because the true approach was out of plane.</p>
     </div>
     <div class="ex">
       <h4>Reading the units</h4>
@@ -283,6 +318,9 @@
       <p><b>R_J — Jupiter radii, 71 492 km.</b> How close you skim. Aim at the trailing edge — the
       side the planet is moving away from, so you are pushed from <b>behind</b> — and you gain; aim
       ahead of it and you pay.</p>
+      <p class="cav">Model caveats: the planet rides a perfect circular, coplanar orbit and the probe
+      is massless, so this is the circular restricted three‑body problem, not an ephemeris. The
+      inset is a schematic. Treat every figure as an engineering estimate, ±~10%.</p>
     </div>
   </section>
 </div>
@@ -1147,6 +1185,9 @@ document.querySelectorAll('#tabs button').forEach(btn => {
     document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('on'));
     btn.classList.add('on');
     S.scen = btn.dataset.s;
+    document.querySelectorAll('[data-scen]').forEach(el => {
+      el.style.display = el.dataset.scen.split(' ').includes(S.scen) ? '' : 'none';
+    });
     const D = SCEN[S.scen].d;
     S.vinf = D.vinf * 1000; S.b = D.b; S.alpha = D.alpha; S.mp = D.mp; S.rate = D.rate;
     $('vinf').value = D.vinf; $('b').value = D.b; $('alpha').value = D.alpha;

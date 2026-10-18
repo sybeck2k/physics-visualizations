@@ -247,32 +247,59 @@
       <p>At <code>M=1</code> the pulses stack up at the nose; above it their common tangent is the
       <b>Mach cone</b>, half‑angle <code>μ = arcsin(1/M)</code> — faster ⇒ narrower. The many small
       shocks a real airframe makes only <i>merge</i> into one N‑wave after kilometres of travel.</p>
-      <p>The cone trails the vehicle for <b>as long as it stays supersonic</b>, so the boom sweeps a
-      continuous strip along the ground — not a one‑off bang at Mach 1.</p>
+      <p data-scen="accel">Here <code>M</code> keeps rising, so the cone <b>narrows as you watch</b>. Starting
+      from <code>M≈0.7</code> the pulses bunch at the nose as it nears <code>M=1</code> — the “sound barrier” —
+      and the cone then trails behind for as long as it stays supersonic.</p>
+      <p data-scen="cruise">Here <code>M</code> is held fixed, so the cone angle <b>never changes</b> and the boom
+      sweeps a continuous strip along the ground — not a one‑off bang at Mach 1. Drag the Mach slider
+      and the whole cone re‑shapes.</p>
+      <p data-scen="lowboom">The cone is the <b>same geometry</b> as ordinary cruise at this Mach — shaping the
+      airframe does not change <code>μ</code>, only what the shocks are <i>made of</i> (see the next cards).</p>
+      <p data-scen="booster">There is <b>no steady cone</b> here. The booster falls tail‑first and slows as the air
+      thickens, so <code>μ</code> <b>widens</b> down the descent and the cone disappears altogether once the
+      stage is no longer supersonic.</p>
     </div>
     <div class="ex">
       <h4>What the observer hears</h4>
-      <p>Nothing until the cone sweeps past — then pressure jumps to <b>+Δp</b>, ramps through
+      <p data-scen="accel cruise">Nothing until the cone sweeps past — then pressure jumps to <b>+Δp</b>, ramps through
       ambient to <b>−Δp</b>, and snaps back: the <b>N‑wave</b>. Its two shocks are a <b>double
       boom</b> once they're &gt;~100 ms apart, a single <b>crack</b> when closer.</p>
-      <p>A Falcon 9 booster returns tail‑first as a blunt, finned body: a base shock, a middle shock
+      <p data-scen="lowboom">Nothing until the cone sweeps past — then, instead of a sharp N, a <b>soft thump</b>: a
+      shaped airframe spreads its shocks so they don't pile into one jump. Watch the dashed
+      “conventional” curve — the same airframe unshaped — for the crack it avoids.</p>
+      <p data-scen="booster">A Falcon 9 booster returns tail‑first as a blunt, finned body: a base shock, a middle shock
       (grid‑fin compression meeting a landing‑leg expansion), and a shock off the top — a <b>triple
       boom</b> under ~1 s, arriving within seconds of touchdown.</p>
-      <p>Off to the side, Δp fades to zero at the edge of the <b>boom carpet</b>
+      <p data-scen="accel">An accelerating vehicle can also make a <b>U‑wave</b>: where successive cones converge
+      the observer gets a focused, sharper‑peaked boom — the loudest spot, marked on the stage.</p>
+      <p data-scen="accel cruise lowboom">Off to the side, Δp fades to zero at the edge of the <b>boom carpet</b>
       (half‑width ≈ <code>2.6 × altitude</code>). Beyond it: silence.</p>
+      <p data-scen="booster">Off to the side, Δp fades quickly with distance from the pad, and beyond the
+      <b>boom carpet</b> (half‑width ≈ <code>2.6 × altitude</code>) there is silence.</p>
     </div>
     <div class="ex">
       <h4>Intensity &amp; strength</h4>
       <p>Ground Δp grows with the vehicle's <b>weight and cross‑section</b>, weakly with Mach, and
-      drops with altitude as <code>√(p_source·p_ground)</code>. Concorde ≈ <b>2 psf</b>; an F9
-      booster ≈ <b>2–7 psf</b> near the pad. A turn or hard acceleration <b>focuses</b> the cone into
-      a <b>U‑wave</b> 2–5× stronger (scenario 1).</p>
-      <p>Loudness is really set by the <b>equivalent‑area distribution</b> — how gradually lift and
-      volume build along the body. A long, slender, shaped nose (NASA's <b>X‑59</b>, scenario 4)
-      keeps the shocks separate: a <b>0.3 psf, 75 PLdB thump</b> vs Concorde's ~105 PLdB.</p>
-      <p class="cav">Sim caveats: the X‑59 thump shape is stylised (not CFD); its dashed
-      “conventional” curve is this same airframe unshaped, not Concorde; Mach &gt; 1.4 here is a
-      teaching device. Treat every figure as an engineering estimate, ±~2×.</p>
+      drops with altitude as <code>√(p_source·p_ground)</code>.</p>
+      <p data-scen="accel">A turn or hard acceleration <b>focuses</b> the cone into a <b>U‑wave</b> 2–5× stronger than
+      steady flight — that is the peak the stage predicts before the run plays out. Concorde in
+      cruise ≈ <b>2 psf</b> for comparison.</p>
+      <p data-scen="cruise">Concorde in cruise made ≈ <b>2 psf</b> (~100 Pa) under its track. Raise the altitude and
+      Δp falls; stretch the vehicle length and it rises.</p>
+      <p data-scen="lowboom">Loudness is really set by the <b>equivalent‑area distribution</b> — how gradually lift and
+      volume build along the body. A long, slender, shaped nose (NASA's <b>X‑59</b>) keeps the shocks
+      separate: a <b>0.3 psf, 75 PLdB thump</b> vs Concorde's ~105 PLdB. Push past <code>M≈1.4</code> and
+      the shaping fades.</p>
+      <p data-scen="booster">An F9 booster ≈ <b>2–7 psf</b> near the pad. It
+      arrives as a short, blunt triple boom close to touchdown. Entry Mach sets the strength aloft; what
+      reaches the ground is capped by cut‑off.</p>
+      <p class="cav" data-scen="accel cruise">Sim caveat: Mach &gt; 1.4 is a teaching device. Treat every figure as an
+      engineering estimate, ±~2×.</p>
+      <p class="cav" data-scen="lowboom">Sim caveats: the X‑59 thump shape is stylised (not CFD); its dashed “conventional”
+      curve is this same airframe unshaped, not Concorde; Mach &gt; 1.4 here is a teaching device. Treat
+      every figure as an engineering estimate, ±~2×.</p>
+      <p class="cav" data-scen="booster">Sim caveats: the booster's Mach‑vs‑altitude profile is scripted, not a trajectory solve,
+      and its triple‑boom shape is stylised. Treat every figure as an engineering estimate, ±~2×.</p>
     </div>
     <div class="ex">
       <h4>Attenuation with distance</h4>
@@ -280,7 +307,11 @@
       cone is a line source, not a point) plus <b>nonlinear steepening loss</b> (<code>r^−¼</code>)
       give <code>Δp ∝ r^−¾</code>, while the <b>duration grows</b> as <code>r^¼</code>. Absorption
       also thickens the shock rise from ~1 ms to tens of ms — a crack becomes a rumble.</p>
-      <p>A shock only reaches the ground while its <b>horizontal trace speed</b> stays above the
+      <p data-scen="accel cruise lowboom">A shock only reaches the ground while its <b>horizontal trace speed</b> stays above the
+      local sound speed all the way down. In level flight the cone is steady, so it does — the boom keeps
+      arriving for as long as you fly. (Real <b>Mach cut‑off</b> for level flight sits near <code>M≈1.15</code> in
+      the stratosphere; only the booster tab models it.)</p>
+      <p data-scen="booster">A shock only reaches the ground while its <b>horizontal trace speed</b> stays above the
       local sound speed all the way down. Once the source is slower than <b>sea‑level</b> sound it
       refracts upward — <b>Mach cut‑off</b> — which is why a decelerating booster falls quiet near
       landing. Wind and turbulence shift where this happens.</p>

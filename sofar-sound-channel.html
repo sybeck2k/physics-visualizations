@@ -247,12 +247,21 @@
       <code>R = c₀ / (g·cos θ₀)</code>.</p>
       <p>Wherever <code>c(z) = c_source / cos θ₀</code> the ray goes momentarily horizontal — its
       <b>turning point</b> — and heads back. Steeper launch ⇒ deeper turn.</p>
+      <p data-scen="deepchannel shadow">This ocean is the canonical mid‑latitude profile: <code>c</code> <b>falls</b> to a minimum on
+      the axis, then <b>rises</b> again below it. Rays bend down above the axis and up below it — both
+      sides push them back toward the minimum.</p>
+      <p data-scen="surfaceduct">This ocean has a wind‑mixed layer on top: inside it, pressure alone makes <code>c</code> <b>rise</b>
+      with depth, so rays launched in the layer bend <b>up</b> toward the surface instead of down.</p>
+      <p data-scen="doubleduct">This ocean is the deep channel plus a <b>second, shallower notch</b> in sound speed (near
+      280 m), so the profile has <b>two minima</b> and rays can be bent back toward either one.</p>
+      <p data-scen="arctic">This ocean has no minimum at all: under the ice, <code>c</code> rises steadily with depth
+      (<code>1435 + 0.0165·z</code> m/s), so <b>every ray bends upward</b>.</p>
       <p class="cav">The stage is drawn with a large <b>vertical exaggeration</b> (printed in the
       corner), because a ducted ray leans over less than 12° and would otherwise be a flat line.
       The small inset is the same fan at a true 1:1 aspect. Angles on the main stage are steepened;
       angles in the inset are real.</p>
     </div>
-    <div class="ex">
+    <div class="ex" data-scen="deepchannel doubleduct shadow">
       <h4>A speed minimum is a waveguide</h4>
       <p>Warm surface water is fast; cold deep water is slow; below about a kilometre the pressure
       takes over and speeds sound up again. That leaves a <b>minimum</b> — the <b>SOFAR axis</b>,
@@ -261,11 +270,33 @@
       back <b>before</b> it can reach the surface or the seabed. It never touches either, so it
       never loses energy to scattering or bottom absorption — it just oscillates about the axis
       forever, spreading <b>cylindrically</b> instead of spherically.</p>
+      <p data-scen="doubleduct">With two minima there are two ducts. A source in the shallow notch traps its steepest
+      rays there; flatter rays are carried on into the deep channel. The same click rides both.</p>
       <p>That is why the 1991 <b>Heard Island Feasibility Test</b> put a source on the axis in the
       southern Indian Ocean and was detected on hydrophones roughly <b>18 000 km</b> away, on both
       coasts of North America.</p>
     </div>
-    <div class="ex">
+    <div class="ex" data-scen="surfaceduct">
+      <h4>A mixed layer is a leaky waveguide</h4>
+      <p>Wind churns the top of the sea into a uniform‑temperature layer. Inside it <code>c</code> rises with
+      depth, so rays bend <b>up</b>, hit the surface, bounce, and bend up again — hop after hop, trapped
+      between the surface and the layer's base.</p>
+      <p>Unlike the deep channel, this duct <b>touches the surface</b>. Each bounce loses a little energy,
+      and a rough sea scatters far more than this calm‑water model does. Thicken the layer with the
+      slider and more rays — steeper ones — are trapped.</p>
+      <p>Submarines sit just below such a layer on purpose: sound from a ship above can't easily get
+      down to them.</p>
+    </div>
+    <div class="ex" data-scen="arctic">
+      <h4>Half a channel, with ice for a lid</h4>
+      <p>The Arctic is cold from the top, so <code>c</code> has its minimum <b>at the surface</b> and rises with depth.
+      There is only the lower half of a SOFAR channel: rays bend up, hit the underside of the ice, and
+      bounce back down along a chain of arcs.</p>
+      <p>Because that duct is pinned to the surface, sound <b>never stops touching it</b>. Ice is rough
+      and absorbs, so real Arctic propagation loses far more per bounce than the open‑water value used
+      here — the model is flattering.</p>
+    </div>
+    <div class="ex" data-scen="deepchannel doubleduct">
       <h4>What the hydrophone hears</h4>
       <p>Not one arrival — a <b>train</b>. Each trapped ray takes a different path, so the same
       click reaches the phone several times. Steep rays swing far off the axis through <b>faster</b>
@@ -273,18 +304,32 @@
       <b>last and loudest</b>.</p>
       <p>So a SOFAR arrival is a rising stutter that ends in a bang — a crescendo cut off sharply.
       That signature is the fingerprint of the duct; drag the hydrophone and it reshapes.</p>
-      <p class="cav">This is a ray (high-frequency) model: no diffraction, no modes, no
-      frequency dependence, flat seabed, no currents or eddies. Amplitudes are ray-tube
-      estimates — treat every level as ±~5 dB and every count of arrivals as the strongest few.</p>
+    </div>
+    <div class="ex" data-scen="surfaceduct arctic">
+      <h4>What the hydrophone hears</h4>
+      <p>Still a <b>train</b>, but a different one: each arrival is a ray with its own launch angle, and each
+      has bounced off the surface a different number of times. Every bounce costs a little level, so
+      arrivals are not simply “quiet early, loud late” as in the deep channel.</p>
+      <p>Drag the hydrophone <b>below</b> the duct and the train thins out and then stops — the
+      surface‑trapped sound never gets that deep.</p>
+    </div>
+    <div class="ex" data-scen="shadow">
+      <h4>What the hydrophone hears</h4>
+      <p>Here: <b>nothing</b>. Same ocean as tab 1, same source on the axis, but the hydrophone is up at 300 m —
+      above the shallowest depth the fan ever turns. The arrival panel reads “no ray path”, and the transmission‑loss
+      curve has nothing to mark.</p>
+      <p>Drag the phone down toward the axis and the stutter returns: a train of arrivals ending in a bang.</p>
     </div>
     <div class="ex">
       <h4>Shadow zones sit beside loud paths</h4>
       <p>Rays leave gaps. Move the hydrophone a few hundred metres and you can fall in a
       <b>shadow zone</b>: geometrically <b>no ray reaches you at all</b>, while a phone on the axis
       at the same range is hearing a dozen arrivals. Loud and silent are neighbours.</p>
-      <p>The opposite also happens. Where neighbouring rays pile back together the tube collapses
+      <p data-scen="deepchannel doubleduct shadow">The opposite also happens. Where neighbouring rays pile back together the tube collapses
       and the sound is refocused — a <b>convergence zone</b>, a ring of loud water every
       <b>50–65 km</b> in the deep ocean, with quiet in between.</p>
+      <p data-scen="surfaceduct arctic">In a surface duct the shadow is <b>beneath</b> it: sound trapped near the surface leaks little
+      downward, so a phone under the duct is quiet while a phone inside it is loud.</p>
       <p>Turn on the turning-point envelope to see the caustics that bound both.</p>
     </div>
     <div class="ex">
@@ -300,6 +345,9 @@
       <b>blue whale</b> call rides the channel across an ocean basin. The arrivals dribble in over
       a second or two — the drawn-out, stuttering <b>echo of a shout in a canyon</b>, not a
       single click.</p>
+      <p class="cav">This is a ray (high-frequency) model: no diffraction, no modes, no
+      frequency dependence, flat seabed, no currents or eddies. Amplitudes are ray-tube
+      estimates — treat every level as ±~5 dB and every count of arrivals as the strongest few.</p>
     </div>
   </section>
 </div>

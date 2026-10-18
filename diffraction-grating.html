@@ -237,9 +237,16 @@
     <div class="ex">
       <h4>Wavelets &amp; the pattern</h4>
       <p>A plane wave hits the plate. Every open point of every slit becomes a <b>new circular
-      source</b> (Huygens) — that is all the picture draws. Far away, the wavelets from two
-      neighbouring slits arrive with a path difference <code>d·sinθ</code>.</p>
-      <p>Where that difference is a whole number of wavelengths they add: <code>d·sinθ = mλ</code>,
+      source</b> (Huygens) — that is all the picture draws. Far away, the wavelets arrive with a
+      path difference that depends on the angle, and add or cancel accordingly.</p>
+      <p data-scen="single">Inside <b>one</b> slit of width <code>a</code>, wavelets from the top and bottom edges differ
+      by <code>a·sinθ</code>. When that equals one wavelength every wavelet finds a partner half a slit away
+      that cancels it — the first <b>dark null</b>, <code>a·sinθ = λ</code>. Between the nulls: one wide bright band.</p>
+      <p data-scen="double">Wavelets from neighbouring slits arrive with a path difference <code>d·sinθ</code>.
+      Where it is a whole number of wavelengths they add: <code>d·sinθ = mλ</code>, a bright <b>fringe</b> of
+      order <code>m</code>. Where it is half a wavelength the two little arrows point opposite ways and you get darkness.</p>
+      <p data-scen="grating subwave">Wavelets from neighbouring slits arrive with a path difference <code>d·sinθ</code>.
+      Where that difference is a whole number of wavelengths they add: <code>d·sinθ = mλ</code>,
       a <b>principal maximum</b> of order <code>m</code>. Where the N little arrows close into a
       ring, they cancel and you get darkness.</p>
       <p>The bright directions are the <b>envelope</b> of the drawn wavelets — nothing asserts them.
@@ -249,35 +256,70 @@
       <h4>What the detector reads</h4>
       <p>Nothing at all until the light gets there — the plane wave has to cross to the plate, and
       the wavelets then have to cross to you. Watch the countdown, then the pattern lights up.</p>
-      <p>Slide the detector and you trace the <b>screen curve</b> in the left plot: tall narrow
+      <p data-scen="single">Slide the detector and you trace the <b>screen curve</b> in the left plot: a single
+      broad central hump, dark nulls either side, and much weaker side‑lobes beyond them — nothing else.
+      Width of the hump is set by the slit width <code>a</code>: narrower slit ⇒ wider pattern.</p>
+      <p data-scen="double">Slide the detector and you trace the <b>screen curve</b> in the left plot: evenly
+      spaced bright fringes with dark gaps between, all under a slowly sagging
+      <b>single‑slit envelope</b> set by the slit width <code>a</code>. The fringes are broad — two slits
+      cannot make them sharp.</p>
+      <p data-scen="grating">Slide the detector and you trace the <b>screen curve</b> in the left plot: tall narrow
       spikes at the orders, near‑black between them, all of it under a slowly sagging
       <b>single‑slit envelope</b> set by the slit width <code>a</code>.</p>
+      <p data-scen="subwave">Slide the detector and the <b>screen curve</b> is a single central spot — the
+      <code>m = 0</code> beam straight ahead — and nothing at any other angle. Drag the spacing back above
+      <code>λ</code> and the missing orders switch on at the edge of the plot.</p>
       <p>Power is printed as a <b>percentage of the centre</b>. In a null the reading is 0.0 %, not
       a small peak — the wavelets really do cancel.</p>
     </div>
-    <div class="ex">
+    <div class="ex" data-scen="single">
+      <h4>Narrower slit ⇒ wider pattern</h4>
+      <p>This is diffraction in its purest form: squeeze the light through a smaller gap and it spreads
+      <b>more</b>. The central band is bounded by <code>sinθ = ±λ/a</code>, so halving <code>a</code> doubles its width.</p>
+      <p>Make the slit narrower than the wavelength and there is <b>no null at all</b> — the wavelets from one
+      edge can never fall half a wave behind the other, and the light fans out across the whole half‑plane.</p>
+      <p>Everything else in this collection — double slits, gratings — is this pattern multiplied by something.</p>
+    </div>
+    <div class="ex" data-scen="double">
+      <h4>Two slits ⇒ fringes</h4>
+      <p>Fringes sit at <code>d·sinθ = mλ</code>, so their angular spacing is about <code>λ/d</code>:
+      widen the gap and they crowd together; use shorter light and they do too.</p>
+      <p>With only two wavelets the fringes are <b>broad</b> — soft cosine humps, not lines. That is
+      the lesson of the next tab — add slits and watch each fringe sharpen to a line.</p>
+      <p>The envelope of the fringes is the single‑slit curve from tab 1: the pattern is the product of
+      “two sources” and “one slit of width <code>a</code>”.</p>
+    </div>
+    <div class="ex" data-scen="grating subwave">
       <h4>More slits ⇒ sharper</h4>
       <p>Adding slits does not just brighten the lines, it <b>narrows</b> them. Each principal
       maximum has angular full width <code>≈ 0.886 λ/(N d cosθ)</code> — double N, halve the width.
       Sweep the N slider and watch the right plot slide down its <code>1/N</code> slope.</p>
-      <p>That is why a grating is a spectrometer: two wavelengths <code>λ</code> and
+      <p data-scen="grating">That is why a grating is a spectrometer: two wavelengths <code>λ</code> and
       <code>λ+Δλ</code> separate when <code>R = λ/Δλ = mN</code>. The <b>sodium D doublet</b> at
       <b>589.0 / 589.6 nm</b> needs <code>R ≈ 982</code>, so <b>N ≳ 1000</b> illuminated lines at
       m = 1 — a double slit can never do it, however bright.</p>
+      <p data-scen="subwave">Even here, more slits still sharpen the one beam that survives — the
+      <code>m = 0</code> spot straight ahead — but there is no <code>m = 1</code> to disperse colours, so no spectrometer.</p>
     </div>
-    <div class="ex">
+    <div class="ex" data-scen="single double grating">
+      <h4>How many orders fit</h4>
+      <p>An order only exists if <code>|mλ/d| &lt; 1</code> — you cannot bend light past 90°. So the
+      pattern has about <code>d/λ</code> orders on each side: <b>more spacing ⇒ more orders, closer together</b>;
+      a spacing near one wavelength throws a single pair of orders almost to the horizon.</p>
+      <p data-scen="single">A single slit has no spacing <code>d</code>, so it has no orders — only its own
+      nulls at <code>a·sinθ = mλ</code>. Switch to tab 2 to see orders appear.</p>
+      <p data-scen="grating">A <b>CD</b> has a track pitch of <b>1.6 µm</b>, so red light at 650 nm leaves it at
+      <code>asin(0.65/1.6) ≈ 23.9°</code> — that is the rainbow you see on the disc. A DVD's 0.74 µm
+      pitch throws red past 61°.</p>
+    </div>
+    <div class="ex" data-scen="subwave">
       <h4>When the orders vanish</h4>
       <p>An order only exists if <code>|mλ/d| &lt; 1</code> — you cannot bend light past 90°. Squeeze
       the spacing below one wavelength and every order but <code>m = 0</code> is gone: the light goes
       straight through, and the structure survives only as <b>evanescent</b> near‑field. That is the
       whole idea behind wire‑grid polarisers and metasurfaces.</p>
-      <p>A <b>CD</b> has a track pitch of <b>1.6 µm</b>, so red light at 650 nm leaves it at
-      <code>asin(0.65/1.6) ≈ 23.9°</code> — that is the rainbow you see on the disc. A DVD's 0.74 µm
-      pitch throws red past 61°.</p>
-      <p class="cav">Model caveats: scalar Fraunhofer (far‑field) diffraction from an ideal
-      monochromatic plane wave at normal incidence. No polarisation, no obliquity factor, no
-      finite‑source or slit‑thickness effects; the stage is drawn at micrometre scale and the screen
-      distance is compressed. Treat side‑lobe levels as estimates, ±.</p>
+      <p>A <b>CD</b>’s 1.6 µm pitch is comfortably above red light, so it still diffracts. Shrink the
+      pitch to 0.4 µm (this tab) and the rainbow would be gone.</p>
     </div>
     <div class="ex">
       <h4>Reading the units</h4>
@@ -289,6 +331,11 @@
       full Moon is half a degree. A grating line 0.3° wide is a fifth of a Moon.</p>
       <p><b>Per cent — relative power.</b> 100 % is the centre of the pattern; 10 % is a tenth as
       bright, still obvious to the eye; 0.1 % looks black beside it.</p>
+      <p class="cav">Model caveats: scalar Fraunhofer (far‑field) diffraction from an ideal
+      monochromatic plane wave at normal incidence. No polarisation, no obliquity factor, no
+      finite‑source or slit‑thickness effects; the stage is drawn at micrometre scale and the screen
+      distance is compressed. Treat side‑lobe levels as estimates, ±.</p>
+
     </div>
   </section>
 </div>

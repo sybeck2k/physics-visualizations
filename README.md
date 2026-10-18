@@ -18,7 +18,9 @@ counter-intuitive fact is obvious.
 
 ## Using them
 
-Open any `.html` file in a browser. Press **Play**, drag the sliders, drag the observer / aim point /
+**Live:** https://sybeck2k.github.io/physics-visualizations/ (GitHub Pages, served from `main`; every push redeploys).
+
+Or open any `.html` file locally in a browser. Press **Play**, drag the sliders, drag the observer / aim point /
 hydrophone on the stage, and switch scenario tabs. The five cards at the bottom explain what you
 are seeing, and they change with the active tab.
 

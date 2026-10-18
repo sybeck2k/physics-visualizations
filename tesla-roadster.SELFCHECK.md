@@ -2,7 +2,7 @@
 
 Deliverable: `tesla-roadster.html` (≈116 KB, one file, no deps, no network, raw WebGL 1, runs from `file://`).
 Spec: `tesla-roadster.SPEC.md`. Source data: the 17 Oct 2026 "Science & Demo Data Pack" (cited as §N below).
-Harness: `.claude/skills/verify-physics-viz/verify-tesla-roadster.mjs` — **all 28 rows PASS** (exit 0).
+Harness: `.claude/skills/verify-physics-viz/verify-tesla-roadster.mjs` — **all 32 rows PASS** (exit 0, rechecked 2026-10-18).
 
 Verdict: **PASS**, with the declared deviations and the limits listed at the bottom.
 
@@ -14,7 +14,7 @@ Two tabs, one kernel family each, one sim per run precomputed at a fixed 4 ms st
 
 1. **Air budget** — cold-gas thrusters on a 600 L tank. `F = ṁ·vₑ`, `ṁ = F/(Isp·g0)`; adiabatic blowdown `p ∝ m^1.4`,
    `T ∝ m^0.4`; real-gas `Z(p)` from CoolProp. Runs: **0–60 launch** (vs ghost cars for the 2017/Performance/Thrust/Rocket claims),
-   **hover hop** (down-jets hold a 3 m hop until they cannot carry the car), **barrel roll** (four side jets in flank pods, fired as couples: push, coast, counter-fire; 360°).
+   **hover hop** (down-jets hold a 3 m hop until they cannot carry the car), **barrel roll** (four side jets in flank pods, fired as couples: push, coast, counter-fire; 360° only when the available torque permits).
 2. **Stick to the wall** — fan suction adds load: `μ_eff(N)·N ≥ m·g·sinθ`, `N = m·g·(s + cosθ) (+ v²/R)`. Runs: **wall climb**
    (to 170°, hold, fans off, fall, landing burn), **park & fade** (drag the car along the ramp; fans fade 0.25 g/s),
    **2 g corner** (skid pad vs a fan-less ghost).
@@ -36,9 +36,9 @@ One shared kernel per quantity (`tankMass`, `tankBurn`, `thrustAvail`, `simLaunc
 | ID | Threshold | Measured |
 |----|-----------|----------|
 | A1 | no page errors, stage ≥ 500×250 | 0 errors, 1190×534 |
-| A2 | each preset paints ≥12 colours, none > 90 % | 212–270 colours, ≤ 30 % |
-| A3 | every preset fills ≥6 readout rows | 7–17 rows |
-| A4 | every slider changes label and readouts | 12 / 12 |
+| A2 | each preset paints ≥12 colours, none > 90 % | 106–151 colours, ≤ 42 % |
+| A3 | every preset fills ≥6 readout rows | 7–20 rows |
+| A4 | every slider changes label and readouts | 11 / 11 |
 | A5 | rows identical after scrub-from-0, scrub-from-end, re-parameterise | identical |
 | A6 | no-WebGL fallback shows a message, readouts still populate | `flex`, 13 rows, 0 errors |
 | A7 / A8 | sound toggle and whole run raise no error | 0 errors |
@@ -57,11 +57,19 @@ One shared kernel per quantity (`tankMass`, `tankBurn`, `thrustAvail`, `simLaunc
 | B13 | side jets fire push couple → none while coasting → opposite couple; ends at 360° | true / true / true, ω 231 °/s, 360° |
 | B14 | roll has no ramp and no rear thrust: drives in from rest at 7 m/s without air, lifts on the down-jets (55 kN), constant 7 m/s horizontal in the air, clears the 13 m row, lands and stops | all met (lands at 22 m) |
 | B15 | lanes ordered by time to 60 mph | 1.90 1.60 0.90 0.90 0.59 |
+| B16 | 28 roll configurations: thrust/capacity ≤ 1.00001; angular-impulse error < 1e-5 rad/s; angle-step error < 5e-4 rad; default closes within 0.01°; low pressure cannot invent a full roll | max ratio 1.0000001 (Float32 rounding); impulse error 8.64e-7 rad/s; angle error 4.45e-5 rad; default 360.000°; 200 bar 277.4°, limited |
 | C8 | Play on the launch runs a 3-2-1 with the clock held at 0 | met |
-| C1–C7 | prediction up front, headline value per preset, confidence chips, 5 cards + caveat, 4,700 kg toggle, gauge drag, orbit/recentre | all met (63/78 rows chipped) |
+| C1–C7 | prediction up front, headline value per preset, confidence chips, 5 cards + caveat, 4,700 kg toggle, gauge drag, orbit/recentre | all met (69/85 rows chipped) |
 
-Numbers that match the reported demo *without being fitted to it*: the landing burn (3.3 g from ≈6.4 m vs reported ≈6.5 m),
-the kick-flip apex (7.3 m vs ≈7 m), gentlest-roll torque and inertia (6.4 kN·m, 1,020 kg·m²), blowdown table, hover-time band.
+Closed-form checks cover inertia, minimum roll torque, blowdown, and hover thrust. The launch time is calibrated and the
+roll target height is an input, so agreement with those reported figures is not independent validation.
+
+### Pressure-limited roll correction (2026-10-18)
+
+The roll used to prescribe its angle while allowing constant side-jet thrust as tank pressure fell. It now integrates
+`I·dω/dt = 2·arm·F_jet` and `dθ/dt = ω`, with each jet capped at `8 kN·p(t)/379 bar`. Partial pulse steps use their actual
+on-time and torque moment, so the default unsaturated pulse still closes at 360° without snapping the angle to its target.
+At 200 bar the same command lands at 277.4°; the readout warns and shows the lowest available jet capacity during the pulses.
 
 ## What is fitted or assumed (also printed in the piece, with chips)
 
@@ -85,3 +93,5 @@ the kick-flip apex (7.3 m vs ≈7 m), gentlest-roll torque and inertia (6.4 kN·
 - Sound is synthesised and wired (no errors) but was not *listened to*.
 - The wall sim is quasi-static for the climb and a point-mass fall afterwards; it does not model suction ramp-up, tyre slip angle,
   or the real ramp's profile (arc radius 10.6 m is chosen so 170° sits ≈21 m up, per the reported telemetry).
+- The flight paths remain point-mass estimates with a separate roll axis, not a coupled six-degree-of-freedom vehicle model.
+   The 8 kN side-jet rating is still an assumption, not a verified specification.

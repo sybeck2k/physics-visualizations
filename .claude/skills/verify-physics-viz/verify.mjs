@@ -232,7 +232,7 @@ try {                                             // B7 the N-wave ages: T_N gro
   await tab('cruise'); await setRange('#mach', 2.0); await setRange('#alt', 15000); await setRange('#lat', 0); await setRange('#rate', 5);
   await restart(); await play(); await waitBoom(35000); await sleep(2500); await pause();
   const tn0 = firstNum(await val('N-wave T_N'));
-  await setRange('#lat', 35); await sleep(400);
+  await setRange('#lat', 35); await scrub(0.98); await sleep(400);
   const tn1 = firstNum(await val('N-wave T_N'));
   rec('B7', 'physics', tn1 > tn0 * 1.05, `T_N ${tn0.toFixed(0)} ms on-track → ${tn1.toFixed(0)} ms at 35 km lateral`,
     'T_N grows ≥ 5% with a longer path (the r^¼ aging term is live, not pinned to 1)');
@@ -259,6 +259,41 @@ try {                                             // B8 the acceleration superbo
     'reads "focused U-wave · ×N" with N ∈ 1.2–8 (a distinct, amplified signature at the focus)');
 } catch (e) { rec('B8', 'physics', false, 'threw: ' + e.message, 'superboom U-wave'); }
 
+try {
+  await tab('cruise'); await setRange('#mach', 2); await setRange('#alt', 15000);
+  const sound = atmoA(15000), speed = 2 * sound;
+  const cases = [2000, 30000].flatMap(x => [0, 35, -35].map(lat => {
+    const cross = Math.hypot(15000, lat * 1000);
+    const emitted = Math.max(0, (x - cross / Math.sqrt(3)) / speed);
+    const arrival = emitted + Math.hypot(x - speed * emitted, cross) / sound;
+    return { x, lat, arrival };
+  }));
+  const samples = await page.evaluate(cases => cases.map(test => {
+    S.obs.x = test.x;
+    const input = document.getElementById('lat');
+    input.value = test.lat; input.dispatchEvent(new Event('input', { bubbles: true }));
+    rebuildTo(test.arrival - 0.25);
+    const before = computeObserver().arrived;
+    rebuildTo(test.arrival + 0.25);
+    const after = computeObserver().arrived;
+    return { before, after, arrival: S._arrivedAt, duration: simDuration() };
+  }), cases);
+  const expected = cases.find(test => test.x === 2000 && test.lat === 35).arrival;
+  const moved = await page.evaluate(() => {
+    S.obs.x = 2000;
+    const input = document.getElementById('lat');
+    input.value = 0; input.dispatchEvent(new Event('input', { bubbles: true }));
+    rebuildTo(60); S.res = computeObserver();
+    const onTrack = S.res.arrived;
+    input.value = 35; input.dispatchEvent(new Event('input', { bubbles: true }));
+    return { onTrack, arrived: S.res.arrived, first: S._arrivedAt, countdown: S.res.countdown };
+  });
+  const error = Math.max(...samples.map((sample, index) => Math.abs(sample.arrival - cases[index].arrival)));
+  rec('B9', 'physics', samples.every((sample, index) => !sample.before && sample.after && sample.duration >= cases[index].arrival + 10) && error < 0.10 && moved.onTrack && !moved.arrived && moved.first === null && Math.abs(moved.countdown - (expected - 60)) < 0.10,
+    `6 arrival boundaries; max error ${error.toFixed(4)} s; 35 km lateral ${expected.toFixed(3)} s; moved observer countdown ${moved.countdown.toFixed(3)} s`,
+    '3-D closed-form arrival within 0.10 s, no arrival 0.25 s early, arrival 0.25 s late, timeline ≥ arrival + 10 s, lateral move clears old arrival');
+} catch (e) { rec('B9', 'physics', false, 'threw: ' + e.message, 'cross-track travel time and observer cache'); }
+
 /* ============================================================ INSIGHT (C) */
 try {                                             // C1 the Mach cone visibly narrows as speed climbs
   await tab('accel');
@@ -279,7 +314,7 @@ try {                                             // C2 uniform carpet in the mi
   await restart(); await play(); await waitBoom(35000); await sleep(2500); await pause();
   const dp0 = firstNum(await val('Peak Δp'));
   const half = firstNum(await val('Carpet ½-width'));                        // km
-  await setRange('#lat', (half * 0.4).toFixed(1)); await sleep(300);
+  await setRange('#lat', (half * 0.4).toFixed(1)); await scrub(0.98); await sleep(300);
   const dpMid = firstNum(await val('Peak Δp'));
   await setRange('#lat', (half + 6).toFixed(1)); await sleep(300);
   const outStr = norm(await val('Peak Δp') || ''), obs = (await val('Observer')) || '';

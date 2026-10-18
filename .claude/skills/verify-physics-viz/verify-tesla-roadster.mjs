@@ -137,6 +137,43 @@ const seq = await page.evaluate(() => {
 });
 rec('B13', 'physics', seq.push && seq.coast && seq.brake && seq.ok, `push ${seq.push} · coast ${seq.coast} · brake ${seq.brake} · ω ${seq.omega.toFixed(0)}°/s · ${seq.deg.toFixed(0)}°`, 'side jets: push couple, then none while spinning, then the opposite couple; ends at 360°');
 
+const rollChecks = await page.evaluate(() => {
+  const cases = [];
+  for (const pressure of [200, 437, 689]) for (const mass of [1700, 2350]) for (const time of [1, 1.3, 2, 2.5]) {
+    cases.push({ p0: pressure, mass, rt: time, apx: 7.9 });
+  }
+  for (const pressure of [200, 689]) for (const height of [3, 30]) cases.push({ p0: pressure, mass: 2350, rt: 2, apx: height });
+  let maxRatio = 0, impulseError = 0, angleError = 0, finite = true;
+  for (const test of cases) {
+    const trajectory = RDX.simRoll({ ...test, isp: 60, v0: 7 }), columns = trajectory.c, step = trajectory.dt;
+    const inertia = test.mass * (2 ** 2 + 1.1 ** 2) / 12;
+    for (let index = 0; index < trajectory.n - 1; index++) {
+      const thrust = Math.max(columns.JLu[index], columns.JLd[index], columns.JRu[index], columns.JRd[index]);
+      const capacity = 8000 * columns.p[index] / 379;
+      maxRatio = Math.max(maxRatio, thrust / Math.max(capacity, 1e-9));
+      finite = finite && Number.isFinite(columns.rol[index]) && Number.isFinite(columns.rollRate[index]);
+      if (columns.y[index + 1] > 0) {
+        const acceleration = 2 * 1.05 * (columns.JLd[index] - columns.JLu[index]) / inertia;
+        impulseError = Math.max(impulseError, Math.abs(columns.rollRate[index + 1] - columns.rollRate[index] - acceleration * step));
+        angleError = Math.max(angleError, Math.abs(columns.rol[index + 1] - columns.rol[index] - columns.rollRate[index] * step - 0.5 * acceleration * step ** 2));
+      }
+    }
+  }
+  const base = RDX.simRoll({ p0: 437, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 }).info;
+  const low = RDX.simRoll({ p0: 200, isp: 60, mass: 1700, v0: 7, apx: 7.9, rt: 2 }).info;
+  const inertia = 1700 * (2 ** 2 + 1.1 ** 2) / 12, pulse = 0.22 * 2;
+  const acceleration = 2 * Math.PI / (pulse * (2 - pulse));
+  return { count: cases.length, maxRatio, impulseError, angleError, finite, defaultAngle: base.rolledDeg,
+    forceError: Math.abs(base.Fj - inertia * acceleration / (2 * 1.05)),
+    peakRateError: Math.abs(base.omegaDeg - acceleration * pulse * 180 / Math.PI), lowAngle: low.rolledDeg, lowLimited: low.limited };
+});
+await preset('roll'); await setRange('#pres', 200);
+const rollReadouts = await rows(), jetReadout = rollReadouts['Jet need / min capacity'] || '';
+const rollLabels = near(firstNum(jetReadout), 3.2172788, 0.05) && near(firstNum(jetReadout.split('/')[1]), 1.6192672, 0.05) && !!rollReadouts['Required roll torque'];
+rec('B16', 'physics', rollLabels && rollChecks.finite && rollChecks.maxRatio <= 1.00001 && rollChecks.impulseError < 1e-5 && rollChecks.angleError < 5e-4 && Math.abs(rollChecks.defaultAngle - 360) < 0.01 && rollChecks.forceError < 0.01 && rollChecks.peakRateError < 0.01 && rollChecks.lowLimited && Math.abs(rollChecks.lowAngle - 360) > 10,
+  `${rollChecks.count} cases; max thrust/cap ${rollChecks.maxRatio.toFixed(7)}; impulse error ${rollChecks.impulseError.toExponential(2)} rad/s; angle error ${rollChecks.angleError.toExponential(2)} rad; default ${rollChecks.defaultAngle.toFixed(3)}°, 200 bar ${rollChecks.lowAngle.toFixed(1)}°`,
+  'thrust ≤ current-pressure capacity (1e-5 relative); Δω = τΔt/I within 1e-5 rad/s; angle step within 5e-4 rad; default closes within 0.01° and matches closed-form force/rate; low pressure does not invent 360°');
+
 /* ============ C. insight legible ============ */
 await preset('launch'); let r = await rows();
 const pred = firstNum(r['Predicted 0–60 mph']);

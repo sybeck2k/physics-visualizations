@@ -457,21 +457,21 @@ function simDuration(){
   if(S.scen==='booster'){
     const zc=boosterCutoffAlt();
     const d=Math.abs(S.obs.x - SCEN.booster.padX);
-    const prop=Math.hypot(d,zc)/320;
+    const prop=Math.hypot(d,zc,S.lat*1000)/320;
     return runLen() + Math.max(prop+10, 16);
   }
-  const h=S.alt, af=soundSpeed(h);
+  const h=S.alt, cross=Math.hypot(h,S.lat*1000), af=soundSpeed(h);
   const Mf = S.scen==='accel' ? S.mend : S.mach;
   const base = S.scen==='accel' ? runLen() : 0;
   if(Mf<=1.03) return base + 46;                 // subsonic: just watch the wavefronts
-  const vf=Mf*af, lag=h*Math.sqrt(Mf*Mf-1);      // ground boom trails the aircraft by `lag`
+  const vf=Mf*af, lag=cross*Math.sqrt(Mf*Mf-1);      // ground boom trails the aircraft by `lag`
   let xActive=0, tActive=0;
   if(S.scen==='accel'){ tActive=runLen(); xActive=0.5*(SCEN.accel.mStart+Mf)*af*tActive; }
   // the steady Mach cone reaches the observer after this...
   const tCone=tActive + Math.max(0,(S.obs.x + lag - xActive)/vf);
   // ...but the FIRST real wavefront is the one emitted at the start point, which then has to
   // expand across the full slant distance — the binding constraint when the vehicle is high
-  const tFirst=tActive + Math.sqrt((S.obs.x-xActive)**2 + h*h)/af;
+  const tFirst=tActive + Math.hypot(S.obs.x-xActive,cross)/af;
   return clamp(Math.max(tCone, tFirst) + 12, base+6, 300);
 }
 
@@ -617,7 +617,7 @@ function computeObserver(){
   for(const w of S.wf){
     if(!w.boom) continue;
     const r=w.a*(S.t-w.t);
-    const d=Math.hypot(O.x-w.x, O.y-w.y);
+    const d=Math.hypot(O.x-w.x, O.y-w.y, lat);
     const f=r-d;
     if(f>maxF) maxF=f;
     const ta=w.t + d/w.a;                 // when THIS wavefront's sphere reaches the observer
@@ -627,8 +627,8 @@ function computeObserver(){
       const s = pressureAt(Math.abs(w.y)) * Math.pow(Math.max(w.M*w.M-1,1e-3),0.125) * clamp((w.M-1)/0.4,0.06,1);
       if(s>loudS){ loudS=s; loudW=w; }
     }
-    if(r>=Math.abs(w.y)){
-      const dx=Math.sqrt(r*r-w.y*w.y);
+    if(r>=Math.hypot(w.y,lat)){
+      const dx=Math.sqrt(Math.max(0,r*r-w.y*w.y-lat*lat));
       const cand = Math.abs((w.x+dx)-O.x) < Math.abs((w.x-dx)-O.x) ? w.x+dx : w.x-dx;
       if(sweepX===null || Math.abs(cand-O.x) < Math.abs(sweepX-O.x)) sweepX=cand;
       if(w.t<oldestBoomT){ oldestBoomT=w.t; firstHitX = (Math.abs(w.x+dx-O.x)<Math.abs(w.x-dx-O.x))?w.x+dx:w.x-dx; }
@@ -669,7 +669,7 @@ function computeObserver(){
   if(!g && !arrived){
     if(enRoute){
       R.status='incoming';
-      R.countdown=Math.max(0,(-maxF)/A0);
+      R.countdown=Math.max(0,tArrTrue-S.t);
       if(S.scen==='booster') R.enRouteAloft=true;   // boom generated higher up, still descending
     }else if(boosterCutoff){
       R.status='MACH CUT‑OFF — refracts upward'; R.cutoff=true;
@@ -763,7 +763,7 @@ function computeObserver(){
   else if(arrived){
     R.status='BOOM'; R.passedAgo = S.t-(S._arrivedAt||S.t);
   }else if(Number.isFinite(maxF)){
-    R.countdown = Math.max(0, (-maxF)/Math.max(A0,1));
+    R.countdown = Math.max(0, tArrTrue-S.t);
     R.status='incoming';
   }else{
     R.status = S.v.M>1 ? 'supersonic — cone hasn’t reached here yet' : 'subsonic — no boom';
@@ -1624,7 +1624,7 @@ $('acc').oninput=e=>{S.acc=parseFloat(e.target.value);refreshSliderLabels();repa
 $('len').oninput=e=>{S.len=parseFloat(e.target.value);refreshSliderLabels();nudge();};
 $('bm').oninput=e=>{S.bm=parseFloat(e.target.value);refreshSliderLabels();reparam();};
 $('bd').oninput=e=>{S.bd=parseFloat(e.target.value);refreshSliderLabels();reparam();};
-$('lat').oninput=e=>{S.lat=parseFloat(e.target.value);refreshSliderLabels();nudge();};
+$('lat').oninput=e=>{S.lat=parseFloat(e.target.value);S._arrivedAt=null;S._heardG=null;refreshSliderLabels();nudge();};
 
 /* overlays */
 $('oWf').onchange=e=>{S.ov.wf=e.target.checked;draw();};

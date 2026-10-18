@@ -31,7 +31,7 @@ physics was fully readable from `#rdl`; here the sampled curve and the replayed 
 schedule are not, and B2/B4/B5 need them. This is the price of a non-circular B2 and a
 non-vacuous B5, and it is the only concession.
 
-## Step 2–3 — automated harness (all 14 PASS, exit 0, run 3)
+## Step 2–3 — automated harness (all 15 PASS, exit 0, rechecked 2026-10-18)
 
 | ID | Threshold | Measured | Verdict |
 |----|-----------|----------|---------|
@@ -45,10 +45,18 @@ non-vacuous B5, and it is the only concession.
 | **B3** cited anchor | CD 1.6 µm @ 650 nm ⇒ **21–27°**; Na D 589.0/589.6 + `R = mN`, N ≳ 1000 in `#explain` | **23.95°** (theory 23.94°), both citations present | PASS |
 | **B4** no phantom reading | 3 probes **inside** the incoming window, identical, `—` | window 0.248–0.451; probes 0.28/0.34/0.40 → `[— \| — \| —]` with **4/11/17 wavefronts in flight, 0 arrived** | PASS |
 | **B5** scrub ≡ play | peak intensity within **10 %** AND order number within **0.01**; replayed wavefront count = played count = schedule (±1); mid-build reads its partial value (±8 %) | settled 61.370 % / m 0.998 both ways (Δ 0.00 % / 0.0000); wavefronts 84 played vs 83 scrubbed (schedule 83); building at f = 0.47/0.51/0.55 → wf 25/29/34 ✓, arrived 3/7/11 ✓, 11.51/26.85/42.19 % vs predicted 11.51/26.85/42.19 % | PASS |
+| **B6** brightest-order prediction | double slit, grating and sub-wavelength: central order at 100.0 %, 0.0°; normalized intensity ≤ 1 | all three report `m = 0 · ≈ 100.0 % at 0.0°`; centre intensity exactly 1 | PASS |
 | **C1** more slits ⇒ sharper | FWHM monotone ↓, ratio ≥ 4, each within 8 % of the exact model FWHM (and of `0.886 λ/(Nd cosθ)` for N ≥ 8) | 11.444 → 5.279 → 2.592 → 1.290°, ratio **8.87**, errors **0.0 %** | PASS |
 | **C2** orders vanish below d = λ | **=1** at d < λ, **≥3** at d = 3λ, by the readout **and** by counting peaks of the sampled curve within ±85°, agreeing to ±1 | d = 0.40 µm: readout 1, peaks 1 · d = 1.95 µm: readout 5, peaks 5 | PASS |
 | C5 | units card ties each quantity to an everyday referent | hair ✓ · CD ✓ · fingertip/Moon ✓ | PASS |
 | C6 | ≥ 1 caveat, ≥ 3 tooltips, hedging language | 1 · **32** · present | PASS |
+
+### Brightest-order correction (2026-10-18)
+
+The prediction previously excluded `m = 0`, incorrectly calling a 61.5 % side order the brightest in the default grating.
+It now compares all surviving orders, preferring the centre on ties. The normalized phasor sum is bounded by 1 by the
+triangle inequality, and every strip is in phase at 0°, so the centre's 100 % is exact within this model. B6 checks both
+the kernel's normalization and the user-visible prediction in all three multi-slit scenarios.
 
 ### What round 2 changed, and why each was a real defect
 

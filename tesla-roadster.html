@@ -250,7 +250,7 @@ const hoverThrust = m => m * G0;
 
 // ---- trajectories: column store sampled every DT seconds ----
 const DT = 0.004;
-const COLS = ['x', 'y', 'z', 'yaw', 'pit', 'rol', 'F', 'FL', 'FR', 'JLu', 'JLd', 'JRu', 'JRd', 'p', 'T', 'am', 's', 'nl', 'mg', 'ag'];
+const COLS = ['x', 'y', 'z', 'yaw', 'pit', 'rol', 'rollRate', 'F', 'FL', 'FR', 'JLu', 'JLd', 'JRu', 'JRd', 'p', 'T', 'am', 's', 'nl', 'mg', 'ag'];
 function newTraj(n) {
   const c = {}; COLS.forEach(k => c[k] = new Float32Array(n));
   return { n, dt: DT, c, info: {} };
@@ -313,7 +313,7 @@ function simHover(P) {
 }
 
 // ---- A3: thruster lift-off + barrel roll (no ramp) ----
-// As seen in the demo video: the car drives slowly up to a row of parked Teslas, the four down-jets lift it ~30 m, four side jets roll it
+// As seen in the demo video: the car drives slowly up to a row of parked Teslas, the four down-jets lift it ~8 m, four side jets roll it
 // while it coasts over the apex, a landing burn brakes the fall, and it rolls to a stop on its wheels. The rear thrusters never fire.
 // Roll comes from four side jets in pods on the flanks (left/right × exhaust up/down), fired as COUPLES so there is no net force:
 //   push  : left jet exhausts DOWN (lifts the left side) + right jet exhausts UP (presses the right side down)
@@ -325,13 +325,14 @@ function simRoll(P) {
   const TH = 2 * Math.PI, jetCap = ROLL_JET * P.p0 / P_REF, aMax = 2 * jetCap * ROLL_ARM / I;
   let T = P.rt, ta = PULSE_FRAC * T, alpha = TH / (ta * (T - ta)), limited = false;
   if (alpha > aMax) { limited = true; alpha = aMax; T = Math.sqrt(4 * TH / alpha); ta = T / 2; }   // jets too weak: pure push/brake, no coast
-  const tau = I * alpha, Fj = tau / (2 * ROLL_ARM), omega = alpha * ta, tauBB = I * 4 * TH / (P.rt * P.rt);
+  const tau = I * alpha, Fj = tau / (2 * ROLL_ARM), tauBB = I * 4 * TH / (P.rt * P.rt);
   // drive-in (no air): motors + fan grip from rest to the drive-in speed on the flat; the car ends the run at x = 0
   const xs = [0]; { let x = 0, v = 0; while (v < P.v0 && xs.length < 1000) { const a = (tyreForce(m, v, RUN_SUP, MU_TYRE) - CDA * v * v) / m; x += v * DT + 0.5 * a * DT * DT; v += a * DT; xs.push(x); } }
   const tp = (xs.length - 1) * DT, dFlat = xs[xs.length - 1], N = Math.round((tp + 12) / DT), DEC = 6;   // DEC: m/s² rolling-stop deceleration, ASSUMED
   const run = tRoll => {
     const tr = newTraj(N), tk = newTank(P.p0), cap = BRAKE_G * m * G0;
     let mode = 'drive', y = 0, vy = 0, x = 0, vh = P.v0, tCut = NaN, tApex = NaN, tBrake = NaN, tLand = NaN, vTouch = NaN, ymax = 0, airClimb = 0, airLand = 0, landRoll = NaN, gPeak = 1;
+    let rol = 0, rollRate = 0, peakRollRate = 0, jetLimited = false, minJetCap = jetCap;
     let plan = null;
     const predict = delay => {                         // touch-down speed if the landing burn starts after `delay` s of free fall (99 = never lands softly)
       const k2 = { ...tk }; let yy = y, vv = vy;
@@ -363,25 +364,30 @@ function simRoll(P) {
         if (y <= 0 && vy < 0) { y = 0; vTouch = -vy; vy = 0; mode = 'land'; tLand = t; }
       } else { vh = Math.max(vh - DEC * DT, 0); x += vh * DT; }
       // roll (side jets), scheduled in absolute time
-      const tq = t - tRoll; let rol = 0, dir = 0;
-      if (tq > 0 && tq < ta) { rol = 0.5 * alpha * tq * tq; dir = 1; }
-      else if (tq >= ta && tq < T - ta) rol = 0.5 * alpha * ta * ta + omega * (tq - ta);
-      else if (tq >= T - ta && tq < T) { const d = T - tq; rol = TH - 0.5 * alpha * d * d; dir = -1; }
-      else if (tq >= T) rol = TH;
-      if (mode === 'land') { if (isNaN(landRoll)) landRoll = tr.c.rol[Math.max(i - 1, 0)]; rol = landRoll; dir = 0; }
-      const Fs = tk.m > 0 ? Fj : 0, used = dir ? 2 * Fs : 0;
-      put(tr, i, { x, y, pit: 0, rol, FL: F / 2, FR: F / 2, JLd: dir > 0 ? Fs : 0, JRu: dir > 0 ? Fs : 0, JLu: dir < 0 ? Fs : 0, JRd: dir < 0 ? Fs : 0, s: mode === 'drive' ? RUN_SUP : 0,
+      if (mode === 'land') { if (isNaN(landRoll)) landRoll = rol; rollRate = 0; }
+      const pushStart = Math.max(t, tRoll), pushEnd = Math.min(t + DT, tRoll + ta);
+      const brakeStart = Math.max(t, tRoll + T - ta), brakeEnd = Math.min(t + DT, tRoll + T);
+      const pushDt = mode === 'land' ? 0 : Math.max(0, pushEnd - pushStart);
+      const brakeDt = mode === 'land' ? 0 : Math.max(0, brakeEnd - brakeStart);
+      const sideCap = ROLL_JET * tk.p / P_REF, Fs = tk.m > 0 ? Math.min(Fj, sideCap) : 0;
+      if (pushDt + brakeDt > 0) { minJetCap = Math.min(minJetCap, sideCap); if (Fs < Fj - 1e-6) jetLimited = true; }
+      const pushForce = Fs * pushDt / DT, brakeForce = Fs * brakeDt / DT;
+      const used = 2 * (pushForce + brakeForce), rollAccel = 2 * Fs * ROLL_ARM / I;
+      put(tr, i, { x, y, pit: 0, rol, rollRate, FL: F / 2, FR: F / 2, JLd: pushForce, JRu: pushForce, JLu: brakeForce, JRd: brakeForce, s: mode === 'drive' ? RUN_SUP : 0,
         p: tk.p, T: tk.T, am: tk.m, ag: F > 0 ? F / (m * G0) : (mode === 'drive' || mode === 'land' ? 1 : 0) });
+      rol += rollRate * DT + rollAccel * (pushDt * (t + DT - (pushStart + pushEnd) / 2) - brakeDt * (t + DT - (brakeStart + brakeEnd) / 2));
+      rollRate += rollAccel * (pushDt - brakeDt);
+      peakRollRate = Math.max(peakRollRate, Math.abs(rollRate));
       tankBurn(tk, F + used, P.isp, DT);
     }
-    return { tr, tk, tCut, tApex, tBrake, tLand, vTouch, ymax, airClimb, airLand, landRoll, gPeak };
+    return { tr, tk, tCut, tApex, tBrake, tLand, vTouch, ymax, airClimb, airLand, landRoll, gPeak, peakRollRate, jetLimited, minJetCap };
   };
   let r = run(1e9);                                                    // pass 1: find the apex time
   const tApex1 = isNaN(r.tApex) ? tp + 2 : r.tApex, tRoll = Math.max(tApex1 - T / 2, tp + 0.2);   // roll centred on the apex
   r = run(tRoll);
   const rolledDeg = (isNaN(r.landRoll) ? r.tr.c.rol[N - 1] : r.landRoll) * 180 / Math.PI, landed = !isNaN(r.tLand);
   r.tr.info = { tp, dFlat, apex: r.ymax, hit: r.ymax >= H - 0.5, tCut: r.tCut, tApex: r.tApex, tBrake: r.tBrake, tf: r.tLand, tfl: r.tLand - tp, dist: P.v0 * (r.tLand - tp), vTouch: r.vTouch,
-    landed, crashed: !landed || r.vTouch > 6, airClimb: r.airClimb, airLand: r.airLand, gPeak: r.gPeak, I, tau, tauBB, Fj, jetCap, alpha, omegaDeg: omega * 180 / Math.PI, ta, limited, Teff: T,
+    landed, crashed: !landed || r.vTouch > 6, airClimb: r.airClimb, airLand: r.airLand, gPeak: r.gPeak, I, tau, tauBB, Fj, jetCap, minJetCap: r.minJetCap, alpha, omegaDeg: r.peakRollRate * 180 / Math.PI, ta, limited: limited || r.jetLimited, Teff: T,
     air: r.tk.m0 - r.tk.m, rollEnd: tRoll + T, rolledDeg, landOK: landed && Math.abs(rolledDeg - 360) < 20, m0: r.tk.m0, tEnd: (N - 1) * DT, t0: tRoll,
     stopX: r.tr.c.x[N - 1] };
   return r.tr;
@@ -1260,7 +1266,7 @@ function drawPlots() {
     const ymax = Math.max(...pts.map(p => p[1]), 4) * 1.05, ax = axes(cx, a.w, a.h, 1, 2.5, 0, ymax);
     curve(cx, pts.map(p => [p[0], p[1]]), ax.X, ax.Y, '#ff2e97', 2);
     const cap = ROLL_JET * P.p0 / P_REF / 1000; cx.strokeStyle = '#f87171'; cx.setLineDash([4, 3]); cx.beginPath(); cx.moveTo(ax.L, ax.Y(cap)); cx.lineTo(a.w - ax.R, ax.Y(cap)); cx.stroke(); cx.setLineDash([]);
-    cx.fillStyle = '#f87171'; cx.textAlign = 'left'; cx.fillText('one side jet at this tank pressure: ' + cap.toFixed(1) + ' kN (assumed)', ax.L + 4, ax.Y(cap) - 6);
+    cx.fillStyle = '#f87171'; cx.textAlign = 'left'; cx.fillText('initial jet capacity: ' + cap.toFixed(1) + ' kN; falls with pressure (assumed)', ax.L + 4, ax.Y(cap) - 6);
     marker(cx, ax.X(P.rt), ax.Y(S.tr.info.Fj / 1000), '#fbbf24');
     cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('roll time (s) · thrust in kN', a.w / 2 + 10, a.h - 4);
   } else {
@@ -1332,16 +1338,16 @@ function updateReadouts(o) {
     SEP(); R('Time', `${S.t.toFixed(2)} s`); R('Altitude', `${o.y.toFixed(2)} m`); R('Jet thrust ÷ weight', `${((o.FL + o.FR) / (m * G0)).toFixed(2)} ×`, 'ASM', 'hi', 'The four down-jets are assumed to share the 4 × 20 kN scale of the rear nozzles — Tesla published no figure');
     tank(); SEP(); R('Touch-down speed', isNaN(i.vTouch) ? '–' : `${i.vTouch.toFixed(1)} m/s`, 'DER', i.vTouch > 6 ? 'warn' : 'ok', 'Once the tank can\'t hold the car it simply falls: no landing burn in this run');
   } else if (pre === 'roll') {
-    R('Apex height', `≈ ${i.apex.toFixed(1)} m`, 'REP', i.hit ? 'hi' : 'warn', 'Reported peak: 26 ft (7.9 m) in the demo; the data pack says ≈7 m. The down-jets lift the car until its coasting height reaches the target — ask for more than the air allows and the landing gets hard');
+    R('Apex height', `≈ ${i.apex.toFixed(1)} m`, 'DER', i.hit ? 'hi' : 'warn', 'Computed peak for the selected target height. Reported reference: 26 ft (7.9 m) in the demo; the data pack says ≈7 m. The down-jets lift the car until its coasting height reaches the target — ask for more than the air allows and the landing gets hard');
     R('Drive-in', `${i.dFlat.toFixed(1)} m · ${i.tp.toFixed(1)} s to ${P.v0.toFixed(1)} m/s`, 'ASM', '', 'Motors with 2 g of fan grip, no air, no rear thrusters. In the air nothing pushes sideways: the horizontal speed is the drive-in speed');
     R('Lift burn', `${i.airClimb.toFixed(0)} kg of air · ${(i.tCut - i.tp).toFixed(1)} s`, 'DER', '', 'Down-jets at up to 3.3 × weight until the coasting height reaches the target');
     R('Landing burn', `${i.airLand.toFixed(0)} kg of air`, 'DER', '', 'Started at the last moment from which a full burn still sets the car down; thrust sags as the tank empties');
     R('Touch-down speed', `${i.vTouch.toFixed(1)} m/s`, 'DER', i.crashed ? 'warn' : 'ok', 'Above ~6 m/s the landing is hard. Blowdown leaves too little thrust for the last metres if too much air went into the climb');
     R('Flight time · distance', `${i.tfl.toFixed(1)} s · ${i.dist.toFixed(0)} m`, 'DER', '', 'Horizontal speed × time in the air');
-    R('Side jet thrust', `${(i.Fj / 1000).toFixed(1)} kN of ${(i.jetCap / 1000).toFixed(1)} max`, 'ASM', i.limited ? 'warn' : 'hi', 'Two jets fire as a couple (lever 2 × 1.05 m). Tesla published no side-jet thrust; 8 kN at 379 bar is assumed');
+    R('Jet need / min capacity', `${(i.Fj / 1000).toFixed(1)} / ${(i.minJetCap / 1000).toFixed(1)} kN`, 'ASM', i.limited ? 'warn' : 'hi', 'Required thrust per jet / lowest available maximum during the pulses. Two jets form a couple, lever 2 × 1.05 m. The assumed 8 kN at 379 bar scales with current tank pressure; insufficient thrust changes the actual rotation');
     R('Push·coast·brake', `${i.ta.toFixed(2)} · ${(i.Teff - 2 * i.ta).toFixed(2)} · ${i.ta.toFixed(2)} s`, 'DER', '', 'The jets fire for 22 % of the roll time, coast, then the opposite jets fire for the same time');
-    R('Coasting spin rate', `${i.omegaDeg.toFixed(0)} °/s`, 'DER', '', 'ω = α · push time');
-    R('Roll torque (pulse)', `${(i.tau / 1000).toFixed(1)} kN·m`, 'DER', '', 'τ = I·α with push-coast-brake. The gentlest possible bang-bang roll would need ' + (i.tauBB / 1000).toFixed(1) + ' kN·m (data pack §6: 6.4 kN·m at 2,350 kg, 2.0 s)');
+    R('Coasting spin rate', `${i.omegaDeg.toFixed(0)} °/s`, 'DER', '', 'Peak roll rate integrated from the delivered torque. Angular momentum stays constant while the jets are off; commanded acceleration × push time applies only without pressure limiting');
+    R('Required roll torque', `${(i.tau / 1000).toFixed(1)} kN·m`, 'DER', '', 'Requested τ = I·α for the pulse schedule; delivered torque is limited by current tank pressure. The gentlest possible bang-bang roll would need ' + (i.tauBB / 1000).toFixed(1) + ' kN·m (data pack §6: 6.4 kN·m at 2,350 kg, 2.0 s)');
     R('Moment of inertia', `${i.I.toFixed(0)} kg·m²`, 'EST', '', 'Box 2.0 × 1.1 m: I = m(w²+h²)/12');
     R('Rolled at landing', `${i.rolledDeg.toFixed(0)}°`, 'DER', i.landOK ? 'ok' : 'warn', '360° = lands on its wheels');
     R('Air used', `${i.air.toFixed(0)} kg`, 'DER');

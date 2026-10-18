@@ -576,12 +576,11 @@ function peakImpact(ords){
                                                           : 'no orders: d < λ, only m = 0 survives',
             fwhm:w};
   }
-  let best=ords[0], outer=ords[0];
+  let best=ords.find(o=>o.m===0)||ords[0], outer=ords[0];
   for(const o of ords){
-    if(o.m!==0 && o.I>best.I) best=o;
+    if(o.I>best.I) best=o;
     if(Math.abs(o.th)>Math.abs(outer.th)) outer=o;
   }
-  if(best.m===0) best=null;
   return {n:ords.length, outer, best, fwhm:fwhmRad(),
     where:`${ords.length} order${ords.length===1?'':'s'} · outermost m = ${outer.m>0?'+':''}${outer.m} at ≈ ${deg(outer.th).toFixed(1)}°`};
 }

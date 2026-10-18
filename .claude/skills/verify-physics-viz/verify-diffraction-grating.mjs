@@ -325,6 +325,21 @@ try {                                             // B5 scrub(t) ≡ play(t), on
     'peak intensity within 10% AND order number within 0.01; replayed wavefront count = played count = the deterministic schedule (±1); and a mid-build scrub reads the partial value its arrived-wavefront count implies (±8%)');
 } catch (e) { rec('B5', 'physics', false, 'threw: ' + e.message, 'play == scrub, on replay-dependent quantities'); }
 
+try {
+  const predictions = [];
+  for (const scenario of ['double', 'grating', 'subwave']) {
+    await tab(scenario);
+    predictions.push(await page.evaluate(() => {
+      const heading = [...document.querySelectorAll('#rdl dt')].find(element => /brightest order/i.test(element.textContent));
+      const angles = Array.from({ length: 171 }, (_, index) => index - 85);
+      return { centre: window.__vpz.I(0), maximum: Math.max(...angles.map(angle => window.__vpz.I(angle))), text: heading?.nextElementSibling?.textContent || '' };
+    }));
+  }
+  rec('B6', 'physics', predictions.every(prediction => Math.abs(prediction.centre - 1) < 1e-12 && prediction.maximum <= 1 + 1e-12 && /m\s*=\s*0\s*·/.test(prediction.text) && /100\.0\s*% at 0\.0°/.test(prediction.text)),
+    predictions.map(prediction => prediction.text).join(' / '),
+    'double slit, grating and sub-wavelength: central order is the predicted brightest at 100.0%, 0.0°; normalized intensity never exceeds 1');
+} catch (e) { rec('B6', 'physics', false, 'threw: ' + e.message, 'brightest-order prediction includes the central maximum'); }
+
 /* ============================================================ INSIGHT (C) */
 try {                                             // C1 more slits ⇒ sharper lines: FWHM ∝ 1/N
   // Reference: the grating factor near a principal maximum is sinc²(Nφ/2); sinc² falls to

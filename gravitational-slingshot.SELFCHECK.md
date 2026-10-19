@@ -114,3 +114,16 @@ the same approach, meets the surface, and **freezes there**: closest approach 1.
 impact speed 60.21 km/s (Jupiter's escape speed is 59.5 km/s, so `√(9.0² + 59.5²) = 60.2` ✓), and
 every downstream row reads `⚠ impact` rather than an invented "after". The Δv-vs-b plot marks the
 whole forbidden band in red. Nothing throws; the readout never shows NaN.
+
+## Phone presentation (Experiment mode)
+
+Added after the desktop acceptance above; the flyby kernel and every number are unchanged.
+
+- Desktop harness `verify-gravitational-slingshot.mjs`: **14 / 14 PASS** on the edited file (A1–A5, B1–B5, C1, C2, C5, C6).
+- Phone harness `verify-gravitational-slingshot-mobile.mjs`: **P1–P10 PASS** — four portrait sizes (320×568 … 430×932)
+  fit with stage ≥ 120 px and plot ≥ 100 px; all four flybys preserve state across Experiment ⇄ Full lab;
+  **Keep run** survives flipping the aim from +12 to −12 R_J (boost → brake), is drawn, and the strip reports both;
+  real touch drag re-aims and pans; the sheet pauses, exposes controls / measures / prose, and restores the
+  original nodes; rotation keeps the mode; desktop mouse aim-drag, pan and schematic inset still work;
+  collection phone menu opens the piece; zero errors, zero network requests.
+- Before the probe arrives the phone shows `Predicted: ≈ +5.35 km/s · periapsis ≈ 3.1 R_J` and no measured Δv.

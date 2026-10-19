@@ -39,7 +39,7 @@ closing it leaves playback paused at the same time.
 **Experiment / Full lab** switches presentation without resetting the scenario, parameters,
 observer or timeline. Desktop screens still start in the original Full lab, and rotating a phone
 does not switch modes. The collection page uses a compact topic menu for this phone prototype.
-Roadster and Diffraction also have a phone presentation, described below; the slingshot and SOFAR pieces have not been adapted yet.
+Roadster, Diffraction and Slingshot also have a phone presentation, described below; only the SOFAR piece has not been adapted yet.
 
 The existing physics harness and
 [phone regression harness](./.claude/skills/verify-physics-viz/verify-sonic-boom-mobile.mjs)
@@ -80,6 +80,21 @@ same pausing detail sheet as the other two. Experiment / Full lab, rotation and 
 Sonic boom. The [phone harness](./.claude/skills/verify-physics-viz/verify-diffraction-grating-mobile.mjs)
 complements `verify-diffraction-grating.mjs`; run it in the Puppeteer container with the container paths
 to `diffraction-grating.html` and `index.html`.
+
+### Slingshot phone experiment
+
+[`gravitational-slingshot.html`](./gravitational-slingshot.html) defaults to **Experiment** up to 700 CSS pixels,
+starting on **Trailing pass**. A selector switches among the four flybys, and one slider carries the lesson:
+the aim, impact parameter *b*, whose sign decides boost (trailing edge) or brake (leading edge).
+The camera still dives to the encounter and pulls out to the whole orbit afterwards. The strip shows the
+predicted Δv and periapsis before the probe arrives, then the measured Δv once it has left. Drag the
+green ⌖ on the stage to re-aim.
+
+**Keep run** retains a dashed Sun-frame speed trace; flip *b* from +12 to −12 R<sub>J</sub> and the strip
+reports both Δv values, boost against brake. Switching flybys clears it. **Parameters**, **Measures**
+(velocity-space schematic, full readouts, Δv-vs-aim plot) and **Why?** open the same pausing detail sheet as
+the other phone pieces. The [phone harness](./.claude/skills/verify-physics-viz/verify-gravitational-slingshot-mobile.mjs)
+complements `verify-gravitational-slingshot.mjs`.
 
 ## Rebuilding the landing page
 

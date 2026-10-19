@@ -251,8 +251,8 @@ A new piece is not in this collection unless it is:
 
 ## 10. Phone presentation — "Experiment" mode
 
-`sonic-boom.html`, `diffraction-grating.html` and `tesla-roadster.html` carry a second presentation for phones. The other
-two pieces (`gravitational-slingshot.html`, `sofar-sound-channel.html`) have **not** been adapted yet. §§2–8 still describe the desktop **Full lab**; Experiment
+`sonic-boom.html`, `diffraction-grating.html`, `gravitational-slingshot.html` and `tesla-roadster.html` carry a second presentation for phones. The other
+piece (`sofar-sound-channel.html`) has **not** been adapted yet. §§2–8 still describe the desktop **Full lab**; Experiment
 is an additive layer over the *same* DOM, kernel and state, never a fork of them.
 
 **Mode model**
@@ -348,9 +348,24 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
   inset orbit), with wider touch targets for the detector (36 px) and slit-stack handle (24 px).
 - Measures sheet order is inset → readouts → width plot so the orbitable schematic is on screen first.
 
+**Slingshot specifics (2-D, no WebGL)**
+
+- One lever for all four flybys — the aim `b` (its label carries the trailing/leading word). The stage's own
+  ⌖ aim point is the same control; a touch drag needs a 34 px target, a cursor 18 px.
+- The strip has no kernel result object to re-word: it reads `S._in` / `S._out` / `S._hit` and the
+  closed-form `S.pred` (`flyby()`), so the *predicted* Δv is shown before the run and the *measured* Δv
+  (headline, amber) only once `flybyDone()` — never an invented "after".
+- **Keep run** stores a copy of `S.hist` and the run length `T`; the held Sun-frame speed is drawn dashed
+  cyan with its time axis normalised by `T`, so a changed `b` or `v∞` (which changes `T`) keeps the
+  encounter aligned. A parameter change rebuilds the run at the same *fraction*, so compare `S.n/S.N`, not `S.n`.
+- Stage clutter removed in Experiment: legend block, event banner (the strip says it), encounter-sphere
+  caption; the plot keeps short legend labels and drops the `km/s` corner label (the caption carries the unit).
+- Camera director is unchanged and still hands the stage to the whole heliocentric orbit after closest
+  approach, so the probe is small by then — the strip and plot carry the result.
+
 **Collection page (`build-index.mjs` → `index.html`)**
 
-- Also carries the viewport meta. For the adapted pieces (`pocket = sonic-boom | diffraction | roadster`) at ≤ 700 px
+- Also carries the viewport meta. For the adapted pieces (`pocket = sonic-boom | diffraction | slingshot | roadster`) at ≤ 700 px
   the page gets `body.pocket`: header collapses to a one-line `<select id="topicSelect">`, `100dvh`
   app, and the "what am I looking at" intro is **skipped** (the piece explains itself).
 - When a new piece gains a phone mode, add its key to `pocket` in `build-index.mjs`, then rebuild
@@ -358,7 +373,7 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
 
 **Verification** — run **alongside** `verify.mjs`, not instead of it, in the Puppeteer container
 (`isMobile:true, hasTouch:true, deviceScaleFactor:2`): `verify-sonic-boom-mobile.mjs`,
-`verify-diffraction-grating-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
+`verify-diffraction-grating-mobile.mjs`, `verify-gravitational-slingshot-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
 the four portrait sizes fit; play/restart/scenario switches preserve state across modes; held trace
 survives parameter changes; real touch drag moves the observer and doesn't snap back; sheet pauses and
 restores the original nodes; rotation keeps the chosen mode while a fresh desktop load stays Full

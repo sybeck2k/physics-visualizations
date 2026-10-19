@@ -13,6 +13,7 @@ const SRC = {
   slingshot:    "gravitational-slingshot.html",
   sofar:        "sofar-sound-channel.html",
   roadster:     "tesla-roadster.html",
+  turbopump:    "turbopump.html",
 };
 
 // Orientation copy — house tone: second person, present, name the scene before the physics.
@@ -47,8 +48,14 @@ const META = {
     watch: `The tank is a blowdown bottle: as air leaves, pressure and thrust fall together, so 250 kg of air buys a launch, a hop or a flip but not a flight. On the wall, upside-down needs only more than 1 g of suction to stay, but getting there needs a little more because tyres give back less grip per extra load.`,
     act: `Press Play on the launch, then drag the gauge in the inset to change the tank pressure and watch the 0–60 time slide across Tesla's claims. Try Hover hop and Barrel roll, then tab 2: drag the car along the ramp in Park & fade, cut the suction below 1 g, or tick the 4,700 kg box to see Tesla's own numbers disagree. Drag the scene to orbit; the Chase / Pad / Top buttons change the camera.`,
   },
+  turbopump: {
+    n: "Rocket turbopump",
+    scene: `A top-down view of a centrifugal pump impeller, to scale: the white curves are the blades, the faint ring around them is the diffuser, and the coloured rings are pressure — blue at the inlet, amber at the outlet. The green dot is one drop of liquid riding through. The cyan knob on the casing is the shaft speed. Lower-left is the pressure that one drop feels over a few milliseconds; lower-right is the pressure rise against the liquid's density.`,
+    watch: `The pump holds up a tower of liquid of a fixed height, whatever the liquid is. Pressure is that tower's weight, so heavy oxygen presses hard and light hydrogen barely presses — about 16× less from the very same pump. That is why the shuttle's hydrogen pump spins at 37,000 rpm and needs three stages.`,
+    act: `Press Play and follow the green drop. Drag the cyan knob to spin the pump up, then slide the density down toward hydrogen and watch the pressure fall while the head stays put. Cut the inlet pressure and watch bubbles form on the blade tips — cavitation. Tab 4 is the Raptor, every pump figure of which is an estimate.`,
+  },
 };
-const ORDER = ["sonic-boom", "diffraction", "slingshot", "sofar", "roadster"];
+const ORDER = ["sonic-boom", "diffraction", "slingshot", "sofar", "roadster", "turbopump"];
 
 const data = {};
 for (const k of ORDER) data[k] = fs.readFileSync(SRC[k], "utf8");
@@ -193,7 +200,7 @@ const TAIL = [
 'function closeIntro(){ intro.hidden = true; }',
 'function show(k){',
 '  cur = k;',
-'  var pocket = k === "sonic-boom" || k === "diffraction" || k === "slingshot" || k === "sofar" || k === "roadster";',
+'  var pocket = k === "sonic-boom" || k === "diffraction" || k === "slingshot" || k === "sofar" || k === "roadster" || k === "turbopump";',
 '  document.body.classList.toggle("pocket", pocket);',
 '  topicSelect.value = k;',
 '  frame.srcdoc = RESET + DATA[k];',

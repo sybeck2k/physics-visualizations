@@ -13,8 +13,9 @@ counter-intuitive fact is obvious.
 | Gravitational slingshot | [`gravitational-slingshot.html`](https://sybeck2k.github.io/physics-visualizations/gravitational-slingshot.html) | The flyby only turns the probe's velocity in the planet's frame; the speed gain exists only in the Sun's frame. |
 | SOFAR sound channel | [`sofar-sound-channel.html`](https://sybeck2k.github.io/physics-visualizations/sofar-sound-channel.html) | A sound-speed minimum is a waveguide: rays are trapped and carry sound across an ocean, while a phone nearby can sit in silence. |
 | Tesla Roadster: air & suction | [`tesla-roadster.html`](https://sybeck2k.github.io/physics-visualizations/tesla-roadster.html) | A cold-air tank is a blowdown bottle — 250 kg of air buys a launch or a hop, not a flight. (WebGL 3-D scene.) |
+| Rocket turbopump | [`turbopump.html`](https://sybeck2k.github.io/physics-visualizations/turbopump.html) | A pump holds up a tower of liquid of one fixed height whatever the liquid; pressure is that tower's weight — so the same pump makes ~16× less pressure with hydrogen than with oxygen. |
 
-[`index.html`](https://sybeck2k.github.io/physics-visualizations/) is a landing page that embeds all five behind one set of tabs.
+[`index.html`](https://sybeck2k.github.io/physics-visualizations/) is a landing page that embeds all six behind one set of tabs.
 
 ## Using them
 
@@ -39,7 +40,7 @@ closing it leaves playback paused at the same time.
 **Experiment / Full lab** switches presentation without resetting the scenario, parameters,
 observer or timeline. Desktop screens still start in the original Full lab, and rotating a phone
 does not switch modes. The collection page uses a compact topic menu for this phone prototype.
-All five pieces have a phone presentation, described below.
+All six pieces have a phone presentation, described below.
 
 The existing physics harness and
 [phone regression harness](./.claude/skills/verify-physics-viz/verify-sonic-boom-mobile.mjs)
@@ -112,6 +113,25 @@ pausing detail sheet as the other phone pieces. The phone drops the c(z) side pa
 width; hand-sculpting the profile stays in Full lab. The
 [phone harness](./.claude/skills/verify-physics-viz/verify-sofar-sound-channel-mobile.mjs)
 complements `verify-sofar-sound-channel.mjs`.
+
+### Turbopump phone experiment
+
+[`turbopump.html`](./turbopump.html) is built with a phone presentation from the start: **Experiment** up to
+700 CSS pixels, starting on the **F-1 liquid-oxygen pump**. A selector switches among five pumps — the F-1's two,
+the Shuttle's hydrogen pump, a Raptor methane estimate, and the oxygen impeller fed any liquid. One slider carries
+the lesson: the liquid's **density**. A pump holds up a tower of liquid of one fixed height, whatever the liquid;
+pressure is that tower's weight, so the same impeller gives about 16× less with hydrogen than with oxygen.
+
+**Keep run** retains a dashed pressure trace; slide the density from oxygen down to hydrogen and the strip reports
+both pressure rises. The stage is a true-scale impeller (blade angles are the real blade angles) with a pressure
+map, a velocity triangle and one drop of liquid riding through; the cyan knob on the casing spins the pump, and on a
+phone you can drag it. **Parameters** (speed, density, blade angle, inlet pressure), **Measures** and **Why?** open the
+same pausing sheet as the other pieces.
+
+The numbers are anchored where the sources allow: the F-1's reported 5,500 rpm, flows and 41 MW; the Shuttle pump's
+37,000 rpm and three stages. Pump discharge pressures are *derived* from reported power and flow, and every Raptor
+pump figure is an estimate — each is marked with a confidence chip. The
+[phone harness](./.claude/skills/verify-physics-viz/verify-turbopump-mobile.mjs) complements `verify-turbopump.mjs`.
 
 ## Rebuilding the landing page
 

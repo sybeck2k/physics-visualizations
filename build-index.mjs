@@ -193,7 +193,7 @@ const TAIL = [
 'function closeIntro(){ intro.hidden = true; }',
 'function show(k){',
 '  cur = k;',
-'  var pocket = k === "sonic-boom" || k === "roadster";',
+'  var pocket = k === "sonic-boom" || k === "diffraction" || k === "roadster";',
 '  document.body.classList.toggle("pocket", pocket);',
 '  topicSelect.value = k;',
 '  frame.srcdoc = RESET + DATA[k];',

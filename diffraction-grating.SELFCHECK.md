@@ -133,3 +133,16 @@ dark"* — the same physics told a third way.
 
 Step 1 all pass · `verify.mjs` exits 0 with all 14 rows PASS · a = d/2 spot check clean on four
 settings · M1–M6 all pass ⇒ **done**, 3 of 8 harness runs used.
+
+## Phone presentation (Experiment mode)
+
+Added after the desktop acceptance above; the physics kernel and every number are unchanged.
+
+- Desktop harness `verify-diffraction-grating.mjs`: **15 / 15 PASS** on the edited file (A1–A5, B1–B6, C1, C2, C5, C6).
+- Phone harness `verify-diffraction-grating-mobile.mjs`: **P1–P10 PASS** — four portrait sizes (320×568 … 430×932)
+  fit with stage ≥ 120 px and plot ≥ 100 px (also with a held trace showing); all four regimes preserve state
+  across Experiment ⇄ Full lab; **Keep run** survives a 16 → 64 slit change, is drawn, and the line width
+  shrinks by > 2×; real touch drag moves the detector and pans; the sheet pauses, exposes controls / measures /
+  prose, and restores the original nodes; rotation keeps the mode; desktop mouse drag, pan and inset orbit
+  still work; collection phone menu opens the piece; zero errors, zero network requests.
+- Front-loaded prediction on the phone reads `Predicted: 5 orders, outermost at ≈ ±54.3°` before any light arrives.

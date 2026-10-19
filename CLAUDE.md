@@ -246,3 +246,124 @@ A new piece is not in this collection unless it is:
   card — plus a **confidence chip on every readout** (OFFICIAL / INTERVIEW / REPORTED / DERIVED / ESTIMATE / ASSUMED)
   because the source data mixes stated, reported and derived numbers.
 - A WebGL piece must still **degrade, never throw**: with no WebGL it shows a message and the readouts and plots keep running.
+
+---
+
+## 10. Phone presentation — "Experiment" mode
+
+`sonic-boom.html`, `diffraction-grating.html` and `tesla-roadster.html` carry a second presentation for phones. The other
+two pieces (`gravitational-slingshot.html`, `sofar-sound-channel.html`) have **not** been adapted yet. §§2–8 still describe the desktop **Full lab**; Experiment
+is an additive layer over the *same* DOM, kernel and state, never a fork of them.
+
+**Mode model**
+
+- `E = {mode, homes, hold, baseline}`. `E.mode` starts `'experiment'` iff `matchMedia('(max-width:700px)')`
+  matches, else `'lab'`. It is chosen **once at load**: rotating a phone must not switch modes, and a
+  desktop browser always starts in Full lab.
+- `setView(mode)` toggles `body.experiment`, swaps a few captions (e.g. "Your pressure signature"),
+  and calls `resize()`. A header `#viewMode` pair (**Experiment / Full lab**, `aria-pressed`) switches at
+  any time **without resetting** scenario, parameters, observer, timeline or playback.
+- Needs `<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">`
+  (the one head element the "artifact body" rule in §1 now allows, as the first line after `<title>`).
+
+**Implementation rules**
+
+- All Experiment CSS is scoped `body.experiment …`; phone-only elements carry `.experiment-only`
+  (`display:none` by default, `block` under `body.experiment`). Full lab CSS is not edited.
+- Mode-dependent canvas code reads `E.mode` (e.g. `const compact = E.mode==='experiment'` for
+  bigger paddings) rather than a second draw path.
+- Experiment controls are **proxies**: each writes the value into the real desktop control and
+  dispatches its `input`/`click`, so `reparam()`/`nudge()` and the kernel run unchanged
+  (`$('prog').value=…; dispatchEvent(new Event('input'))`). `updateExperiment()` reads `S`/`S.res`
+  back into the phone widgets every frame. Never duplicate physics for the phone.
+- Layout is a full-`100dvh` flex column, safe-area insets on header (top) and controls (bottom):
+  header (title + `#viewMode`) → `#experimentTop` scenario `<select>` (replaces tabs) → `main`
+  (stage, then **one** plot: the observer's lived signal) → `#experimentResult` → `#experimentControls`.
+  Rail, 3-D inset, floating readouts, second plot and the five-card `#explain` are hidden.
+- `@media (max-height:740px)` shrinks plot and result type; `@media (max-height:520px)` (landscape)
+  lets the body scroll over a fixed-height `#app` rather than crushing the stage.
+- Letter-spacing is 0 in Experiment (uppercase tracking wastes width); caption type stays mono.
+
+**Anatomy (top to bottom)**
+
+1. **Stage** — unobstructed. Touch: `touch-action:none` on the canvas and **Pointer Events** only
+   (`setPointerCapture`, `isPrimary`, handle `pointercancel`/`lostpointercapture`). Observer grab radius
+   is generous (≈ ±28 × ±52 px); any other drag pans / orbits; double-click recentres. A drag sets
+   `S._obsUserMoved`, and clears `E.hold`, so auto-placement cannot override the user.
+2. **Plot** — the time-domain panel only, ~142 px (≥ 100 px at every tested size).
+3. **Result strip** — a *state word* in `--green` (or `--red` via `.warn`) (`Arrives in ~N s` /
+   `Boom received` / `Outside the carpet` / `Refracted away`), the headline number in `--amber`, then the
+   **up-front prediction line** (`Predicted loudest: ~N Pa, where`), then the comparison line in `--cyan`.
+   Same named-state discipline as `computeObserver()` — the strip only re-words `S.res`.
+   Roadster adds the confidence chip (`.tg`, e.g. `DER`) beside the headline.
+4. **Controls** — transport (▶/❚❚, ↻, Timeline), **one primary lever** (the single slider that
+   best carries the lesson; its label/min/max/step are copied from the real slider per scenario), and an
+   action row: **Keep run · Parameters · Why?**.
+
+**Keep run** — the signature interaction. Freeze the current result into `E.baseline`, draw it as
+a dashed trace, change the lever, and compare against the new trace (`Held: … · +N Pa now`). It is
+disabled until there is something to keep; switching scenario clears it; tapping again clears it.
+
+**Detail sheet** — one modal `<dialog id="experimentDetails">`, sticky `#detailBar` of `data-detail`
+buttons (**Parameters / Measures / Why?**, ✕ close). It **moves the real DOM nodes** (rail, readouts,
+second plot, explainer cards) into `#detailContent`, leaving a comment node in `E.homes` so
+`restoreDetails()` puts each back exactly. Rules: opening **pauses** playback, and closing leaves it paused at
+the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32px)`; inside it ranges are
+32 px tall, checkboxes and buttons ≥ 44 px, readout rows wrap (`overflow-wrap:anywhere`), the plot is
+240 px. Because nodes are *moved* not cloned, ids and listeners survive — never clone.
+
+**Touch & sizing**
+
+- Every tappable control ≥ 44 px (`min-height:44px`); transport icons 44 × 44.
+- Must fit with **no page scroll** at 320×568, 375×667, 390×844, 430×932: stage ≥ 120 px (roadster
+  ≥ 110), plot ≥ 100 px, controls fully on screen, canvas CSS size == `W`×`H` (±0.5 px), observer / subject
+  not clipped.
+- Full lab behaviour must be unchanged by any phone edit (the desktop checks in `verify.mjs` still pass).
+
+**Roadster specifics (WebGL)**
+
+- Scenario `<select>` lists six experiments (launch, hover, barrel roll, wall climb, park-and-fade,
+  cornering); phone starts on **Hover hop**. Each has a portrait camera table and a per-experiment default map (`{tab, def}`);
+  Full lab keeps the launch default.
+- Detail sheet's **Measures** also hosts the 2-D air-system schematic and the plot-2 relationship
+  plot; the confidence-chip tooltips live there.
+- Drag the scene to orbit (`E.yaw` updates on touch); no WebGL ⇒ message shown, result strip, plots and
+  measurements keep running.
+
+**Diffraction specifics (2-D, no WebGL)**
+
+- Reuses the desktop stage, drawn through the same `draw()`; Experiment only *removes* clutter that
+  does not fit a ~140 px stage (`E.mode!=='experiment'` guards on the stage text labels, the phasor
+  box and the stage status banner — the result strip carries those states instead).
+- The one lever per scenario comes from a `LEVER` table `{id, name, max?}` (single → slit width,
+  double/sub-wavelength → spacing, grating → N); a `max` narrows the range to where the lesson is
+  (sub-wavelength stops at 1.6 µm so the d = λ crossing is reachable by thumb).
+- Strip = state word (`Light at slits in ~N fs` / `Pattern in ~N fs` / `Pattern building` / `Reading` /
+  `On a bright order` / red `Dark null`), detector power in amber, and the prediction from `S._peak`
+  (the kernel's `peakImpact()`, shortened to one line so it never wraps at 320 px).
+- **Keep run** stores the cached `screenCurve()` object (never mutated, only replaced) plus its ramp, and
+  `drawScreenPlot()` draws it dashed cyan, placed by its own screen coordinate so a changed L or aperture
+  still lines up. The comparison line is the *line width* (FWHM) held vs now — the lesson, in numbers.
+- Stage input was migrated from `mousedown/mousemove/mouseup` to Pointer Events (same for the 3-D
+  inset orbit), with wider touch targets for the detector (36 px) and slit-stack handle (24 px).
+- Measures sheet order is inset → readouts → width plot so the orbitable schematic is on screen first.
+
+**Collection page (`build-index.mjs` → `index.html`)**
+
+- Also carries the viewport meta. For the adapted pieces (`pocket = sonic-boom | diffraction | roadster`) at ≤ 700 px
+  the page gets `body.pocket`: header collapses to a one-line `<select id="topicSelect">`, `100dvh`
+  app, and the "what am I looking at" intro is **skipped** (the piece explains itself).
+- When a new piece gains a phone mode, add its key to `pocket` in `build-index.mjs`, then rebuild
+  `index.html` via the Docker command in `README.md`.
+
+**Verification** — run **alongside** `verify.mjs`, not instead of it, in the Puppeteer container
+(`isMobile:true, hasTouch:true, deviceScaleFactor:2`): `verify-sonic-boom-mobile.mjs`,
+`verify-diffraction-grating-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
+the four portrait sizes fit; play/restart/scenario switches preserve state across modes; held trace
+survives parameter changes; real touch drag moves the observer and doesn't snap back; sheet pauses and
+restores the original nodes; rotation keeps the chosen mode while a fresh desktop load stays Full
+lab; collection phone menu works; zero console errors and zero network requests. A new phone mode
+needs an equivalent `verify-<piece>-mobile.mjs`.
+
+**Tone** — phone copy is shorter but follows §7 (second person, state the mechanism, `~` / `≈` on
+estimates, a unit on every number). Caveats and the units primer live behind **Why?**, never dropped.

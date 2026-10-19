@@ -39,7 +39,7 @@ closing it leaves playback paused at the same time.
 **Experiment / Full lab** switches presentation without resetting the scenario, parameters,
 observer or timeline. Desktop screens still start in the original Full lab, and rotating a phone
 does not switch modes. The collection page uses a compact topic menu for this phone prototype.
-Roadster also has a phone presentation, described below; the other three pieces have not been adapted yet.
+Roadster and Diffraction also have a phone presentation, described below; the slingshot and SOFAR pieces have not been adapted yet.
 
 The existing physics harness and
 [phone regression harness](./.claude/skills/verify-physics-viz/verify-sonic-boom-mobile.mjs)
@@ -63,6 +63,23 @@ With no WebGL, the phone result, plots, and measurements still work.
 The [Roadster phone harness](./.claude/skills/verify-physics-viz/verify-roadster-mobile.mjs)
 complements the existing physics harness. Run it in the Puppeteer container with software GL,
 passing the container paths to `tesla-roadster.html` and `index.html`, and optionally a screenshot directory.
+
+### Diffraction phone experiment
+
+[`diffraction-grating.html`](./diffraction-grating.html) defaults to **Experiment** up to 700 CSS pixels,
+starting on **Grating**. A selector switches among the four regimes, and one slider carries each lesson:
+slit width *a* (single), spacing *d* (double and sub-wavelength) or slit count *N* (grating).
+The stage and your screen pattern stay in view, with the detector's power and a prediction of how many
+orders exist and where the outermost lands, both shown before any light arrives. Drag the green detector
+around the arc to read the pattern. After the pattern builds, **Keep run** retains a dashed trace so you
+can add slits (or narrow the slit, or widen the gap) and see the line width change; the strip reports
+both widths. Switching regimes clears it.
+
+**Parameters**, **Measures** (schematic inset, full readouts, line-width-vs-N plot) and **Why?** open the
+same pausing detail sheet as the other two. Experiment / Full lab, rotation and desktop behave as in
+Sonic boom. The [phone harness](./.claude/skills/verify-physics-viz/verify-diffraction-grating-mobile.mjs)
+complements `verify-diffraction-grating.mjs`; run it in the Puppeteer container with the container paths
+to `diffraction-grating.html` and `index.html`.
 
 ## Rebuilding the landing page
 

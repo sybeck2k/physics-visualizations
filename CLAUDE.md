@@ -251,8 +251,8 @@ A new piece is not in this collection unless it is:
 
 ## 10. Phone presentation — "Experiment" mode
 
-`sonic-boom.html`, `diffraction-grating.html`, `gravitational-slingshot.html` and `tesla-roadster.html` carry a second presentation for phones. The other
-piece (`sofar-sound-channel.html`) has **not** been adapted yet. §§2–8 still describe the desktop **Full lab**; Experiment
+All five pieces (`sonic-boom`, `diffraction-grating`, `gravitational-slingshot`, `sofar-sound-channel`, `tesla-roadster`) carry a second presentation for phones. §§2–8
+still describe the desktop **Full lab**; Experiment
 is an additive layer over the *same* DOM, kernel and state, never a fork of them.
 
 **Mode model**
@@ -363,9 +363,23 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
 - Camera director is unchanged and still hands the stage to the whole heliocentric orbit after closest
   approach, so the probe is small by then — the strip and plot carry the result.
 
+**SOFAR specifics (2-D, no WebGL)**
+
+- The lever is the **hydrophone depth** (`#rcvd`); the stage's green hydrophone is the same control. The
+  phone sets `PW` (the c(z) side panel width, now a `let`) to 4 so the water gets the full width, and
+  never draws or hit-tests the panel; profile sculpting and its reset button (`.lab-only`) stay in Full lab.
+- Strip states come from `computeObserver()`'s `R` (`shadow`, `starved`, `ducted`, countdown) — a true
+  shadow zone shows no loss figure; a ray-starved one shows its real, very large loss (> 90 dB).
+- **Keep run** stores a plain copy of the arrivals (`t`, `TL`, `ns`, `nb`), aligned on its own first arrival
+  and drawn dashed cyan on **one common loudness scale** with the live train, so a quieter spot looks quieter.
+- A floating desktop overlay (inset, readout card) can sit on top of the hydrophone at the default range,
+  which is why the desktop test drags the *source*; on the phone those overlays are not on the stage.
+- Stage text is cut to what survives a ~140 px stage: the axis/envelope/wavefront captions and the
+  shadow/arrivals banners go; the vertical-exaggeration note stays (shortened) because it is an honesty disclosure.
+
 **Collection page (`build-index.mjs` → `index.html`)**
 
-- Also carries the viewport meta. For the adapted pieces (`pocket = sonic-boom | diffraction | slingshot | roadster`) at ≤ 700 px
+- Also carries the viewport meta. For the adapted pieces (`pocket` is now all five keys) at ≤ 700 px
   the page gets `body.pocket`: header collapses to a one-line `<select id="topicSelect">`, `100dvh`
   app, and the "what am I looking at" intro is **skipped** (the piece explains itself).
 - When a new piece gains a phone mode, add its key to `pocket` in `build-index.mjs`, then rebuild
@@ -373,7 +387,7 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
 
 **Verification** — run **alongside** `verify.mjs`, not instead of it, in the Puppeteer container
 (`isMobile:true, hasTouch:true, deviceScaleFactor:2`): `verify-sonic-boom-mobile.mjs`,
-`verify-diffraction-grating-mobile.mjs`, `verify-gravitational-slingshot-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
+`verify-diffraction-grating-mobile.mjs`, `verify-gravitational-slingshot-mobile.mjs`, `verify-sofar-sound-channel-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
 the four portrait sizes fit; play/restart/scenario switches preserve state across modes; held trace
 survives parameter changes; real touch drag moves the observer and doesn't snap back; sheet pauses and
 restores the original nodes; rotation keeps the chosen mode while a fresh desktop load stays Full

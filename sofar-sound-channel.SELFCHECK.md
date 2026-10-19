@@ -135,3 +135,17 @@ absorption 0.0035 dB/km at ~100 Hz; low-grazing-angle bottom loss 8 dB/bounce; 5
 5000 m ocean. `traceRay()` is the single kernel: the drawn fan, the eigenrays, the arrival train,
 the transmission-loss curve and the up-front "best listening depth" prediction all come out of
 it, so the picture and the numbers cannot drift apart.
+
+## Phone presentation (Experiment mode)
+
+Added after the desktop acceptance above; the ray kernel and every number are unchanged.
+
+- Desktop harness `verify-sofar-sound-channel.mjs`: **15 / 15 PASS** on the edited file (A1–A5, B1–B6, C1, C2, C5, C6).
+- Phone harness `verify-sofar-sound-channel-mobile.mjs`: **P1–P10 PASS** — four portrait sizes (320×568 … 430×932)
+  fit with stage ≥ 120 px and plot ≥ 100 px; all five profiles preserve state across Experiment ⇄ Full lab;
+  the shadow-zone profile never shows an invented loss figure; **Keep run** survives moving the hydrophone from
+  1300 m to 1000 m, is drawn, and the strip reports both losses; real touch drag moves the hydrophone and pans;
+  the sheet pauses, exposes controls / measures / prose, and restores the original nodes; rotation keeps the mode;
+  desktop keeps the c(z) panel, and source drag, pan/recenter and wheel zoom still work; collection phone menu
+  opens the piece; zero errors, zero network requests.
+- Before any sound arrives the phone shows `Predicted best depth ≈ 1300 m · ≈ 77 dB` and no loss reading.

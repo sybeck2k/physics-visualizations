@@ -39,7 +39,7 @@ closing it leaves playback paused at the same time.
 **Experiment / Full lab** switches presentation without resetting the scenario, parameters,
 observer or timeline. Desktop screens still start in the original Full lab, and rotating a phone
 does not switch modes. The collection page uses a compact topic menu for this phone prototype.
-Roadster, Diffraction and Slingshot also have a phone presentation, described below; only the SOFAR piece has not been adapted yet.
+All five pieces have a phone presentation, described below.
 
 The existing physics harness and
 [phone regression harness](./.claude/skills/verify-physics-viz/verify-sonic-boom-mobile.mjs)
@@ -95,6 +95,23 @@ reports both Δv values, boost against brake. Switching flybys clears it. **Para
 (velocity-space schematic, full readouts, Δv-vs-aim plot) and **Why?** open the same pausing detail sheet as
 the other phone pieces. The [phone harness](./.claude/skills/verify-physics-viz/verify-gravitational-slingshot-mobile.mjs)
 complements `verify-gravitational-slingshot.mjs`.
+
+### SOFAR phone experiment
+
+[`sofar-sound-channel.html`](./sofar-sound-channel.html) defaults to **Experiment** up to 700 CSS pixels,
+starting on **Deep channel**. A selector switches among the five ocean profiles, and one slider carries the
+lesson: the hydrophone's depth, because where you listen decides whether the sound is there at all.
+The strip names the state (trapped in the channel, bouncing, ray-starved, shadow zone), shows the
+transmission loss once sound has arrived, and predicts the best listening depth up front. Drag the green
+hydrophone on the stage to move it; drag the cyan source to move that.
+
+**Keep run** retains the arrival train as dashed cyan stems on the same loudness scale as the live one;
+move the hydrophone out of the channel and the strip reports both losses. Switching profiles clears it.
+**Parameters**, **Measures** (1:1 fan inset, full readouts, loss-vs-range plot) and **Why?** open the same
+pausing detail sheet as the other phone pieces. The phone drops the c(z) side panel to give the water the
+width; hand-sculpting the profile stays in Full lab. The
+[phone harness](./.claude/skills/verify-physics-viz/verify-sofar-sound-channel-mobile.mjs)
+complements `verify-sofar-sound-channel.mjs`.
 
 ## Rebuilding the landing page
 

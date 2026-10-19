@@ -88,8 +88,28 @@ At 200 bar the same command lands at 277.4°; the readout warns and shows the lo
 
 ## Limits of this check
 
+### Phone presentation (2026-10-19)
+
+The phone **Experiment** mode shares the precomputed trajectories and confidence-labelled readouts
+with Full lab. It defaults to Hover hop; desktop retains the launch default. All 32 physics checks
+were rerun successfully after the presentation changes.
+
+Additional harness: `.claude/skills/verify-physics-viz/verify-roadster-mobile.mjs`.
+
+| ID | Pass threshold |
+|----|----------------|
+| P1 | Script parses, no external dependencies; at 320×568, 375×667, 390×844, 430×932, all six experiments at 0/45/95% time: page overflow ≤2 px, stage ≥110 px, plot ≥100 px, controls inside viewport, all eight car-body corners inside camera frame |
+| P2 | All six experiments: pressure/result values finite, DER confidence chip present, plot ink >1%; mode round trips preserve time, parameters, playback and lab camera settings |
+| P3 | Switching views during playback preserves exact state; detail sheet pauses time and restores original nodes; held comparison remains after parameter changes |
+| P4 | Touch orbit changes the rendered image; rotation does not change presentation |
+| P5 | Desktop starts on launch in Full lab; embedded phone starts on hover without an intro overlay; zero browser errors and network requests |
+| P6 | With WebGL disabled, the phone still shows the fallback message, headline and ≥6 readout rows |
+
+- Phone screenshots were inspected for each of the six experiments and the measurement sheet.
+- Phone tests use Chromium touch emulation and software GL, not physical iPhone Safari.
+
 - Verified in headless Chromium with **software GL (SwiftShader)**, not on a real GPU. Frame rate on real hardware was not measured.
-- Narrow layouts (< 1100 px) hide the inset and shrink the readouts; checked by eye at 900×720 only.
+- Full lab narrow layouts (<1100 px) hide the inset and shrink readouts; Experiment moves these into the measurement sheet.
 - Sound is synthesised and wired (no errors) but was not *listened to*.
 - The wall sim is quasi-static for the climb and a point-mass fall afterwards; it does not model suction ramp-up, tyre slip angle,
   or the real ramp's profile (arc radius 10.6 m is chosen so 170° sits ≈21 m up, per the reported telemetry).

@@ -24,6 +24,46 @@ Or open any `.html` file locally in a browser. Press **Play**, drag the sliders,
 hydrophone on the stage, and switch scenario tabs. The five cards at the bottom explain what you
 are seeing, and they change with the active tab.
 
+### Sonic boom phone experiment
+
+[`sonic-boom.html`](./sonic-boom.html) opens in **Experiment** on screens up to 700 CSS pixels wide.
+You get an unobstructed scene, your observer's pressure signature, an up-front prediction,
+playback and a timeline, and one primary Mach slider. Drag the green observer to move it.
+After a boom arrives, tap **Keep run**, change Mach, and compare the retained trace with the new one.
+Changing scenarios clears the comparison.
+
+**Parameters** opens a sheet with additional controls, **Measures** contains the full readouts
+and distance plot, and **Why?** explains the mechanism and units. Opening the sheet pauses the run;
+closing it leaves playback paused at the same time.
+
+**Experiment / Full lab** switches presentation without resetting the scenario, parameters,
+observer or timeline. Desktop screens still start in the original Full lab, and rotating a phone
+does not switch modes. The collection page uses a compact topic menu for this phone prototype.
+Roadster also has a phone presentation, described below; the other three pieces have not been adapted yet.
+
+The existing physics harness and
+[phone regression harness](./.claude/skills/verify-physics-viz/verify-sonic-boom-mobile.mjs)
+check the two presentations. Run the latter in the same Puppeteer container used by the
+physics checks, passing the absolute container paths to `sonic-boom.html` and `index.html`.
+
+### Roadster phone experiments
+
+[`tesla-roadster.html`](./tesla-roadster.html) also defaults to **Experiment** up to 700 CSS pixels,
+starting with **Hover hop**. Its selector includes launch, hover, barrel roll, wall climb,
+park-and-fade, and cornering. Each has a portrait camera, one primary slider, an up-front
+prediction with its confidence chip, and a time trace in physical units.
+
+**Keep run** retains a dashed trace for comparison when you change parameters. Switching
+experiments clears it. **Parameters**, **Measures**, and **Why?** open the same pausing detail
+sheet as Sonic boom; Measures includes the air-system schematic, source-confidence tooltips,
+full readouts, and relationship plot. Drag the scene to orbit; double-click to recenter.
+The existing Full lab, launch default, cameras, sound options, and physics remain available.
+With no WebGL, the phone result, plots, and measurements still work.
+
+The [Roadster phone harness](./.claude/skills/verify-physics-viz/verify-roadster-mobile.mjs)
+complements the existing physics harness. Run it in the Puppeteer container with software GL,
+passing the container paths to `tesla-roadster.html` and `index.html`, and optionally a screenshot directory.
+
 ## Rebuilding the landing page
 
 After editing a piece, regenerate `index.html`. There is no host Node install on this setup, so use a container:

@@ -1,4 +1,5 @@
 <title>Sonic Boom Propagation</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>
   /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
   :root{
@@ -27,6 +28,7 @@
     margin:0; color:#e6edf6;
   }
   header h1 span{color:var(--cyan)}
+  header h1 .longtitle{color:inherit}
   .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
   .tabs button{
     font-family:var(--mono); font-size:11px; letter-spacing:.06em;
@@ -127,11 +129,83 @@
   .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
   @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
   @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+
+  .experiment-only{display:none}
+  #viewMode{display:flex; border:1px solid var(--line); border-radius:6px; padding:2px; gap:2px}
+  #viewMode button{font:10px var(--mono); color:var(--dim); background:transparent; border:0; border-radius:4px; padding:7px 9px; cursor:pointer}
+  #viewMode button[aria-pressed=true]{background:var(--panel2); color:var(--cyan)}
+  #main2d{touch-action:none}
+  #experimentDetails{width:min(100% - 16px,560px); max-height:calc(100dvh - 32px); margin:auto auto 8px; padding:0;
+    color:var(--ink); background:var(--panel); border:1px solid #33415a; border-radius:8px; overflow:auto}
+  #experimentDetails::backdrop{background:rgba(0,0,0,.65)}
+  #detailBar{position:sticky; top:0; display:flex; align-items:center; gap:4px; padding:8px; background:var(--panel); border-bottom:1px solid var(--line); z-index:4}
+  #detailBar button{min-height:44px; padding:0 12px; border:0; border-radius:4px; font:11px var(--mono); color:var(--dim); background:transparent; cursor:pointer}
+  #detailBar button[aria-pressed=true]{color:var(--cyan); background:var(--panel2)}
+  #detailBar #detailClose{margin-left:auto; min-width:44px; padding:0; font-size:24px}
+  #detailContent{padding:16px}
+  #detailContent aside{padding:0; border:0; overflow:visible}
+  #detailContent label.fld{font-size:12px; gap:6px}
+  #detailContent input[type=range]{height:32px; margin:0}
+  #detailContent label.chk{min-height:44px; font-size:12px}
+  #detailContent .btns button{min-height:44px}
+  #detailContent #readouts{position:static; width:auto; padding:0; border:0; border-radius:0; background:transparent; overflow:visible}
+  #detailContent #readouts dl{font-size:11px; gap:8px}
+  #detailContent #readouts dt{white-space:normal; min-width:0}
+  #detailContent #readouts dd{max-width:23ch; overflow-wrap:anywhere}
+  #detailContent .plot{height:210px; margin-top:20px}
+  #detailContent #explain{display:block; max-height:none; padding:0; border:0; overflow:visible}
+  #detailContent #explain .ex{max-height:none; overflow:visible; border:0; border-radius:0; background:none; padding:0 0 18px}
+  #detailContent #explain p{font-size:13px; line-height:1.7}
+  #detailContent #explain p.cav{font-size:12px}
+  body.experiment #app{height:100dvh}
+  body.experiment #app,body.experiment dialog{letter-spacing:0}
+  body.experiment header{padding:8px 12px; gap:8px; flex-wrap:nowrap; justify-content:space-between}
+  body.experiment header{padding-top:max(8px,env(safe-area-inset-top))}
+  body.experiment header h1{font-size:12px; letter-spacing:0; white-space:nowrap}
+  body.experiment .longtitle,body.experiment #tabs{display:none}
+  body.experiment .experiment-only{display:block}
+  body.experiment #experimentTop{padding:0 12px 8px; background:#070b12}
+  #experimentScenario{width:100%; min-height:40px; padding:0 10px; font:12px var(--mono); color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:4px}
+  body.experiment main{display:flex}
+  body.experiment main>aside,body.experiment #inset3d,body.experiment #stage>#readouts,body.experiment #plots>.plot:nth-child(2),body.experiment #app>#explain{display:none}
+  body.experiment #stagewrap{flex:1; min-height:0}
+  body.experiment #stage{overflow:hidden}
+  body.experiment #plots{flex:0 0 142px; display:block; background:#070a12}
+  body.experiment #plots>.plot:first-child{height:100%}
+  body.experiment #plots .cap{letter-spacing:0; color:var(--dim); font-size:10px}
+  #experimentResult{padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); flex-shrink:0}
+  #experimentResult .result-row{display:flex; justify-content:space-between; align-items:center; gap:12px}
+  #experimentStatus{font:600 17px var(--mono); color:var(--green)}
+  #experimentStatus.warn{color:var(--red)}
+  #experimentPressure{font:600 18px var(--mono); color:var(--amber); white-space:nowrap}
+  #experimentForecast{font:10px/1.5 var(--mono); color:var(--dim); margin-top:4px; overflow-wrap:anywhere}
+  #experimentComparison{font:10px/1.5 var(--mono); color:var(--cyan); margin-top:3px}
+  #experimentControls{flex-shrink:0; padding:8px 12px max(8px,env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel)}
+  #experimentTransport{display:flex; gap:6px; align-items:center}
+  #experimentControls button{min-height:44px; border:1px solid var(--line); border-radius:4px; background:var(--panel2); color:var(--ink); font:11px var(--mono); cursor:pointer}
+  #experimentTransport button{width:44px; flex-shrink:0; font-size:20px}
+  #experimentPlay{color:var(--cyan)!important}
+  #experimentTimeline{flex:1; min-width:0}
+  #experimentTime{display:block; font:10px var(--mono); color:var(--dim); text-align:right}
+  #experimentControls input[type=range]{height:28px; margin:0; display:block}
+  #experimentParameter{display:grid; grid-template-columns:1fr auto; gap:0 12px; font:11px var(--mono); color:var(--dim); margin-top:6px}
+  #experimentParameter output{color:var(--cyan)}
+  #experimentLever{grid-column:1/-1}
+  #experimentActions{display:flex; gap:6px; margin-top:4px}
+  #experimentActions button{flex:1; min-width:0}
+  #experimentControls button:disabled{opacity:.4; cursor:default}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+  @media (max-height:740px){body.experiment #plots{flex-basis:122px} #experimentStatus{font-size:15px} #experimentPressure{font-size:16px}}
+  @media (max-height:520px){body.experiment{overflow-y:auto} body.experiment #app{height:660px}}
 </style>
 
 <div id="app">
   <header>
-    <h1>Sonic&nbsp;<span>Boom</span>&nbsp;Propagation</h1>
+    <h1>Sonic&nbsp;<span>Boom</span><span class="longtitle">&nbsp;Propagation</span></h1>
+    <div id="viewMode" role="group" aria-label="Presentation">
+      <button type="button" data-view="experiment" aria-pressed="false">Experiment</button>
+      <button type="button" data-view="lab" aria-pressed="true">Full lab</button>
+    </div>
     <div class="tabs" id="tabs">
       <button data-s="accel" class="on">1 · Accelerating</button>
       <button data-s="cruise">2 · Supersonic cruise</button>
@@ -139,6 +213,14 @@
       <button data-s="lowboom">4 · Low‑boom X‑59</button>
     </div>
   </header>
+  <div id="experimentTop" class="experiment-only">
+    <select id="experimentScenario" aria-label="Scenario">
+      <option value="accel">Accelerating jet</option>
+      <option value="cruise">Supersonic cruise</option>
+      <option value="booster">Falcon 9 booster</option>
+      <option value="lowboom">Low-boom X-59</option>
+    </select>
+  </div>
 
   <main>
     <aside>
@@ -225,13 +307,18 @@
           <dl id="rdl"></dl>
         </div>
       </div>
+      <section id="experimentResult" class="experiment-only" aria-label="Your observer">
+        <div class="result-row"><span id="experimentStatus">Waiting for the boom</span><span id="experimentPressure"></span></div>
+        <div id="experimentForecast"></div>
+        <div id="experimentComparison" hidden></div>
+      </section>
       <div id="plots">
         <div class="plot">
-          <span class="cap">Observer N‑wave</span>
+          <span class="cap" id="signalCaption">Observer N‑wave</span>
           <canvas id="cNwave"></canvas>
         </div>
         <div class="plot">
-          <span class="cap">Δp vs distance — this boom, at different ranges</span>
+          <span class="cap" id="distanceCaption">Δp vs distance — this boom, at different ranges</span>
           <canvas id="cAtten"></canvas>
         </div>
       </div>
@@ -328,7 +415,29 @@
       ~1 ms rise is a knife‑edge crack; tens of ms is a soft thud — same Δp, ~10–20 PLdB apart.</p>
     </div>
   </section>
+  <section id="experimentControls" class="experiment-only" aria-label="Experiment controls">
+    <div id="experimentTransport">
+      <button id="experimentPlay" type="button" title="Play" aria-label="Play">&#9654;</button>
+      <button id="experimentRestart" type="button" title="Restart" aria-label="Restart">&#8635;</button>
+      <div id="experimentTimeline"><output id="experimentTime"></output><input id="experimentProgress" type="range" min="0" max="1" step="0.001" value="0" aria-label="Timeline"></div>
+    </div>
+    <label id="experimentParameter"><span id="experimentParameterName">Final Mach</span><output id="experimentParameterValue"></output><input id="experimentLever" type="range"></label>
+    <div id="experimentActions">
+      <button id="experimentKeep" type="button" title="Keep this received pressure trace for comparison" disabled>Keep run</button>
+      <button id="experimentSettings" type="button">Parameters</button>
+      <button id="experimentWhy" type="button">Why?</button>
+    </div>
+  </section>
 </div>
+<dialog id="experimentDetails" aria-label="Experiment details">
+  <nav id="detailBar" aria-label="Details">
+    <button type="button" data-detail="parameters" aria-pressed="true">Parameters</button>
+    <button type="button" data-detail="measurements" aria-pressed="false">Measures</button>
+    <button type="button" data-detail="why" aria-pressed="false">Why?</button>
+    <button id="detailClose" type="button" title="Close details" aria-label="Close details">&#215;</button>
+  </nav>
+  <div id="detailContent"></div>
+</dialog>
 
 <script>
 "use strict";
@@ -436,6 +545,8 @@ const S={
   focus:{x:null,xMin:Infinity,tMin:0,locked:false},
   res:null,           // computed observer result
 };
+const E={mode:matchMedia('(max-width:700px)').matches?'experiment':'lab', homes:new Map(), hold:null, baseline:null};
+document.body.classList.toggle('experiment',E.mode==='experiment');
 
 // length of the "active" phase (acceleration / descent); cruise has no fixed phase
 function runLen(){
@@ -525,6 +636,7 @@ function peakImpact(){
 
 /* ---- reset ---- */
 function resetSim(keepObs){
+  E.hold=null;
   S.t=0; S.wf.length=0; S.lastEmit=-1; S.playing=false; S.pan=0; S._holdBase=null; S._arrivedAt=null; S._heardG=null; S._obsUserMoved=false;
   S.focus={x:null,xMin:Infinity,tMin:0,locked:false};
   S.res=null;
@@ -786,6 +898,7 @@ function fit(cv,ctx){
   return [r.width,r.height];
 }
 function resize(){
+  E.hold=null;
   [W,H]=fit(main2d,g2);
   [W3,H3]=fit(c3d,g3);
   [WN,HN]=fit(cN,gN);
@@ -802,6 +915,17 @@ function curVmax(){
 }
 function updateCam(){
   const c=SCEN[S.scen];
+  if(E.mode==='experiment'){
+    if(dragMode==='obs') return;
+    const scale=Math.max(1e-4,Math.min((H-64)/Math.max(curVmax(),S.v.y*1.12),(W-136)/Math.max(Math.abs(S.v.x-S.obs.x),S.alt*0.65)));
+    if(!S.res?.arrived) E.hold=null;
+    if(S.res?.arrived && !E.hold) E.hold={s:scale,x0:(S.v.x+S.obs.x)/2-W/(2*scale)};
+    cam.s=E.hold?.s||scale;
+    cam.vmax=(H-64)/cam.s;
+    cam.x0=(E.hold?E.hold.x0:(S.v.x+S.obs.x)/2-W/(2*cam.s))+S.pan;
+    cam.yBase=H-42;
+    return;
+  }
   const marginTop=18, marginBot=46;
   cam.vmax=curVmax();
   cam.s=(H-marginTop-marginBot)/cam.vmax;                  // px per metre
@@ -834,6 +958,14 @@ const sy=wy=>cam.yBase-wy*cam.s;
 function draw(){
   updateCam();
   S._peak = peakImpact();          // predicted loudest ground spot + level (from current params)
+  if(E.mode==='experiment'){
+    drawExperimentStage();
+    drawExperimentSignal();
+    if($('experimentDetails').open) drawAtten();
+    updateReadouts();
+    updateExperiment();
+    return;
+  }
   const c=SCEN[S.scen];
 
   // sky gradient
@@ -900,12 +1032,7 @@ function draw(){
   }
 
   // boom carpet already swept (ground shading)
-  if(S.ov.carpet && R && R.firstHitX!=null && R.sweepX!=null && !R.cutoff){
-    const xa=sx(Math.min(R.firstHitX,R.sweepX)), xb=sx(Math.max(R.firstHitX,R.sweepX));
-    const lg=g2.createLinearGradient(xa,0,xb,0);
-    lg.addColorStop(0,'rgba(251,191,36,.02)'); lg.addColorStop(1,'rgba(251,191,36,.14)');
-    g2.fillStyle=lg; g2.fillRect(xa,gy,xb-xa,5);
-  }
+  drawCarpet(gy);
 
   // spherical wavefronts
   if(S.ov.wf){
@@ -1075,6 +1202,61 @@ function drawObserver(x,y,R){
   }
 }
 
+function drawCarpet(ground){
+  const result=S.res;
+  if(!S.ov.carpet || !result || result.firstHitX==null || result.sweepX==null || result.cutoff) return;
+  const left=sx(Math.min(result.firstHitX,result.sweepX)), right=sx(Math.max(result.firstHitX,result.sweepX));
+  const gradient=g2.createLinearGradient(left,0,right,0);
+  gradient.addColorStop(0,'rgba(251,191,36,.02)'); gradient.addColorStop(1,'rgba(251,191,36,.14)');
+  g2.fillStyle=gradient; g2.fillRect(left,ground,right-left,5);
+}
+function drawExperimentStage(){
+  const sky=g2.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#0a1428'); sky.addColorStop(1,'#05070d');
+  g2.fillStyle=sky; g2.fillRect(0,0,W,H);
+  const ground=sy(0);
+  g2.font='10px '+cssMono();
+  const gridStep=cam.vmax>30000?10000:5000;
+  if(S.ov.atm) for(let height=gridStep;height<cam.vmax;height+=gridStep){
+    const screenY=sy(height);
+    g2.strokeStyle='rgba(120,150,190,.12)'; g2.lineWidth=1;
+    g2.beginPath(); g2.moveTo(0,screenY); g2.lineTo(W,screenY); g2.stroke();
+    g2.fillStyle='rgba(150,170,200,.65)'; g2.fillText(height/1000+' km',10,screenY-5);
+  }
+  g2.fillStyle='#070b12'; g2.fillRect(0,ground,W,H-ground);
+  g2.strokeStyle='rgba(120,150,190,.45)'; g2.lineWidth=1;
+  g2.beginPath(); g2.moveTo(0,ground); g2.lineTo(W,ground); g2.stroke();
+  drawCarpet(ground);
+  const tickStep=Math.max(5,Math.ceil((W/cam.s)/1000/4/5)*5);
+  for(let tick=Math.ceil(cam.x0/1000/tickStep)*tickStep;tick*1000<(cam.x0+W/cam.s);tick+=tickStep){
+    const screenX=sx(tick*1000);
+    g2.fillStyle='rgba(150,170,200,.65)'; g2.fillText(tick+' km',clamp(screenX,4,W-54),ground+20);
+  }
+  if(S.ov.wf) for(const wave of S.wf){
+    const radius=wave.a*(S.t-wave.t)*cam.s;
+    if(radius<1) continue;
+    g2.strokeStyle=wave.boom?'rgba(251,191,36,.28)':'rgba(56,189,248,.22)'; g2.lineWidth=1;
+    g2.beginPath(); g2.arc(sx(wave.x),sy(wave.y),radius,0,Math.PI*2); g2.stroke();
+  }
+  if(S.ov.cone && S.v.M>1 && S.scen!=='booster'){
+    g2.strokeStyle='rgba(251,191,36,.65)'; g2.setLineDash([5,5]);
+    g2.beginPath(); g2.moveTo(sx(S.v.x),sy(S.v.y)); g2.lineTo(sx(S.v.x-S.v.y/Math.tan(S.v.mu)),ground); g2.stroke(); g2.setLineDash([]);
+  }
+  if(S.scen==='booster'){
+    const cutoffY=sy(boosterCutoffAlt());
+    g2.strokeStyle='rgba(248,113,113,.45)'; g2.setLineDash([5,5]);
+    g2.beginPath(); g2.moveTo(0,cutoffY); g2.lineTo(W,cutoffY); g2.stroke(); g2.setLineDash([]);
+    g2.fillStyle='#f87171'; g2.fillText('Mach cut-off',10,cutoffY-6);
+  }
+  if(S._peak?.dp>0 && Number.isFinite(S._peak.x)){
+    const predictedX=sx(S._peak.x);
+    g2.fillStyle='#fbbf24';
+    g2.beginPath(); g2.moveTo(predictedX,ground+1); g2.lineTo(predictedX-4,ground+7); g2.lineTo(predictedX+4,ground+7); g2.fill();
+  }
+  drawVehicle(sx(S.v.x),sy(S.v.y));
+  drawObserver(sx(S.obs.x),ground,S.res);
+}
+
 /* ============================================================ 3D INSET (hand-rolled) */
 let yaw=0.6, pitch=0.5, dragging3=false, lastM=null;
 c3d.parentElement.addEventListener('mousedown',e=>{dragging3=true;lastM=[e.clientX,e.clientY];});
@@ -1189,6 +1371,63 @@ function shapedSig(tau,dur,rise){
   const tail = u>0.7 ? -0.22*smooth(clamp((u-0.7)/0.3,0,1)) : 0;
   return up*dn*ripple + tail;
 }
+function focusedSig(progress){
+  if(progress<=0 || progress>=1) return 0;
+  const gaussian=(centre,width)=>Math.exp(-Math.pow((progress-centre)/width,2));
+  const envelope=(progress<0.05?smooth(progress/0.05):1)*(progress>0.9?smooth((1-progress)/0.1):1);
+  return clamp(envelope*(1.4*gaussian(0.13,0.10)+0.85*gaussian(0.60,0.15)-0.28*gaussian(0.40,0.13)),-1.15,1.55);
+}
+function signatureDuration(result){
+  return result.focused?Math.max(result.T_N,0.12)*2.2:result.shaped?result.T_N*1.35:result.triple?result.g1+result.g2+result.T_N*0.8:result.T_N;
+}
+function signaturePressure(result,time){
+  if(result.focused) return result.dp*focusedSig(time/signatureDuration(result));
+  if(result.shaped) return result.dp*shapedSig(time,signatureDuration(result),result.riseMs/1000);
+  const duration=result.triple?result.T_N*0.8:result.T_N;
+  let pressure=result.dp*nwave(time,duration,result.riseMs/1000);
+  if(result.triple) pressure+=result.dp*(0.5*nwave(time-result.g1,duration,result.riseMs/1000)+0.85*nwave(time-result.g1-result.g2,duration,result.riseMs/1000));
+  return pressure;
+}
+function drawExperimentSignal(){
+  gN.fillStyle='#070a12'; gN.fillRect(0,0,WN,HN);
+  const result=S.res, baseline=E.baseline?.result;
+  const audible=result?.arrived && result.dp>0 && result.inCarpet && !result.cutoff;
+  const current=audible?result:null;
+  const traces=[current,baseline].filter(Boolean);
+  const span=Math.max(0.2,...traces.map(signatureDuration))*1.1;
+  let peak=1;
+  for(const trace of traces) for(let sample=0;sample<=400;sample++) peak=Math.max(peak,Math.abs(signaturePressure(trace,span*sample/400)));
+  const scale=Math.ceil(peak/10)*10;
+  const left=54,right=WN-14,top=36,bottom=HN-27,middle=(top+bottom)/2;
+  const screenTime=time=>left+time/span*(right-left);
+  const screenPressure=pressure=>middle-pressure/scale*(bottom-top)/2;
+  gN.font='10px '+cssMono();
+  gN.strokeStyle='rgba(120,150,190,.25)'; gN.lineWidth=1;
+  gN.beginPath(); gN.moveTo(left,top); gN.lineTo(left,bottom); gN.lineTo(right,bottom); gN.stroke();
+  gN.setLineDash([3,4]); gN.beginPath(); gN.moveTo(left,middle); gN.lineTo(right,middle); gN.stroke(); gN.setLineDash([]);
+  gN.fillStyle='#7c8aa0';
+  gN.fillText('+'+scale,6,top+4); gN.fillText('-'+scale,6,bottom+3);
+  gN.fillText('Pa',6,middle+3); gN.fillText('0',left,bottom+16);
+  const durationLabel=(span*1000).toFixed(0)+' ms after arrival';
+  gN.fillText(durationLabel,right-gN.measureText(durationLabel).width,bottom+16);
+  function traceSignal(trace,color,dashed){
+    gN.strokeStyle=color; gN.lineWidth=dashed?1.4:2; gN.setLineDash(dashed?[4,4]:[]);
+    gN.beginPath();
+    for(let sample=0;sample<=500;sample++){
+      const time=span*sample/500,screenX=screenTime(time),screenY=screenPressure(signaturePressure(trace,time));
+      if(sample===0) gN.moveTo(screenX,screenY); else gN.lineTo(screenX,screenY);
+    }
+    gN.stroke(); gN.setLineDash([]);
+  }
+  if(baseline) traceSignal(baseline,'#7c8aa0',true);
+  if(current) traceSignal(current,current.shaped?'#34d399':'#fbbf24',false);
+  if(!current){
+    const message=result?.cutoff?'Refracted away':result&&!result.inCarpet?'Outside the boom carpet':result?.countdown!=null?`Arrival in ~${result.countdown.toFixed(0)} s`:'No arrival yet';
+    gN.fillStyle='#c9d4e3';
+    gN.fillText(message,left+10,middle-8);
+  }
+  if(baseline){gN.fillStyle='#7c8aa0';gN.fillText('--- held',Math.max(left,right-60),26);}
+}
 function drawNwave(){
   gN.clearRect(0,0,WN,HN);
   gN.fillStyle='#070a12'; gN.fillRect(0,0,WN,HN);
@@ -1252,7 +1491,6 @@ function drawNwave(){
   if(R.focused){
     const Tn=Math.max(T_N,0.12), dur=Tn*2.2, sp=dur*1.3, lead=0.05*sp;
     const tp=t=>x0 + (t/sp)*(x1-x0), amp=mid-padT-8, pp=v=>mid - v*amp;
-    const gau=(u,c,w)=>Math.exp(-Math.pow((u-c)/w,2));
     // faint ghost: the plain N this spot would get with no focus
     const fr=R.focusMult>0?1/R.focusMult:0.33;
     gN.strokeStyle='rgba(120,150,190,.35)'; gN.setLineDash([3,3]); gN.lineWidth=1;
@@ -1267,12 +1505,7 @@ function drawNwave(){
     gN.beginPath();
     for(let i=0;i<=320;i++){
       const t=sp*i/320, u=(t-lead)/dur;
-      let v=0;
-      if(u>0&&u<1){
-        const env=(u<0.05?smooth(u/0.05):1)*(u>0.9?smooth((1-u)/0.1):1);
-        v=env*(1.4*gau(u,0.13,0.10) + 0.85*gau(u,0.60,0.15) - 0.28*gau(u,0.40,0.13));
-      }
-      const X=tp(t),Y=pp(clamp(v,-1.15,1.55)*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y);
+      const X=tp(t),Y=pp(focusedSig(u)*0.9); i?gN.lineTo(X,Y):gN.moveTo(X,Y);
     }
     gN.stroke();
     if(R.arrived){
@@ -1355,7 +1588,8 @@ function drawNwave(){
 function drawAtten(){
   gA.clearRect(0,0,WA,HA);
   gA.fillStyle='#070a12'; gA.fillRect(0,0,WA,HA);
-  const padL=46,padR=14,padT=38,padB=26;
+  const compact=E.mode==='experiment';
+  const padL=46,padR=14,padT=38,padB=compact?40:26;
   const x0=padL,x1=WA-padR,y0=HA-padB,y1=padT;
   gA.strokeStyle='rgba(120,150,190,.18)'; gA.lineWidth=1;
   gA.beginPath(); gA.moveTo(x0,y1); gA.lineTo(x0,y0); gA.lineTo(x1,y0); gA.stroke();
@@ -1366,7 +1600,7 @@ function drawAtten(){
   const haveData = !!(R && R.dpRaw>0);
   if(!haveData){
     gA.fillStyle='rgba(150,170,200,.4)';
-    gA.fillText('waiting for a boom — no overpressure data yet', x0+8, (y0+y1)/2);
+    gA.fillText(compact?'No boom data yet':'waiting for a boom — no overpressure data yet', x0+8, (y0+y1)/2);
     return;
   }
   const rRef = R.r0>0?R.r0:8000;
@@ -1434,7 +1668,7 @@ function drawAtten(){
     gA.fillStyle=R.status==='BOOM'?'#fff':'#34d399';
     gA.beginPath(); gA.arc(px,py,4,0,7); gA.fill();
     gA.fillStyle='rgba(230,238,247,.9)';
-    gA.fillText(`${R.dp.toFixed(0)} Pa · ${R.psf.toFixed(2)} psf @ ${(R.r/1000).toFixed(1)} km`, x0+6, y0-6);
+    if(!compact) gA.fillText(`${R.dp.toFixed(0)} Pa · ${R.psf.toFixed(2)} psf @ ${(R.r/1000).toFixed(1)} km`, x0+6, y0-6);
   }
 }
 
@@ -1555,6 +1789,8 @@ function syncProg(){
   const D=Math.max(simDuration(), S.t);   // grow if the run overran the estimate
   $('prog').value=clamp(S.t/D,0,1);
   $('progV').textContent=`${S.t.toFixed(1)} / ${D.toFixed(0)} s`;
+  $('experimentProgress').value=$('prog').value;
+  $('experimentTime').textContent=$('progV').textContent;
 }
 playBtn.onclick=()=>{
   S.playing=!S.playing;
@@ -1570,6 +1806,7 @@ $('prog').oninput=e=>{
 // Rebuild the entire state at time `tt` by replaying kinematics AND the emission schedule
 // from t=0. Scrubbing the timeline then lands on a populated frame, not an empty one.
 function rebuildTo(tt){
+  E.hold=null;
   S.wf.length=0; S.lastEmit=-1; S._arrivedAt=null; S._heardG=null; S._holdBase=null;
   resetKinematicsTo(tt);
 }
@@ -1596,6 +1833,7 @@ function resetKinematicsTo(tt){
 }
 // a parameter changed: rebuild the wavefront trail + kinematics consistently at the current time
 function reparam(){
+  E.hold=null;
   S.wf.length=0; S.lastEmit=-1; S._arrivedAt=null; S._heardG=null;
   resetKinematicsTo(S.t);
   S.res=computeObserver();
@@ -1638,6 +1876,7 @@ document.querySelectorAll('#tabs button').forEach(b=>{
     document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');
     S.scen=b.dataset.s;
+    E.baseline=null;
     document.querySelectorAll('[data-scen]').forEach(el=>{
       el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
     });
@@ -1660,35 +1899,116 @@ document.querySelectorAll('#tabs button').forEach(b=>{
 
 /* 2D stage: drag the marker to move the observer, drag anywhere else to pan the camera */
 let dragMode=null, lastMx=0;
-main2d.addEventListener('mousedown',e=>{
+main2d.addEventListener('pointerdown',e=>{
+  if(!e.isPrimary || e.button!==0) return;
   const r=main2d.getBoundingClientRect();
   const px=e.clientX-r.left, py=e.clientY-r.top;
   lastMx=e.clientX;
-  dragMode = (Math.abs(px - sx(S.obs.x))<24 && py>cam.yBase-52) ? 'obs' : 'pan';
+  dragMode = (Math.abs(px - sx(S.obs.x))<28 && Math.abs(py-cam.yBase)<52) ? 'obs' : 'pan';
+  main2d.setPointerCapture(e.pointerId);
   document.body.style.cursor = dragMode==='pan' ? 'grabbing' : 'ew-resize';
 });
-window.addEventListener('mousemove',e=>{
+main2d.addEventListener('pointermove',e=>{
   if(!dragMode)return;
   const dx=e.clientX-lastMx; lastMx=e.clientX;
   if(dragMode==='obs'){
     const r=main2d.getBoundingClientRect();
     S.obs.x = cam.x0 + (e.clientX-r.left)/cam.s;
-    S._arrivedAt=null; S._heardG=null; S._obsUserMoved=true;
+    S._arrivedAt=null; S._heardG=null; S._obsUserMoved=true; E.hold=null;
   }else{
     S.pan -= dx/cam.s;                         // drag right → view slides right
   }
   S.res=computeObserver(); if(!S.playing)draw(); syncProg();
 });
-window.addEventListener('mouseup',()=>{ dragMode=null; document.body.style.cursor=''; });
+main2d.addEventListener('lostpointercapture',()=>{ dragMode=null; document.body.style.cursor=''; });
+main2d.addEventListener('pointerup',e=>{ main2d.releasePointerCapture(e.pointerId); });
+main2d.addEventListener('pointercancel',()=>{ dragMode=null; document.body.style.cursor=''; });
 main2d.addEventListener('dblclick',()=>{ S.pan=0; if(!S.playing)draw(); });
 $('panL').onclick=()=>{ S.pan -= 0.16*(W/cam.s); if(!S.playing)draw(); };
 $('panR').onclick=()=>{ S.pan += 0.16*(W/cam.s); if(!S.playing)draw(); };
 $('recenter').onclick=()=>{ S.pan=0; if(!S.playing)draw(); };
 
+function experimentLever(){return S.scen==='accel'?'mend':S.scen==='booster'?'bm':'mach';}
+function updateExperiment(){
+  const result=S.res; if(!result) return;
+  const heard=result.arrived && result.inCarpet && !result.cutoff;
+  $('experimentStatus').textContent=result.cutoff?'Refracted away':!result.inCarpet?'Outside the carpet':heard?'Boom received':result.countdown!=null?`Arrives in ~${result.countdown.toFixed(0)} s`:S.v.M>1?'Sound is travelling':'No boom yet';
+  $('experimentStatus').classList.toggle('warn',result.cutoff || !result.inCarpet);
+  $('experimentPressure').textContent=heard&&result.dp>0?`~${result.dp.toFixed(0)} Pa`:'';
+  const prediction=S._peak;
+  $('experimentForecast').textContent=prediction?.dp>0?`Predicted loudest: ~${prediction.dp.toFixed(0)} Pa, ${prediction.where}`:'Subsonic flight: no sonic boom.';
+  $('experimentKeep').disabled=!E.baseline && !(heard&&result.dp>0);
+  $('experimentKeep').textContent=E.baseline?'Clear held':'Keep run';
+  $('experimentComparison').hidden=!E.baseline;
+  if(E.baseline){
+    const change=heard?` · ${result.dp-E.baseline.result.dp>=0?'+':''}${(result.dp-E.baseline.result.dp).toFixed(0)} Pa now`:'';
+    $('experimentComparison').textContent=`Held: ${E.baseline.label}${change}`;
+  }
+  $('experimentPlay').innerHTML=S.playing?'&#10074;&#10074;':'&#9654;';
+  $('experimentPlay').title=S.playing?'Pause':'Play';
+  $('experimentPlay').setAttribute('aria-label',S.playing?'Pause':'Play');
+  $('experimentScenario').value=S.scen;
+  const source=$(experimentLever());
+  for(const attribute of ['min','max','step']) $('experimentLever').setAttribute(attribute,source.getAttribute(attribute));
+  $('experimentLever').value=source.value;
+  $('experimentParameterName').textContent=S.scen==='accel'?'Final Mach':S.scen==='booster'?'Entry Mach':'Mach number';
+  $('experimentParameterValue').textContent=$(source.id+'V').textContent;
+  syncProg();
+}
+function restoreDetails(){
+  for(const [element,home] of E.homes) home.replaceWith(element);
+  E.homes.clear();
+}
+function openDetails(panel){
+  S.playing=false; playBtn.textContent='▶ Play';
+  restoreDetails();
+  const elements=panel==='parameters'?[document.querySelector('main>aside')]:panel==='measurements'?[$('readouts'),$('cAtten').parentElement]:[$('explain')];
+  for(const element of elements){
+    const home=document.createComment(''); element.before(home); E.homes.set(element,home);
+    $('detailContent').append(element);
+  }
+  document.querySelectorAll('[data-detail]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.detail===panel));
+  if(!$('experimentDetails').open) $('experimentDetails').showModal();
+  $('experimentDetails').scrollTop=0;
+  resize();
+}
+function setView(mode){
+  if($('experimentDetails').open) $('experimentDetails').close();
+  restoreDetails();
+  E.mode=mode; E.hold=null;
+  document.body.classList.toggle('experiment',mode==='experiment');
+  $('signalCaption').textContent=mode==='experiment'?'Your pressure signature':'Observer N‑wave';
+  $('distanceCaption').textContent=mode==='experiment'?'Pressure vs distance':'Δp vs distance — this boom, at different ranges';
+  document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.view===mode));
+  resize();
+}
+document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>setView(button.dataset.view));
+document.querySelectorAll('[data-detail]').forEach(button=>button.onclick=()=>openDetails(button.dataset.detail));
+$('experimentScenario').onchange=event=>document.querySelector(`#tabs button[data-s="${event.target.value}"]`).click();
+$('experimentPlay').onclick=()=>playBtn.click();
+$('experimentRestart').onclick=()=>{E.hold=null;$('restartBtn').click();};
+$('experimentProgress').oninput=event=>{E.hold=null;$('prog').value=event.target.value;$('prog').dispatchEvent(new Event('input'));};
+$('experimentLever').oninput=event=>{E.hold=null;const source=$(experimentLever());source.value=event.target.value;source.dispatchEvent(new Event('input'));};
+$('experimentSettings').onclick=()=>openDetails('parameters');
+$('experimentKeep').onclick=()=>{
+  S.playing=false; playBtn.textContent='▶ Play';
+  E.baseline=E.baseline?null:{result:{...S.res},label:`~${S.res.dp.toFixed(0)} Pa, M ${S.res.mGen.toFixed(2)}`};
+  draw();
+};
+$('experimentWhy').onclick=()=>openDetails('why');
+$('detailClose').onclick=()=>$('experimentDetails').close();
+$('experimentDetails').addEventListener('close',()=>{restoreDetails();resize();});
+new ResizeObserver(resize).observe($('stage'));
+
 /* ============================================================ go */
 document.querySelectorAll('[data-scen]').forEach(el=>{
   el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
 });
-resize();
+if(E.mode==='experiment'){
+  document.querySelector('#tabs button.on').classList.remove('on');
+  document.querySelector('#tabs button[data-s="cruise"]').classList.add('on');
+}
+setView(E.mode);
 document.querySelector('#tabs button.on').click();   // apply the starting scenario's defaults
+if(E.mode==='experiment'){S.rate=3;$('rate').value=3;refreshSliderLabels();}
 </script>

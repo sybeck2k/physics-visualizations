@@ -1,4 +1,5 @@
 <title>Tesla Roadster · Air &amp; Suction</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>
   /* Dark instrument panel for the chrome; the 3-D stage itself is 8-bit synthwave (see header comment in the script). */
   :root{
@@ -18,6 +19,7 @@
     border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12); flex:0 0 auto}
   header h1{font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; margin:0; color:#e6edf6}
   header h1 span{color:var(--pink)}
+  header h1 .longtitle{font-size:inherit; font-weight:inherit}
   .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
   .tabs button{font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--dim); background:var(--panel2);
     border:1px solid var(--line); padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s}
@@ -83,16 +85,82 @@
   @media (max-width:1100px){ #inset{display:none} #readouts{top:10px; width:280px} }
   @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
   @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+  .experiment-only{display:none}
+  #viewMode{display:flex; border:1px solid var(--line); border-radius:6px; padding:2px}
+  #viewMode button{font:10px var(--mono); color:var(--dim); background:transparent; border:0; border-radius:4px; padding:9px; cursor:pointer}
+  #viewMode button[aria-pressed=true]{background:var(--panel2); color:var(--cyan)}
+  body.experiment #app{height:100dvh}
+  body.experiment header{padding:8px 12px; padding-top:max(8px,env(safe-area-inset-top)); gap:8px; flex-wrap:nowrap; justify-content:space-between}
+  body.experiment h1{font-size:12px; letter-spacing:0; white-space:nowrap}
+  body.experiment .longtitle,body.experiment #tabs,body.experiment main>aside,body.experiment #stage>#inset,body.experiment #stage>#readouts,body.experiment #plots>.plot:nth-child(2),body.experiment #app>#explain{display:none}
+  body.experiment .experiment-only{display:block}
+  #experimentTop{padding:0 12px 8px; background:var(--panel)}
+  #experimentScenario{width:100%; min-height:40px; font-size:12px}
+  body.experiment main{display:flex}
+  body.experiment #stagewrap{flex:1; min-height:0}
+  body.experiment #plots{display:block; flex:0 0 138px}
+  body.experiment #plots>.plot:first-child{height:100%}
+  body.experiment .cap{font-size:10px; letter-spacing:0}
+  #experimentResult{padding:8px 12px; background:var(--panel); border-top:1px solid var(--line); flex-shrink:0}
+  #experimentHeadline{font:600 17px var(--mono); color:var(--amber)}
+  #experimentNow,#experimentComparison{font:10px/1.5 var(--mono); color:var(--dim); margin-top:3px}
+  #experimentComparison{color:var(--cyan)}
+  #experimentControls{padding:8px 12px max(8px,env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--line); flex-shrink:0}
+  #experimentControls button{min-height:44px; border:1px solid var(--line); border-radius:4px; background:var(--panel2); color:var(--ink); font:11px var(--mono)}
+  #experimentTransport,#experimentActions{display:flex; gap:6px}
+  #experimentTransport button{width:44px; flex-shrink:0; font-size:20px}
+  #experimentPlay{color:var(--cyan)!important}
+  #experimentTimeline{flex:1; min-width:0}
+  #experimentTime{display:block; text-align:right; font:10px var(--mono); color:var(--dim)}
+  #experimentControls input[type=range]{height:28px; display:block; margin:0}
+  #experimentParameter{display:grid; grid-template-columns:1fr auto; gap:2px 8px; margin:6px 0; font:11px var(--mono); color:var(--dim)}
+  #experimentParameterValue{color:var(--cyan); text-align:right}
+  #experimentLever{grid-column:1/-1}
+  #experimentActions button{flex:1; min-width:0}
+  #experimentActions button:disabled{opacity:.4}
+  #experimentDetails{width:min(100% - 16px,560px); max-height:calc(100dvh - 32px); margin:auto auto 8px; padding:0; overflow:auto; color:var(--ink); background:var(--panel); border:1px solid #33415a; border-radius:8px}
+  #experimentDetails::backdrop{background:rgba(0,0,0,.65)}
+  #detailBar{position:sticky; top:0; z-index:4; display:flex; padding:8px; background:var(--panel); border-bottom:1px solid var(--line)}
+  #detailBar button{min-height:44px; padding:0 10px; border:0; border-radius:4px; color:var(--dim); background:transparent; font:11px var(--mono)}
+  #detailBar button[aria-pressed=true]{color:var(--cyan); background:var(--panel2)}
+  #detailBar #detailClose{margin-left:auto; min-width:44px; font-size:24px; padding:0}
+  #detailContent{padding:16px}
+  #detailContent aside{border:0; padding:0; overflow:visible}
+  #detailContent input[type=range]{height:32px}
+  #detailContent .chk,#detailContent .btns button{min-height:44px}
+  body.experiment #detailContent #cams,body.experiment #detailContent aside>.grp:last-child>.hint:not(.experiment-only){display:none}
+  #experimentCenter{min-height:44px; font:11px var(--mono); color:var(--cyan); border:1px solid var(--line); border-radius:4px; background:var(--panel2)}
+  #detailContent #readouts{position:static; width:auto; padding:0; border:0; overflow:visible; background:none}
+  #detailContent #readouts dl{font-size:11px; gap:8px}
+  #detailContent #readouts dt,#detailContent #readouts dd{white-space:normal; overflow-wrap:anywhere}
+  #detailContent #readouts dt{overflow:visible}
+  #detailContent #inset{display:block; position:relative; top:auto; right:auto; width:100%; height:210px; margin-top:16px}
+  #detailContent #inset2d{touch-action:none}
+  #detailContent .plot{height:240px; margin-top:16px}
+  #detailContent #explain{display:block; max-height:none; padding:0; border:0; overflow:visible}
+  #detailContent .ex{max-height:none; padding:0 0 18px; border:0; background:none; overflow:visible}
+  #detailContent #explain p{font-size:13px; line-height:1.7}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+  @media(max-height:740px){body.experiment #plots{flex-basis:115px} #experimentHeadline{font-size:15px}}
+  @media(max-height:520px){body.experiment{overflow-y:auto} body.experiment #app{height:660px}}
 </style>
 
 <div id="app">
   <header>
-    <h1>Tesla&nbsp;<span>Roadster</span>&nbsp;·&nbsp;Air&nbsp;&amp;&nbsp;Suction</h1>
+    <h1>Tesla&nbsp;<span>Roadster</span><small class="longtitle">&nbsp;·&nbsp;Air&nbsp;&amp;&nbsp;Suction</small></h1>
+    <div id="viewMode" role="group" aria-label="Presentation">
+      <button type="button" data-view="experiment" aria-pressed="false">Experiment</button>
+      <button type="button" data-view="lab" aria-pressed="true">Full lab</button>
+    </div>
     <div class="tabs" id="tabs">
       <button data-s="air" class="on">1 · Air budget</button>
       <button data-s="wall">2 · Stick to the wall</button>
     </div>
   </header>
+  <div id="experimentTop" class="experiment-only"><select id="experimentScenario" aria-label="Experiment">
+    <option value="launch">0–60 launch</option><option value="hover">Hover hop</option><option value="roll">Barrel roll</option>
+    <option value="climb">Wall climb</option><option value="park">Park &amp; fade</option><option value="corner">2 g corner</option>
+  </select></div>
   <main>
     <aside>
       <div class="grp">
@@ -139,10 +207,12 @@
       <div class="grp">
         <h2>View</h2>
         <div class="btns" id="cams"><button data-c="chase" class="on">Chase</button><button data-c="pad">Pad</button><button data-c="top">Top</button></div>
+        <button id="experimentCenter" class="experiment-only" type="button">Recenter experiment camera</button>
         <label class="fld">Pixel size <select id="ps"><option value="2">2 px</option><option value="3" selected>3 px</option><option value="4">4 px</option><option value="6">6 px</option></select></label>
         <label class="chk"><input type="checkbox" id="crt" checked> CRT scanlines</label>
         <label class="chk"><input type="checkbox" id="snd"> ♪ Chiptune + SFX</label>
         <div class="hint">Drag the scene to orbit · wheel zooms · double-click recentres · drag the gauge on the right to set tank pressure.</div>
+        <div class="hint experiment-only">Drag the scene to orbit. Recenter restores this experiment's camera. Measures contains the draggable tank gauge.</div>
       </div>
     </aside>
     <div id="stagewrap">
@@ -152,6 +222,9 @@
         <div id="inset"><span class="cap">Air system (schematic)</span><canvas id="inset2d"></canvas></div>
         <div id="readouts"><h3 id="rdh">Readouts</h3><dl id="rdl"></dl></div>
       </div>
+      <section id="experimentResult" class="experiment-only" aria-label="Result">
+        <div id="experimentHeadline"></div><div id="experimentNow"></div><div id="experimentComparison" hidden></div>
+      </section>
       <div id="plots">
         <div class="plot"><span class="cap" id="cap1"></span><canvas id="p1"></canvas></div>
         <div class="plot"><span class="cap" id="cap2"></span><canvas id="p2"></canvas></div>
@@ -159,7 +232,23 @@
     </div>
   </main>
   <div id="explain"></div>
+  <section id="experimentControls" class="experiment-only" aria-label="Experiment controls">
+    <div id="experimentTransport">
+      <button id="experimentPlay" type="button" aria-label="Play">&#9654;</button>
+      <button id="experimentRestart" type="button" aria-label="Restart">&#8635;</button>
+      <div id="experimentTimeline"><output id="experimentTime"></output><input id="experimentProgress" type="range" min="0" max="1" step="0.001" value="0" aria-label="Timeline"></div>
+    </div>
+    <label id="experimentParameter"><span id="experimentParameterName"></span><output id="experimentParameterValue"></output><input id="experimentLever" type="range"></label>
+    <div id="experimentActions"><button id="experimentKeep" type="button">Keep run</button><button id="experimentSettings" type="button">Parameters</button><button id="experimentWhy" type="button">Why?</button></div>
+  </section>
 </div>
+<dialog id="experimentDetails" aria-label="Experiment details">
+  <nav id="detailBar" aria-label="Details">
+    <button type="button" data-detail="parameters">Parameters</button><button type="button" data-detail="measurements">Measures</button><button type="button" data-detail="why">Why?</button>
+    <button id="detailClose" type="button" aria-label="Close details">&#215;</button>
+  </nav>
+  <div id="detailContent"></div>
+</dialog>
 
 <script>
 "use strict";
@@ -830,6 +919,7 @@ const S = {
   cam: { mode: 'chase', dyaw: 0, dpit: 0, dd: 1, cur: null }, ov: {}, W: 160, H: 90, ps: 3, vp: null, camPos: [0, 5, 20], basis: null,
   ptime: 0, p2: null, _rd: '', labels: [], cd: 0, go: 0,   // cd/go: start countdown seconds left / GO! flash
 };
+const E = { mode: matchMedia('(max-width:700px)').matches ? 'experiment' : 'lab', homes: new Map(), baseline: null, yaw: 0, pitch: 0, zoom: 1 };
 const sliderIds = Object.keys(FMT);
 function refreshLabels() { sliderIds.forEach(k => { const el = $(k); if (el) $(k + 'V').textContent = FMT[k](el.value); }); $('rateV').textContent = (+$('rate').value).toFixed(2) + '×'; }
 function readParams() {
@@ -860,6 +950,7 @@ function applyScen() {
   $('hint').textContent = HINTS[S.pre];
 }
 function setPreset(p) {
+  E.baseline = null; E.yaw = E.pitch = 0; E.zoom = 1;
   S.pre = p; S.tab = PRE[p].tab;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === S.tab));
   const d = PRE[p].def; for (const k in d) if ($(k)) $(k).value = d[k];
@@ -990,6 +1081,18 @@ const CAMDEF = {
 };
 CAMDEF.park = CAMDEF.climb;
 function updateCam(o, dt) {
+  if (E.mode === 'experiment') {
+    const aspect = Math.max(.3, $('stage').clientWidth / Math.max($('stage').clientHeight, 1));
+    let target, distance, pitch = .16, yaw = .12;
+    if (S.pre === 'hover') { target = [0, 2.0, 0]; distance = 10; }
+    else if (S.pre === 'roll') { target = [o.x, Math.max(2, o.y * .65), 0]; distance = Math.max(13, o.y * 1.5 + 5); yaw = .35; }
+    else if (S.pre === 'launch') { target = [o.x + 1, 1, o.z]; distance = 12; pitch = .28; }
+    else if (S.pre === 'corner') { target = [o.x, 0, o.z]; distance = 18; pitch = 1.15; }
+    else { target = [clamp(o.x, 0, 7), 10, 0]; distance = 32; yaw = .1; }
+    distance *= Math.max(1, .9 / aspect) * E.zoom;
+    pitch = clamp(pitch + E.pitch, .03, 1.53); yaw += E.yaw;
+    return { eye: [target[0] + distance * Math.cos(pitch) * Math.sin(yaw), target[1] + distance * Math.sin(pitch), target[2] + distance * Math.cos(pitch) * Math.cos(yaw)], tgt: target };
+  }
   const D = CAMDEF[S.pre][S.cam.mode]; let t, yaw, pit, d;
   if (S.cam.mode === 'chase') {
     const hx = Math.cos(o.yaw), hz = -Math.sin(o.yaw), sx = -hz, sz = hx, ox = -.85 * hx + .5 * sx, oz = -.85 * hz + .5 * sz;
@@ -1072,7 +1175,7 @@ function render(dt) {
   const cw = Math.round(sw * dpr), ch = Math.round(sh * dpr); if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
   const W = Math.max(96, Math.round(sw / S.ps)), H = Math.max(54, Math.round(sh / S.ps)); if (W !== S.W || H !== S.H || !GL.hctx) allocFBO(W, H);
   const o = poseAt(S.tr, S.t), M = carM(o), cm = updateCam(o, dt), asp = W / H;
-  const L = mat.look(cm.eye, cm.tgt, [0, 1, 0]), Pm = mat.persp(FOV, asp, 0.3, 3000), LS = -Math.min(332 / sw, 0.34); Pm[8] = -LS; S.LS = LS;
+  const L = mat.look(cm.eye, cm.tgt, [0, 1, 0]), Pm = mat.persp(FOV, asp, 0.3, 3000), LS = E.mode === 'experiment' ? 0 : -Math.min(332 / sw, 0.34); Pm[8] = -LS; S.LS = LS;
   const vp = mat.mul(Pm, L.m);
   S.vp = vp; S.camPos = cm.eye; S.basis = L; S.cm = cm; const cam = cm.eye;
   gl.bindFramebuffer(gl.FRAMEBUFFER, GL.fbo); gl.viewport(0, 0, W, H); gl.depthMask(true); gl.disable(gl.BLEND); gl.clearColor(.05, .01, .12, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -1145,6 +1248,14 @@ function shout(o) {
 }
 function drawHud(o) {
   const cx = GL.hctx, W = S.W, H = S.H, sc = Math.max(1, Math.round(H / 150)), i = S.tr.info; cx.clearRect(0, 0, W, H);
+  if (E.mode === 'experiment') {
+    const message = S.cd > 0 ? String(Math.ceil(S.cd)) : shout(o)?.[0] || (!S.started ? 'PRESS PLAY' : '');
+    if (message) {
+      const scale = Math.max(1, Math.min(2, Math.floor((W - 8) / Math.max(txtW(message, 1), 1))));
+      txt(cx, message, Math.max(4, Math.round((W - txtW(message, scale)) / 2)), H - 14 * scale, scale, CYEL);
+    }
+    return;
+  }
   txt(cx, 'T ' + S.t.toFixed(2) + ' S', 4 * sc, 4 * sc, sc * 1.5 | 0 || 1, CYEL); const WC = W * (1 + (S.LS || 0)) / 2;
   const m0 = i.m0 || 250, fr = clamp(o.am / m0, 0, 1), y2 = 4 * sc + 12 * sc;
   if (S.pre !== 'corner') {
@@ -1218,7 +1329,8 @@ function drawPlots() {
   let a = fitC($('p1')), cx = a.x; cx.clearRect(0, 0, a.w, a.h);
   const tt = [], N = 140; for (let i = 0; i <= N; i++) tt.push(i / N * dur);
   const norm = (f, col, name, unit, dec) => { const v = tt.map(f), mx = Math.max(...v.map(Math.abs), 1e-6); return { pts: tt.map((t, i) => [t, v[i] / mx]), col, name: `${name} ${mx.toFixed(dec)} ${unit} MAX` }; };
-  if (pre === 'corner') {
+  if (E.mode === 'experiment') drawExperimentSignal(a);
+  else if (pre === 'corner') {
     $('cap1').textContent = 'Lived signal · lateral g you feel in the corner';
     const Rc = tr.info.Rc, g0 = tt.map(t => { const u = clamp(t / tr.dt, 0, tr.n - 1); return [t, sampleT(tr, 'ag', t)]; }), gh = tt.map(t => { const v0 = Math.min(5 * t, tr.info.vL0); return [t, v0 * v0 / Rc / G0]; });
     const ax = axes(cx, a.w, a.h, 0, dur, 0, Math.max(2.6, tr.info.gLim * 1.1)); curve(cx, g0, ax.X, ax.Y, '#38bdf8', 2); curve(cx, gh, ax.X, ax.Y, '#8070b0', 1.6, [4, 3]);
@@ -1281,12 +1393,15 @@ function drawPlots() {
     cx.fillStyle = '#34d399'; cx.textAlign = 'right'; cx.fillText('379 screen', ax.X(379) - 3, a.h - ax.B - 6); cx.textAlign = 'left'; cx.fillText('437 = 250 kg', ax.X(437) + 3, a.h - ax.B - 6);
     cx.font = `9px ${cssMono()}`; cx.fillStyle = '#4a5568'; cx.textAlign = 'center'; cx.fillText('tank fill pressure (bar)', a.w / 2 + 10, a.h - 4);
   }
+  if (E.mode === 'experiment') $('cap2').textContent = S.tab === 'wall' ? 'Pitch & grip vs suction' : pre === 'roll' ? 'Jet thrust vs roll time' : pre === 'hover' ? 'Hover time vs pressure' : '0–60 time vs pressure';
 }
 
 /* ---- inset: air-system schematic + draggable pressure gauge ---- */
 function drawInset() {
   const c = $('inset2d'), a = fitC(c), cx = a.x, w = a.w, h = a.h, o = S.lastPose || poseAt(S.tr, S.t), i = S.tr.info, P = S.P;
   cx.clearRect(0, 0, w, h); cx.font = `9px ${cssMono()}`;
+  cx.save();
+  if (E.mode === 'experiment') { const scale = Math.min(w / 300, h / 190); cx.scale(scale, scale); }
   const gx = 14, gy = 30, gh = 140, gw = 18, ymap = b => gy + gh - (b - 200) / (689 - 200) * gh;
   cx.strokeStyle = '#2b3550'; cx.strokeRect(gx, gy, gw, gh);
   const pnow = clamp(o.p || P.p0, 0, 689), fillH = clamp((pnow - 0) / 689, 0, 1) * gh; cx.fillStyle = pnow < 0.15 * P.p0 ? '#f87171' : '#00b8d9'; cx.fillRect(gx + 1, gy + gh - fillH, gw - 2, fillH);
@@ -1303,6 +1418,7 @@ function drawInset() {
   cx.fillStyle = '#7c8aa0'; cx.textAlign = 'left'; cx.fillText('4 REAR', 224, 56); cx.fillText('4 DOWN', 224, 122); cx.fillText('4 SIDE', 224, 142); { const jj = [o.JLu, o.JLd, o.JRu, o.JRd]; for (let k = 0; k < 4; k++) { cx.fillStyle = jj[k] > 50 ? '#ffc93c' : '#241a40'; cx.fillRect(198 + k * 6, 134, 5, 9); } }
   cx.fillStyle = '#c9d4e3'; cx.fillText(`P ${Math.round(pnow)} bar`, 84, 168); cx.fillText(`T ${Math.round(o.T - 273.15)} °C`, 84, 180);
   cx.fillStyle = '#fbbf24'; cx.fillText(`${Math.round(o.am)} kg`, 168, 168);
+  cx.restore();
 }
 
 /* ---- readouts ---- */
@@ -1439,15 +1555,111 @@ function wire() {
       const r = cv.getBoundingClientRect(), nx = (e.clientX - r.left) / r.width * 2 - 1 - (S.LS || 0), ny = 1 - (e.clientY - r.top) / r.height * 2, L = S.basis, ta = Math.tan(FOV / 2), asp = S.W / S.H;
       const rd = [L.f[0] + nx * ta * asp * L.s[0] + ny * ta * L.u[0], L.f[1] + nx * ta * asp * L.s[1] + ny * ta * L.u[1], L.f[2] + nx * ta * asp * L.s[2] + ny * ta * L.u[2]], e0 = S.cm.eye;
       if (Math.abs(rd[2]) > 1e-4) { const tt = -e0[2] / rd[2], px = e0[0] + tt * rd[0], py = e0[1] + tt * rd[1]; const th = Math.atan2(px, RAMP_R - py) * 180 / Math.PI; $('th0').value = clamp(Math.round(th), 30, 180); refreshLabels(); S.t = 0; reparam(); }
-    } else { S.cam.dyaw -= dx * 0.008; S.cam.dpit += dy * 0.006; }
+    } else if (E.mode === 'experiment') { E.yaw -= dx * .008; E.pitch += dy * .006; }
+    else { S.cam.dyaw -= dx * 0.008; S.cam.dpit += dy * 0.006; }
   });
   cv.addEventListener('pointerup', () => drag = null); cv.addEventListener('pointercancel', () => drag = null);
-  cv.addEventListener('wheel', e => { e.preventDefault(); S.cam.dd = clamp(S.cam.dd * Math.exp(e.deltaY * 0.001), 0.3, 2.5); }, { passive: false });
-  cv.addEventListener('dblclick', () => { S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; });
+  cv.addEventListener('wheel', e => { e.preventDefault(); if (E.mode === 'experiment') E.zoom = clamp(E.zoom * Math.exp(e.deltaY * .001), .5, 2.5); else S.cam.dd = clamp(S.cam.dd * Math.exp(e.deltaY * 0.001), 0.3, 2.5); }, { passive: false });
+  cv.addEventListener('dblclick', () => { if (E.mode === 'experiment') { E.yaw = E.pitch = 0; E.zoom = 1; } else { S.cam.dyaw = S.cam.dpit = 0; S.cam.dd = 1; } });
   const ins = $('inset2d'); let gd = false;
-  const setP = e => { if (!$('pres') || $('pres').closest('.hide') || $('pres').parentElement.classList.contains('hide')) return; const r = ins.getBoundingClientRect(), y = (e.clientY - r.top) / r.height * 190; const b = clamp(Math.round(200 + (30 + 140 - y) / 140 * (689 - 200)), 200, 689); $('pres').value = b; refreshLabels(); reparam(); };
+  const setP = e => { if (!$('pres') || $('pres').closest('.hide') || $('pres').parentElement.classList.contains('hide')) return; const r = ins.getBoundingClientRect(), y = E.mode === 'experiment' ? (e.clientY - r.top) / Math.min(r.width / 300, r.height / 190) : (e.clientY - r.top) / r.height * 190; const b = clamp(Math.round(E.mode === 'experiment' ? (170 - y) / 140 * 689 : 200 + (30 + 140 - y) / 140 * (689 - 200)), 200, 689); $('pres').value = b; refreshLabels(); reparam(); };
   ins.addEventListener('pointerdown', e => { ins.setPointerCapture(e.pointerId); gd = true; setP(e); }); ins.addEventListener('pointermove', e => { if (gd) setP(e); }); ins.addEventListener('pointerup', () => gd = false);
   window.addEventListener('resize', () => { S.W = 0; });
+}
+
+/* ---- focused experiment presentation; the trajectory and readout kernels stay shared ---- */
+const EXPERIMENT = {
+  launch: { lever: 'pres', label: 'Tank pressure', signal: 'Acceleration (g)', key: 'ag' },
+  hover: { lever: 'pres', label: 'Tank pressure', signal: 'Height (m)', key: 'y' },
+  roll: { lever: 'apx', label: 'Target height', signal: 'Height (m)', key: 'y' },
+  climb: { lever: 'sup', label: 'Fan suction', signal: 'Grip margin (weight units)', key: 'mg' },
+  park: { lever: 'fade', label: 'Fan fade rate', signal: 'Grip margin (weight units)', key: 'mg' },
+  corner: { lever: 'sup', label: 'Fan suction', signal: 'Lateral acceleration (g)', key: 'ag' },
+};
+function drawExperimentSignal(a) {
+  const config = EXPERIMENT[S.pre], traces = [S.tr, E.baseline?.tr].filter(Boolean);
+  const duration = Math.max(S.dur, E.baseline?.dur || 0), points = traces.map(tr =>
+    Array.from({ length: 201 }, (_, index) => {
+      const time = duration * index / 200;
+      return [time, sampleT(tr, config.key, time)];
+    }));
+  const values = points.flat().map(point => point[1]);
+  const lo = Math.min(0, ...values), hi = Math.max(.1, ...values), padding = (hi - lo) * .12;
+  const cx = a.x, ax = axes(cx, a.w, a.h, 0, duration, lo - padding, hi + padding);
+  $('cap1').textContent = config.signal + ' · time (s)';
+  if (points[1]) curve(cx, points[1], ax.X, ax.Y, '#7c8aa0', 1.5, [4, 4]);
+  curve(cx, points[0], ax.X, ax.Y, '#fbbf24', 2);
+  cx.strokeStyle = '#ff2e97'; cx.beginPath(); cx.moveTo(ax.X(S.t), ax.T); cx.lineTo(ax.X(S.t), a.h - ax.B); cx.stroke();
+  marker(cx, ax.X(S.t), ax.Y(sampleT(S.tr, config.key, S.t)), '#34d399');
+}
+function updateExperiment(o) {
+  const config = EXPERIMENT[S.pre], source = $(config.lever);
+  $('experimentScenario').value = S.pre;
+  $('experimentParameterName').textContent = config.label;
+  for (const attribute of ['min', 'max', 'step']) $('experimentLever').setAttribute(attribute, source.getAttribute(attribute));
+  $('experimentLever').value = source.value;
+  $('experimentParameterValue').textContent = config.lever === 'pres' ? `${source.value} bar` : FMT[config.lever](source.value);
+  $('experimentProgress').value = S.dur ? S.t / S.dur : 0;
+  $('experimentTime').textContent = `${S.t.toFixed(1)} / ${S.dur.toFixed(1)} s`;
+  $('experimentPlay').innerHTML = S.playing ? '&#10074;&#10074;' : '&#9654;';
+  $('experimentPlay').setAttribute('aria-label', S.playing ? 'Pause' : 'Play');
+  const rowName = { launch: 'Predicted 0–60 mph', hover: 'Predicted hover time', roll: 'Apex height', climb: 'Max pitch held', corner: 'Cornering limit (fans)' }[S.pre];
+  const row = Array.from($('rdl').querySelectorAll('dt')).find(dt => dt.textContent === rowName);
+  if (S.pre === 'park') {
+    const time = Math.min(...[S.tr.info.slipT, S.tr.info.detachT].filter(Number.isFinite));
+    $('experimentHeadline').innerHTML = (Number.isFinite(time) ? `Predicted loss of hold: ≈ ${time.toFixed(1)} s` : 'Holds for this run') + `<i class="tg DER" title="${TAGT.DER}">DER</i>`;
+  } else if (row) $('experimentHeadline').innerHTML = (S.pre === 'climb' || S.pre === 'corner' ? 'Predicted ' : '') + rowName + ': ' + row.nextElementSibling.innerHTML;
+  const event = shout(o);
+  $('experimentNow').textContent = `${event ? event[0].toLowerCase() + ' · ' : ''}${S.pre === 'corner' ? `lateral ${o.ag.toFixed(2)} g` : `air left ${o.am.toFixed(0)} kg · height ${o.y.toFixed(1)} m`} · drag to orbit`;
+  $('experimentKeep').textContent = E.baseline ? 'Clear held' : 'Keep run';
+  $('experimentComparison').hidden = !E.baseline;
+  if (E.baseline) $('experimentComparison').textContent = 'Dashed: held run · ' + E.baseline.label;
+}
+function restoreDetails() {
+  for (const [element, home] of E.homes) home.replaceWith(element);
+  E.homes.clear();
+}
+function openDetails(panel) {
+  setPlaying(false);
+  restoreDetails();
+  const elements = panel === 'parameters' ? [document.querySelector('main>aside')] :
+    panel === 'measurements' ? [$('readouts'), $('inset'), $('p2').parentElement] : [$('explain')];
+  for (const element of elements) {
+    const home = document.createComment('');
+    element.before(home); E.homes.set(element, home); $('detailContent').append(element);
+  }
+  document.querySelectorAll('[data-detail]').forEach(button => button.setAttribute('aria-pressed', button.dataset.detail === panel));
+  if (!$('experimentDetails').open) $('experimentDetails').showModal();
+  $('experimentDetails').scrollTop = 0;
+}
+function setView(mode) {
+  if ($('experimentDetails').open) $('experimentDetails').close();
+  restoreDetails();
+  E.mode = mode;
+  document.body.classList.toggle('experiment', mode === 'experiment');
+  document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', button.dataset.view === mode));
+}
+function wireExperiment() {
+  document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view));
+  document.querySelectorAll('[data-detail]').forEach(button => button.onclick = () => openDetails(button.dataset.detail));
+  $('experimentScenario').onchange = event => setPreset(event.target.value);
+  $('experimentPlay').onclick = () => $('playBtn').click();
+  $('experimentRestart').onclick = () => $('restartBtn').click();
+  $('experimentProgress').oninput = event => {
+    setPlaying(false); $('prog').value = event.target.value; $('prog').dispatchEvent(new Event('input'));
+  };
+  $('experimentLever').oninput = event => {
+    const source = $(EXPERIMENT[S.pre].lever); source.value = event.target.value; source.dispatchEvent(new Event('input'));
+  };
+  $('experimentSettings').onclick = () => openDetails('parameters');
+  $('experimentWhy').onclick = () => openDetails('why');
+  $('experimentCenter').onclick = () => { E.yaw = E.pitch = 0; E.zoom = 1; };
+  $('experimentKeep').onclick = () => {
+    setPlaying(false);
+    E.baseline = E.baseline ? null : { tr: S.tr, dur: S.dur, label: $('experimentHeadline').textContent };
+  };
+  $('detailClose').onclick = () => $('experimentDetails').close();
+  $('experimentDetails').addEventListener('close', restoreDetails);
 }
 
 /* ---- loop ---- */
@@ -1460,11 +1672,12 @@ function loop(ts) {
     $('prog').value = S.dur ? S.t / S.dur : 0; $('progV').textContent = S.t.toFixed(2) + ' s';
     if (GL.ok && !GL.lost) render(dt); else S.lastPose = poseAt(S.tr, S.t);
     const o = S.lastPose; updateReadouts(o); drawPlots(); drawInset(); sndUpdate(o);
+    if (E.mode === 'experiment') updateExperiment(o);
   } catch (e) { if (!S._err) { S._err = 1; console.error(e); } }
   requestAnimationFrame(loop);
 }
 function go() {
-  glSetup(); wire(); refreshLabels(); setPreset('launch'); requestAnimationFrame(loop);
+  glSetup(); wire(); wireExperiment(); refreshLabels(); setPreset(E.mode === 'experiment' ? 'hover' : 'launch'); setView(E.mode); requestAnimationFrame(loop);
 }
 window.RDX = { lanes: () => ({ YZ, rows: GHOSTS.map(g => ({ n: g.n, t: g.t, z: g.z })).concat([{ n: 'YOU', t: S.tr.info.t60, z: YZ }]) }), S, simLaunch, simHover, simRoll, simWall, simCorner, tankMass, timeToEmpty, thetaMax, minSuction, cornerG, wallState, newTank, tankBurn, thrustAvail, hoverThrust, setPreset, reparam, GL, DOWNFORCE_N, zOf, psi };
 go();

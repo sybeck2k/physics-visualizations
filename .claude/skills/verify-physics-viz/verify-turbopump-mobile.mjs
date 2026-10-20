@@ -193,6 +193,17 @@ try {
   assert(await page.$eval('#detailContent #rdl', element => element.children.length >= 16));
   assert(await page.$eval('#cRel', element => element.getBoundingClientRect().width >= 250));
   assert(await page.$eval('#inset3d', element => element.getBoundingClientRect().height >= 150));
+  assert(await page.$eval('#insetView', element => element.getBoundingClientRect().height >= 43.5), '3-D toggle must be a 44 px target');
+  const sig0 = await page.$eval('#c3d', c => c.toDataURL().slice(3000, 3300));
+  await page.click('#insetView'); await settle();
+  assert.match(await page.$eval('#inset3d .cap', element => element.textContent), /3-D/);
+  const box = await (await page.$('#c3d')).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 50, box.y + box.height / 2 + 20, { steps: 5 }); await page.mouse.up(); await settle();
+  assert.notEqual(await page.$eval('#c3d', c => c.toDataURL().slice(3000, 3300)), sig0, 'Orbiting the 3-D impeller must redraw it');
+  assert(await page.$eval('#experimentDetails', element => element.scrollWidth <= element.clientWidth + 2));
+  if (screenshots) await page.screenshot({ path: `${screenshots}/phone-impeller3d.png` });
+  await page.click('#insetView'); await settle();
   assert(await page.$eval('#experimentDetails', element => element.scrollWidth <= element.clientWidth + 2), 'Sheet must not scroll sideways');
   if (screenshots) await page.screenshot({ path: `${screenshots}/phone-measurements.png` });
   await page.click('[data-detail="why"]');

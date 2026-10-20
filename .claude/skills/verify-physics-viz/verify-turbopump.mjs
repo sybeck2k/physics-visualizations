@@ -285,6 +285,33 @@ try {                                             // B8 the speed slider never r
   rec('B8', 'physics', ok, rows.join(' · '), 'at the slider floor the pump still builds pressure, for every tab and β₂ in {10°, 25°, 60°}');
 } catch (e) { rec('B8', 'physics', false, 'threw: ' + e.message, 'speed floor'); }
 
+try {                                             // B9 the 3-D impeller's blades ARE the 2-D logarithmic spirals, extruded by b2
+  await tab('f1lox'); await setRange('#beta', 32);
+  const h = await hook(), { r1, r2, b2 } = h.G, beta = 32 * Math.PI / 180, t = 0.0031;
+  let worstAng = 0, worstTan = 0, zok = true;
+  for (let k = 0; k < 7; k++) for (let i = 0; i <= 8; i++) {
+    const r = r1 + (r2 - r1) * (0.02 + 0.96 * i / 8), dr = (r2 - r1) * 1e-4;
+    const [x, y, z0, x2, y2, z1] = await page.evaluate((k, r, t) => window.__blade3d(k, r, t), k, r, t);
+    const [xa, ya] = await page.evaluate((k, r, t) => window.__blade3d(k, r, t), k, r + dr, t);
+    const want = h.R.w * t + k * 2 * Math.PI / 7 - Math.log(r / r1) / Math.tan(beta);       // independent log-spiral
+    worstAng = Math.max(worstAng, Math.abs(Math.atan2(Math.sin(Math.atan2(y, x) - want), Math.cos(Math.atan2(y, x) - want))));
+    const dx = xa - x, dy = ya - y, rad = Math.atan2(y, x), tan = Math.abs(-dx * Math.sin(rad) + dy * Math.cos(rad)), rdir = dx * Math.cos(rad) + dy * Math.sin(rad);
+    worstTan = Math.max(worstTan, Math.abs(Math.atan(rdir / tan) - beta));   // angle to the tangent
+    zok = zok && z0 === 0 && Math.abs(z1 - b2) < 1e-12 && Math.hypot(x, y) > 0 && Math.abs(Math.hypot(x2, y2) - Math.hypot(x, y)) < 1e-9;
+  }
+  await page.click('#insetView'); await sleep(200);
+  const cap = await page.$eval('#inset3d .cap', e => e.textContent), ink = await inkFrac('#c3d');
+  const sig0 = await page.$eval('#c3d', c => c.toDataURL().length + ':' + c.toDataURL().slice(5000, 5200));
+  const bb = await (await page.$('#c3d')).boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down(); await page.mouse.move(bb.x + bb.width / 2 + 60, bb.y + bb.height / 2 + 20, { steps: 6 }); await page.mouse.up(); await sleep(150);
+  const sig1 = await page.$eval('#c3d', c => c.toDataURL().length + ':' + c.toDataURL().slice(5000, 5200));
+  await page.click('#insetView'); await sleep(150);
+  const back = await page.$eval('#inset3d .cap', e => e.textContent);
+  rec('B9', 'physics', worstAng < 1e-6 && worstTan < 0.02 && zok && /3-D/.test(cap) && ink > 0.05 && sig0 !== sig1 && /tower/i.test(back),
+    `blade angle error ${worstAng.toExponential(1)} rad vs an independent log spiral · angle to the tangent within ${(worstTan * 180 / Math.PI).toFixed(2)}° of β₂ · height = b₂ ${zok} · caption "${cap}" · ink ${(ink * 100).toFixed(1)}% · orbit drag redraws ${sig0 !== sig1} · toggles back "${back}"`,
+    '3-D blade points sit on the same logarithmic spiral as the 2-D stage (1e-6 rad), cross circles at β₂ (0.02 rad), span z = 0…b₂; the inset toggles and orbits');
+} catch (e) { rec('B9', 'physics', false, 'threw: ' + e.message, '3-D impeller'); }
+
 /* ============================================================ INSIGHT (C) */
 try {                                             // C1 same pump, four liquids: same head, pressure follows density
   await tab('any');

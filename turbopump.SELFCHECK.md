@@ -42,3 +42,10 @@ collection phone menu opens the piece; zero errors, zero network requests.
 - 1-D meanline: one velocity triangle per stage, no volute, no leakage, no 3-D or viscous flow. ±30% or worse.
 - The flow is held at the engine's design value; in a real engine speed and flow are coupled through the system curve.
 - Vapour pressure stays that of the tab's liquid when you change the density slider.
+
+## 3-D impeller inset
+
+The inset can switch from the tower to an orbitable orthographic impeller (hand-projected, canvas 2-D). The blades are the
+2-D stage's logarithmic spirals (`bladeAng`) extruded by the real passage width b₂; the backplate uses the stage's pressure
+colours and the green drop is `parcelAt()`. Not drawn: the axial inlet bend, the shaft, the casing volute — it is a radial
+slice, captioned `(schematic)`. Check B9 verifies the 3-D points against an independent spiral and that they cross circles at β₂.

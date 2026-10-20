@@ -268,6 +268,23 @@ try {                                             // B7 conservation: each stage
     'each of the 3 stages ends exactly one stage-rise above its start (0.5%); pressure never falls after the inducer dip');
 } catch (e) { rec('B7', 'physics', false, 'threw: ' + e.message, 'conservation'); }
 
+try {                                             // B8 the speed slider never reaches a speed that builds no pressure, at any blade angle
+  const rows = []; let ok = true;
+  for (const k of TABS) {
+    await tab(k);
+    for (const beta of [10, 25, 60]) {
+      await setRange('#beta', beta);
+      const mn = parseFloat(await page.$eval('#spd', e => e.min));
+      await setRange('#spd', 0);                  // ask for the slowest speed; the browser clamps it to the floor
+      const h = await hook();
+      const spd = parseFloat(await page.$eval('#spd', e => e.value));
+      ok = ok && spd >= mn && h.R.dp > 0 && h.R.dpSt > 0;
+      if (beta === 60) rows.push(`${k}: floor ${mn} rpm → ${(h.R.dp / 1e6).toFixed(2)} MPa`);
+    }
+  }
+  rec('B8', 'physics', ok, rows.join(' · '), 'at the slider floor the pump still builds pressure, for every tab and β₂ in {10°, 25°, 60°}');
+} catch (e) { rec('B8', 'physics', false, 'threw: ' + e.message, 'speed floor'); }
+
 /* ============================================================ INSIGHT (C) */
 try {                                             // C1 same pump, four liquids: same head, pressure follows density
   await tab('any');

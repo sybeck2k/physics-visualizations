@@ -262,7 +262,8 @@
           <input type="range" id="pin" min="0.05" max="3" step="0.01" value="0.45">
         </label>
         <div class="hint">Drag the cyan knob around the casing to spin the pump up or down. The flow
-        is set by the engine, not by you — it stays at the design value. Vapour pressure stays that of
+        is set by the engine, not by you — it stays at the design value, so the slider stops at the slowest
+        speed that still builds any pressure (it rises as you open the blade angle). Vapour pressure stays that of
         the tab's liquid.</div>
       </div>
 
@@ -545,6 +546,16 @@ function pumpState(P){
   return { N:P.N, rho:P.rho, beta:P.beta, pin:P.pin, w, sg, u2, cm2, cu2, flow2:cr2, Hth:u2*cu2/G0, Hst, H, dp, dpSt, hyd, shaft,
            c1, u1, w1, npshr, npsha, margin:npsha/npshr, pDip, cav: pDip < G.pv, Ncav,
            tip:u2, Hcap, stagesNeeded: Math.max(1, Math.ceil(H/Math.max(Hcap,1e-9) - 1e-9)) };
+}
+// slowest speed that still builds pressure: below it the slip-reduced swirl cannot beat the swirl the
+// fixed flow demands (Euler head <= 0). The slider floor follows β₂, so the pump can never be driven there.
+function spdFloor(sc){
+  const b=rad(S.beta), cm2=G.Q/(2*Math.PI*G.r2*G.b2), n0=cm2/(slip(b)*Math.tan(b))/(G.r2*RPM);
+  return Math.max(Math.round(0.2*sc.N/50)*50, Math.ceil(n0/50)*50+50);
+}
+function applySpdFloor(){
+  const sp=$('spd'); sp.min=spdFloor(SCEN[S.scen]);
+  if(S.spd<parseFloat(sp.min)){ S.spd=parseFloat(sp.min); sp.value=S.spd; }
 }
 const curP = () => ({N:S.spd, rho:S.rho, beta:S.beta, pin:S.pin});
 
@@ -959,7 +970,7 @@ function refreshSliderLabels(){
 $('rate').oninput=e=>{S.rate=parseFloat(e.target.value);refreshSliderLabels();};
 $('spd').oninput =e=>{S.spd=parseFloat(e.target.value);refreshSliderLabels();reparam();};
 $('rho').oninput =e=>{S.rho=Math.pow(10,parseFloat(e.target.value));refreshSliderLabels();reparam();};
-$('beta').oninput=e=>{S.beta=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('beta').oninput=e=>{S.beta=parseFloat(e.target.value);applySpdFloor();refreshSliderLabels();reparam();};
 $('pin').oninput =e=>{S.pin=parseFloat(e.target.value)*1e6;refreshSliderLabels();reparam();};
 $('oPres').onchange=e=>{S.ov.pres=e.target.checked;draw();};
 $('oTri').onchange =e=>{S.ov.tri =e.target.checked;draw();};
@@ -976,10 +987,11 @@ document.querySelectorAll('#tabs button').forEach(b=>{
       el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
     });
     const sc=SCEN[S.scen]; G=buildGeom(sc); G.key=S.scen;
-    $('spd').min=Math.round(0.2*sc.N/50)*50; $('spd').max=Math.round(1.5*sc.N/50)*50;
+    $('spd').max=Math.round(1.5*sc.N/50)*50;
+    $('spd').min=Math.round(0.2*sc.N/50)*50;
     $('spd').value=sc.N; S.spd=parseFloat($('spd').value);
     S.rho=FLU[sc.fluid].rho; $('rho').value=Math.log10(S.rho).toFixed(3);
-    S.beta=BETA_D; $('beta').value=BETA_D;
+    S.beta=BETA_D; $('beta').value=BETA_D; applySpdFloor();
     $('pin').value=(G.pinDesign/1e6).toFixed(2); S.pin=parseFloat($('pin').value)*1e6;
     refreshSliderLabels();
     S.t=0; S.playing=false; S.pan.x=0; S.pan.y=0; E.baseline=null;

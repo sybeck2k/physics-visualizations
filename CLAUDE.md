@@ -251,7 +251,7 @@ A new piece is not in this collection unless it is:
 
 ## 10. Phone presentation — "Experiment" mode
 
-All five pieces (`sonic-boom`, `diffraction-grating`, `gravitational-slingshot`, `sofar-sound-channel`, `tesla-roadster`) carry a second presentation for phones. §§2–8
+All six pieces (`sonic-boom`, `diffraction-grating`, `gravitational-slingshot`, `sofar-sound-channel`, `tesla-roadster`, `turbopump`) carry a second presentation for phones. §§2–8
 still describe the desktop **Full lab**; Experiment
 is an additive layer over the *same* DOM, kernel and state, never a fork of them.
 
@@ -377,9 +377,23 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
 - Stage text is cut to what survives a ~140 px stage: the axis/envelope/wavefront captions and the
   shadow/arrivals banners go; the vertical-exaggeration note stays (shortened) because it is an honesty disclosure.
 
+**Turbopump specifics (2-D, no WebGL) — the one piece written for phone from the start**
+
+- Lever = liquid **density** (`#rho`, a log slider); the stage's cyan speed knob on the casing is a second,
+  directly manipulable control (34 px target on touch). Hand-sculpting does not exist here, so nothing is `.lab-only`.
+- One impeller geometry (`buildGeom`) is solved at load so the model reproduces each tab's design pressure rise;
+  the live kernel (`pumpState`) and the drawn blades, velocity triangle and drop all read that same geometry.
+  The drop's pressure and position are closed-form functions of the clock, so scrub == play by construction.
+- Confidence chips (REPORTED / DERIVED / ESTIMATE / ASSUMED / REFERENCE, §9) are on the *design-point* rows,
+  because the live numbers are always this model's output. The Raptor tab is entirely ESTIMATE.
+- Keep run stores 161 samples of the drop's pressure trace (log-pressure axis, so the inducer dip and the
+  vapour-pressure line stay visible) and draws it dashed cyan; the strip compares the two pressure rises.
+- The phone drops the velocity triangle and the text captions from the stage; the cavitation marker and the
+  bubbles stay.
+
 **Collection page (`build-index.mjs` → `index.html`)**
 
-- Also carries the viewport meta. For the adapted pieces (`pocket` is now all five keys) at ≤ 700 px
+- Also carries the viewport meta. For the adapted pieces (`pocket` is now all six keys) at ≤ 700 px
   the page gets `body.pocket`: header collapses to a one-line `<select id="topicSelect">`, `100dvh`
   app, and the "what am I looking at" intro is **skipped** (the piece explains itself).
 - When a new piece gains a phone mode, add its key to `pocket` in `build-index.mjs`, then rebuild
@@ -387,7 +401,7 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
 
 **Verification** — run **alongside** `verify.mjs`, not instead of it, in the Puppeteer container
 (`isMobile:true, hasTouch:true, deviceScaleFactor:2`): `verify-sonic-boom-mobile.mjs`,
-`verify-diffraction-grating-mobile.mjs`, `verify-gravitational-slingshot-mobile.mjs`, `verify-sofar-sound-channel-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
+`verify-diffraction-grating-mobile.mjs`, `verify-gravitational-slingshot-mobile.mjs`, `verify-sofar-sound-channel-mobile.mjs`, `verify-turbopump-mobile.mjs`, `verify-roadster-mobile.mjs` (software GL). Between them they check: standalone/strict/no network;
 the four portrait sizes fit; play/restart/scenario switches preserve state across modes; held trace
 survives parameter changes; real touch drag moves the observer and doesn't snap back; sheet pauses and
 restores the original nodes; rotation keeps the chosen mode while a fresh desktop load stays Full

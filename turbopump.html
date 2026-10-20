@@ -1,0 +1,1112 @@
+<title>Rocket Turbopump</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+  /* Committed dark instrument-panel aesthetic: single visual world, painted explicitly. */
+  :root{
+    color-scheme:dark;
+    --bg:#06080d; --panel:#0b0f1a; --panel2:#0e1424; --line:#1b2436;
+    --ink:#c9d4e3; --dim:#7c8aa0; --faint:#4a5568;
+    --cyan:#38bdf8; --amber:#fbbf24; --green:#34d399; --red:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:13px; line-height:1.5; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; height:100vh; width:100vw}
+
+  header{
+    display:flex; align-items:center; gap:14px 18px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0e18,#070a12);
+    flex:0 0 auto;
+  }
+  header h1{
+    font-size:14px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    margin:0; color:#e6edf6;
+  }
+  header h1 span{color:var(--cyan)}
+  header h1 .longtitle{color:inherit}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+  .tabs button{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+    color:var(--dim); background:var(--panel2); border:1px solid var(--line);
+    padding:7px 12px; border-radius:7px; cursor:pointer; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink); border-color:#2b3550}
+  .tabs button.on{color:#06202b; background:var(--cyan); border-color:var(--cyan); font-weight:600}
+
+  main{flex:1 1 auto; display:grid; grid-template-columns:250px 1fr; min-height:0}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel);
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:16px;
+  }
+  .grp{display:flex; flex-direction:column; gap:9px}
+  .grp h2{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 2px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .btns{display:flex; gap:6px}
+  .btns button{
+    flex:1; font-family:var(--mono); font-size:11px; color:var(--ink);
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 4px; cursor:pointer; transition:.15s;
+  }
+  .btns button:hover{border-color:var(--cyan); color:#fff}
+  .btns button.play{background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.4)}
+  label.fld{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim)}
+  label.fld .v{color:var(--ink); font-family:var(--mono); font-size:11px}
+  input[type=range]{width:100%; accent-color:var(--cyan); cursor:pointer}
+  label.chk{display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); cursor:pointer}
+  label.chk input{accent-color:var(--cyan); cursor:pointer}
+
+  #stagewrap{position:relative; min-width:0; display:flex; flex-direction:column}
+  #stage{position:relative; flex:1 1 auto; min-height:0; background:#04060b}
+  #stage canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d{
+    position:absolute; top:12px; right:10px; width:272px; height:176px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.96);
+    backdrop-filter:blur(3px); z-index:3;
+  }
+  #inset3d canvas{position:absolute; inset:0; width:100%; height:100%}
+  #inset3d .cap{
+    position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+  #readouts{
+    position:absolute; top:192px; right:10px; bottom:8px; width:314px; z-index:3;
+    border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
+    backdrop-filter:blur(3px); padding:9px 12px; font-family:var(--mono);
+    overflow-y:auto;
+  }
+  #readouts h3{
+    font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint);
+    margin:0 0 6px;
+  }
+  #readouts dl{display:grid; grid-template-columns:1fr auto; gap:1px 10px; margin:0; font-size:10px}
+  #readouts dt{color:var(--dim); white-space:nowrap}
+  #readouts dt[title]{cursor:help; text-decoration:underline dotted var(--faint); text-underline-offset:2px}
+  #readouts dd{margin:0; text-align:right; color:var(--ink)}
+  #readouts dd.hi{color:var(--amber)}
+  #readouts dd.warn{color:var(--red)}
+  #readouts dd.ok{color:var(--green)}
+  #readouts .sep{grid-column:1/-1; height:1px; background:var(--line); margin:5px 0}
+
+  #plots{
+    flex:0 0 168px; display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border-top:1px solid var(--line);
+  }
+  .plot{position:relative; background:#070a12}
+  .plot canvas{position:absolute; inset:0; width:100%; height:100%}
+  .plot .cap{
+    position:absolute; left:10px; top:8px; font-family:var(--mono); font-size:9px;
+    letter-spacing:.13em; text-transform:uppercase; color:var(--faint); z-index:1;
+  }
+
+  #explain{
+    flex:0 0 auto; max-height:clamp(180px,26vh,300px); overflow-y:auto; border-top:1px solid var(--line);
+    background:var(--panel); padding:11px 16px 13px; display:grid;
+    grid-template-columns:repeat(5,1fr); gap:12px;
+  }
+  #explain .ex{
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:9px 12px;
+    max-height:clamp(164px,24vh,280px); overflow-y:auto;
+  }
+  #explain .ex::-webkit-scrollbar{width:5px}
+  #explain .ex::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+  #explain h4{
+    margin:0 0 5px; font-family:var(--mono); font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--cyan);
+  }
+  #explain p{margin:5px 0 0; color:var(--dim); font-size:11.5px}
+  #explain p.cav{margin-top:6px; color:var(--faint); font-size:10px; font-style:italic; line-height:1.45}
+  #explain b{color:var(--ink); font-weight:600}
+  #explain code{font-family:var(--mono); color:var(--amber); font-size:11px}
+  .hint{font-size:10.5px; color:var(--faint); margin-top:4px}
+  @media (max-width:1400px){ #explain{grid-template-columns:repeat(3,1fr); max-height:34vh} }
+  @media (max-width:820px){ #explain{grid-template-columns:1fr 1fr; max-height:40vh} }
+
+  /* ---- phone presentation ("Experiment"): everything is scoped to body.experiment ---- */
+  .experiment-only{display:none}
+  #viewMode{display:flex; border:1px solid var(--line); border-radius:6px; padding:2px; gap:2px}
+  #viewMode button{white-space:nowrap; font:10px var(--mono); color:var(--dim); background:transparent; border:0; border-radius:4px; padding:7px 9px; cursor:pointer}
+  #viewMode button[aria-pressed=true]{background:var(--panel2); color:var(--cyan)}
+  #main2d,#c3d{touch-action:none}
+  #experimentDetails{width:min(100% - 16px,560px); max-height:calc(100dvh - 32px); margin:auto auto 8px; padding:0;
+    color:var(--ink); background:var(--panel); border:1px solid #33415a; border-radius:8px; overflow:auto}
+  #experimentDetails::backdrop{background:rgba(0,0,0,.65)}
+  #detailBar{position:sticky; top:0; display:flex; align-items:center; gap:4px; padding:8px; background:var(--panel); border-bottom:1px solid var(--line); z-index:4}
+  #detailBar button{min-height:44px; padding:0 12px; border:0; border-radius:4px; font:11px var(--mono); color:var(--dim); background:transparent; cursor:pointer}
+  #detailBar button[aria-pressed=true]{color:var(--cyan); background:var(--panel2)}
+  #detailBar #detailClose{margin-left:auto; min-width:44px; padding:0; font-size:24px}
+  #detailContent{padding:16px}
+  #detailContent aside{padding:0; border:0; overflow:visible}
+  #detailContent label.fld{font-size:12px; gap:6px}
+  #detailContent input[type=range]{height:32px; margin:0}
+  #detailContent label.chk{min-height:44px; font-size:12px}
+  #detailContent .btns button{min-height:44px}
+  #detailContent #readouts{position:static; width:auto; padding:0; border:0; border-radius:0; background:transparent; overflow:visible}
+  #detailContent #readouts dl{font-size:11px; gap:8px}
+  #detailContent #readouts dt{white-space:normal; min-width:0}
+  #detailContent #readouts dd{max-width:23ch; overflow-wrap:anywhere}
+  #detailContent .plot{height:210px; margin-top:20px}
+  #detailContent #inset3d{position:relative; top:auto; right:auto; width:100%; height:200px; margin-top:20px}
+  #detailContent #explain{display:block; max-height:none; padding:0; border:0; overflow:visible}
+  #detailContent #explain .ex{max-height:none; overflow:visible; border:0; border-radius:0; background:none; padding:0 0 18px}
+  #detailContent #explain p{font-size:13px; line-height:1.7}
+  #detailContent #explain p.cav{font-size:12px}
+  body.experiment #app{height:100dvh}
+  body.experiment #app,body.experiment dialog{letter-spacing:0}
+  body.experiment header{padding:8px 12px; gap:8px; flex-wrap:nowrap; justify-content:space-between}
+  body.experiment header{padding-top:max(8px,env(safe-area-inset-top))}
+  body.experiment header h1{font-size:12px; letter-spacing:0; white-space:nowrap}
+  body.experiment .longtitle,body.experiment #tabs{display:none}
+  body.experiment .experiment-only{display:block}
+  body.experiment #experimentTop{padding:0 12px 8px; background:#070b12}
+  #experimentScenario{width:100%; min-height:40px; padding:0 10px; font:12px var(--mono); color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:4px}
+  body.experiment main{display:flex}
+  body.experiment main>aside,body.experiment #stage>#inset3d,body.experiment #stage>#readouts,body.experiment #plots>.plot:nth-child(2),body.experiment #app>#explain{display:none}
+  body.experiment #stagewrap{flex:1; min-height:0}
+  body.experiment #stage{overflow:hidden}
+  body.experiment #plots{flex:0 0 142px; display:block; background:#070a12}
+  body.experiment #plots>.plot:first-child{height:100%}
+  body.experiment #plots .cap{letter-spacing:0; color:var(--dim); font-size:10px}
+  #experimentResult{padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); flex-shrink:0}
+  #experimentResult .result-row{display:flex; justify-content:space-between; align-items:center; gap:12px}
+  #experimentStatus{font:600 17px var(--mono); color:var(--green)}
+  #experimentStatus.warn{color:var(--red)}
+  #experimentHeadline{font:600 18px var(--mono); color:var(--amber); white-space:nowrap}
+  #experimentForecast{font:10px/1.5 var(--mono); color:var(--dim); margin-top:4px; overflow-wrap:anywhere}
+  #experimentComparison{font:10px/1.5 var(--mono); color:var(--cyan); margin-top:3px}
+  #experimentControls{flex-shrink:0; padding:8px 12px max(8px,env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel)}
+  #experimentTransport{display:flex; gap:6px; align-items:center}
+  #experimentControls button{min-height:44px; border:1px solid var(--line); border-radius:4px; background:var(--panel2); color:var(--ink); font:11px var(--mono); cursor:pointer}
+  #experimentTransport button{width:44px; flex-shrink:0; font-size:20px}
+  #experimentPlay{color:var(--cyan)!important}
+  #experimentTimeline{flex:1; min-width:0}
+  #experimentTime{display:block; font:10px var(--mono); color:var(--dim); text-align:right}
+  #experimentControls input[type=range]{height:28px; margin:0; display:block}
+  #experimentParameter{display:grid; grid-template-columns:1fr auto; gap:0 12px; font:11px var(--mono); color:var(--dim); margin-top:6px}
+  #experimentParameter output{color:var(--cyan)}
+  #experimentLever{grid-column:1/-1}
+  #experimentActions{display:flex; gap:6px; margin-top:4px}
+  #experimentActions button{flex:1; min-width:0}
+  #experimentControls button:disabled{opacity:.4; cursor:default}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+  @media (max-height:740px){body.experiment #plots{flex-basis:122px} #experimentStatus{font-size:15px} #experimentHeadline{font-size:16px}}
+  @media (max-height:600px){body.experiment #plots{flex-basis:108px}}
+  @media (max-height:520px){body.experiment{overflow-y:auto} body.experiment #app{height:660px}}
+  i.tg{font-style:normal; font:9px var(--mono); letter-spacing:.06em; margin-left:6px; padding:1px 4px; border-radius:3px; border:1px solid var(--line); color:var(--dim); cursor:help; vertical-align:1px}
+  i.tg.rep{color:var(--cyan); border-color:rgba(56,189,248,.4)}
+  i.tg.off{color:var(--green); border-color:rgba(52,211,153,.4)}
+  i.tg.est{color:var(--amber); border-color:rgba(251,191,36,.4)}
+  i.tg.der{color:#a78bfa; border-color:rgba(167,139,250,.4)}
+</style>
+
+<div id="app">
+  <header>
+    <h1><span class="longtitle">Rocket&nbsp;</span><span>Turbopump</span></h1>
+    <div id="viewMode" role="group" aria-label="Presentation">
+      <button type="button" data-view="experiment" aria-pressed="false">Experiment</button>
+      <button type="button" data-view="lab" aria-pressed="true">Full lab</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-s="f1lox" class="on">1 · F-1 liquid oxygen</button>
+      <button data-s="f1fuel">2 · F-1 kerosene</button>
+      <button data-s="ssme">3 · Shuttle hydrogen</button>
+      <button data-s="raptor">4 · Raptor methane</button>
+      <button data-s="any">5 · One pump, any liquid</button>
+    </div>
+  </header>
+  <div id="experimentTop" class="experiment-only">
+    <select id="experimentScenario" aria-label="Scenario">
+      <option value="f1lox">F-1 liquid oxygen</option>
+      <option value="f1fuel">F-1 kerosene</option>
+      <option value="ssme">Shuttle hydrogen</option>
+      <option value="raptor">Raptor methane</option>
+      <option value="any">One pump, any liquid</option>
+    </select>
+  </div>
+
+  <main>
+    <aside>
+      <div class="grp">
+        <h2>Simulation</h2>
+        <div class="btns">
+          <button id="playBtn" class="play">▶ Play</button>
+          <button id="restartBtn">↻ Restart</button>
+        </div>
+        <label class="fld">Time rate <span class="v" id="rateV">1.00×</span>
+          <input type="range" id="rate" min="0.15" max="5" step="0.05" value="1">
+        </label>
+        <label class="fld">Timeline <span class="v" id="progV">0 ms</span>
+          <input type="range" id="prog" min="0" max="1" step="0.001" value="0">
+        </label>
+      </div>
+
+      <div class="grp">
+        <h2>Run the pump</h2>
+        <label class="fld">Shaft speed <span class="v" id="spdV">5,500 rpm</span>
+          <input type="range" id="spd" min="1100" max="8250" step="50" value="5500">
+        </label>
+        <label class="fld">Liquid density ρ <span class="v" id="rhoV">1141 kg/m³</span>
+          <input type="range" id="rho" min="1.699" max="3.114" step="0.002" value="3.057">
+        </label>
+        <label class="fld">Blade exit angle β₂ <span class="v" id="betaV">25.0°</span>
+          <input type="range" id="beta" min="10" max="60" step="0.5" value="25">
+        </label>
+        <label class="fld">Inlet (tank) pressure <span class="v" id="pinV">0.45 MPa</span>
+          <input type="range" id="pin" min="0.05" max="3" step="0.01" value="0.45">
+        </label>
+        <div class="hint">Drag the cyan knob around the casing to spin the pump up or down. The flow
+        is set by the engine, not by you — it stays at the design value. Vapour pressure stays that of
+        the tab's liquid.</div>
+      </div>
+
+      <div class="grp">
+        <h2>View</h2>
+        <div class="btns">
+          <button id="panL">◂ Pan</button>
+          <button id="panR">Pan ▸</button>
+          <button id="recenter">⊙ Center</button>
+        </div>
+        <div class="hint">Drag empty space to pan · double‑click to recenter.</div>
+      </div>
+
+      <div class="grp">
+        <h2>Overlays</h2>
+        <label class="chk"><input type="checkbox" id="oPres" checked> Pressure map</label>
+        <label class="chk"><input type="checkbox" id="oTri" checked> Velocity triangle at the rim</label>
+        <label class="chk"><input type="checkbox" id="oTrail" checked> Drop's path</label>
+        <label class="chk"><input type="checkbox" id="oCav" checked> Cavitation marker</label>
+      </div>
+    </aside>
+
+    <div id="stagewrap">
+      <div id="stage">
+        <canvas id="main2d"></canvas>
+        <div id="inset3d">
+          <span class="cap">The tower of liquid (schematic)</span>
+          <canvas id="c3d"></canvas>
+        </div>
+        <div id="readouts">
+          <h3>Live readout</h3>
+          <dl id="rdl"></dl>
+        </div>
+      </div>
+      <section id="experimentResult" class="experiment-only" aria-label="Your drop of liquid">
+        <div class="result-row"><span id="experimentStatus">Ready — press play</span><span id="experimentHeadline"></span></div>
+        <div id="experimentForecast"></div>
+        <div id="experimentComparison" hidden></div>
+      </section>
+      <div id="plots">
+        <div class="plot">
+          <span class="cap" id="signalCaption">What one drop of liquid feels — pressure vs time</span>
+          <canvas id="cTrace"></canvas>
+        </div>
+        <div class="plot">
+          <span class="cap">Pressure rise vs liquid density — log–log</span>
+          <canvas id="cRel"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section id="explain">
+    <div class="ex">
+      <h4>The trick: a tower of liquid</h4>
+      <p>A pump is a spinning paddle that throws liquid outward. How fast its tip moves sets one thing:
+      how tall a <b>tower of liquid</b> it can hold up. That height — the <b>head</b>,
+      <code>H ≈ ψ·u²/g</code> — does not care what the liquid is.</p>
+      <p>Pressure is the weight of that tower over its base: <code>Δp = ρ·g·H</code>. Same height, so a
+      heavy liquid presses hard and a light one barely presses. Oxygen is <b>16×</b> denser than hydrogen
+      ⇒ the same pump makes <b>16×</b> less pressure with hydrogen.</p>
+      <p data-scen="f1lox f1fuel">The F-1 turns both its pumps on one shaft at 5,500 rpm. Oxygen and kerosene are only
+      1.4× apart in density, so one speed serves both — the kerosene pump just needs a bigger impeller.</p>
+      <p data-scen="ssme">To lift hydrogen's tiny weight to tens of megapascals the shuttle pump has to build a tower
+      about <b>60 km</b> tall. That is why it spins at 37,000 rpm and needs three stages.</p>
+      <p data-scen="raptor">Methane is 2.7× lighter than oxygen. At the same speed it gets 2.7× less pressure, so its
+      pump must run faster or bigger than the oxygen one.</p>
+      <p data-scen="any">This is the oxygen impeller from tab 1. Slide the density down toward hydrogen and watch the
+      green dot slide down the line while the head stays put.</p>
+    </div>
+    <div class="ex">
+      <h4>What one drop of liquid feels</h4>
+      <p>The left plot follows a single drop through the pump. Pressure sags for an instant at the inducer,
+      climbs through the spinning impeller, then climbs again in the diffuser as the liquid slows down.</p>
+      <p data-scen="ssme">Three stages ⇒ three steps. Each stage adds the same pressure, one after the other.</p>
+      <p>The dashed red line is the liquid's <b>vapour pressure</b>. Touch it and the liquid boils.
+      Nothing shows on the plot until the drop gets there — the run starts with the drop at the inlet.</p>
+    </div>
+    <div class="ex">
+      <h4>Why hydrogen needs stages</h4>
+      <p>Head grows as tip speed squared, but a spinning disc can only go so fast before it tears itself
+      apart — about <code>700 m/s</code> at the rim here, twice the speed of sound in air.</p>
+      <p>When one stage cannot build the tower, you stack stages and add the heights. The readout
+      <b>Stages needed</b> is that count at the speed ceiling.</p>
+      <p data-scen="raptor">The real Raptor stage count is not public. The model needs one stage at this ceiling,
+      but treat that as an estimate.</p>
+    </div>
+    <div class="ex">
+      <h4>The inlet is the weak spot</h4>
+      <p>At the inducer the blade tips slice through liquid at high relative speed, and the local pressure
+      dips below the tank's. If it falls to the vapour pressure the liquid boils into bubbles —
+      <b>cavitation</b> — that choke the flow and hammer the blades.</p>
+      <p>The margin in metres of liquid is <code>(p − p_v)/(ρ·g)</code>. A denser liquid weighs more per metre,
+      so the same tank pressure buys <i>fewer</i> metres: raise ρ or the speed, or lower the tank pressure,
+      and the red marker on the blade tip turns into bubbles.</p>
+    </div>
+    <div class="ex">
+      <h4>Reading the units</h4>
+      <p><b>Megapascals (MPa) — pressure.</b> 0.1 MPa = 1 bar ≈ one atmosphere. <b>10 MPa</b> is 100 atmospheres,
+      the pressure about a kilometre under the sea.</p>
+      <p><b>rpm — shaft speed.</b> A car engine on the motorway turns ~3,000 rpm; <b>5,500 rpm</b> is 92 turns a second;
+      <b>37,000 rpm</b> is 617.</p>
+      <p><b>Megawatts (MW) — shaft power.</b> A family car makes ~0.08 MW. The F-1's <b>41 MW</b> is about
+      five hundred of them driving one shaft.</p>
+      <p><b>Metres per second — tip speed.</b> 140 m/s is a fast train; 700 m/s is twice the speed of sound in air.</p>
+      <p class="cav">Model caveats: a 1-D <i>meanline</i> pump — one velocity triangle per stage, a slip factor,
+      assumed efficiencies, no leakage, no volute, no real 3-D flow. Pump discharge pressures are
+      <b>derived</b> from reported power and flow; Raptor figures are <b>estimates</b>. The chips mark every
+      source. Treat every figure as an engineering estimate, ±~30%.</p>
+    </div>
+  </section>
+  <section id="experimentControls" class="experiment-only" aria-label="Experiment controls">
+    <div id="experimentTransport">
+      <button id="experimentPlay" type="button" title="Play" aria-label="Play">&#9654;</button>
+      <button id="experimentRestart" type="button" title="Restart" aria-label="Restart">&#8635;</button>
+      <div id="experimentTimeline"><output id="experimentTime"></output><input id="experimentProgress" type="range" min="0" max="1" step="0.001" value="0" aria-label="Timeline"></div>
+    </div>
+    <label id="experimentParameter"><span id="experimentParameterName">Liquid density</span><output id="experimentParameterValue"></output><input id="experimentLever" type="range"></label>
+    <div id="experimentActions">
+      <button id="experimentKeep" type="button" title="Keep this pressure trace for comparison" disabled>Keep run</button>
+      <button id="experimentSettings" type="button">Parameters</button>
+      <button id="experimentWhy" type="button">Why?</button>
+    </div>
+  </section>
+</div>
+<dialog id="experimentDetails" aria-label="Experiment details">
+  <nav id="detailBar" aria-label="Details">
+    <button type="button" data-detail="parameters" aria-pressed="true">Parameters</button>
+    <button type="button" data-detail="measurements" aria-pressed="false">Measures</button>
+    <button type="button" data-detail="why" aria-pressed="false">Why?</button>
+    <button id="detailClose" type="button" title="Close details" aria-label="Close details">&#215;</button>
+  </nav>
+  <div id="detailContent"></div>
+</dialog>
+
+<script>
+"use strict";
+/* ============================================================ constants */
+const G0     = 9.80665;                // m/s², standard gravity
+const RPM    = Math.PI/30;             // rad/s per rpm
+const GPM    = 3.785411784e-3/60;      // m³/s per US gallon/minute
+const U_CAP  = 700;                    // m/s, tip-speed ceiling — ESTIMATE, fit so the SSME fuel pump comes out at its 3 stages
+const ETA_H  = 0.85;                   // hydraulic efficiency of a stage — ASSUMED
+const Z_BL   = 7;                      // blades per impeller — ASSUMED
+const PHI_D  = 0.15;                   // design flow coefficient cm2/u2 — ASSUMED, typical of high-head rocket pumps
+const BETA_D = 25;                     // design blade exit angle from the tangent, degrees — ASSUMED
+const LAM_C  = 1.05, LAM_W = 0.03;     // inducer cavitation coefficients (Pearsall form) — ASSUMED
+const HUB    = 0.30;                   // hub / tip radius at the inducer eye
+const R1_CAP = 0.55;                   // eye radius never above this fraction of the impeller tip radius
+const R3_RAT = 1.40;                   // vaneless diffuser outer radius / impeller tip radius
+const ATM    = 101325;                 // Pa
+
+/* ============================================================ the liquids (reference values at their boiling points)
+   Density and vapour pressure of each propellant at the temperature it is stored at.  */
+const FLU = {
+  lh2:  { name:'liquid hydrogen', short:'LH₂',  rho:70.85,  pv:101325 },   // 20.3 K
+  ch4:  { name:'liquid methane',  short:'CH₄',  rho:422.6,  pv:101325 },   // 111.7 K
+  rp1:  { name:'kerosene (RP-1)', short:'RP-1', rho:810,    pv:500    },   // ambient temperature, ~0 vapour pressure
+  lox:  { name:'liquid oxygen',   short:'LOX',  rho:1141,   pv:101325 },   // 90.2 K
+};
+const FLU_LIST = ['lh2','ch4','rp1','lox'];
+
+/* ============================================================ helpers */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*t*(t*(t*6-15)+10);
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const fin=v=>Number.isFinite(v);
+const fmt=(v,n)=>fin(v)?v.toFixed(n):'—';
+const mpa=p=>fin(p)?(p/1e6).toFixed(Math.abs(p)<1e7?2:1)+' MPa':'—';
+const comma=v=>fin(v)?Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','):'—';
+// Wiesner slip factor: the liquid leaves the impeller lagging the blade, so it never quite gets
+// the swirl the blade angle promises
+const slip=(beta)=>1-Math.sqrt(Math.sin(beta))/Math.pow(Z_BL,0.7);
+// the liquid nearest in density, for naming a slider position
+function nearFluid(rho){
+  let best=null, bd=Infinity;
+  for(const k of FLU_LIST){ const d=Math.abs(Math.log(rho/FLU[k].rho)); if(d<bd){ bd=d; best=k; } }
+  return bd<0.12 ? best : null;
+}
+
+/* ============================================================ the design points (only the differences)
+   Each tab is one real pump. Flow is what the engine demands; the pressure rise Δp is the one number
+   the geometry is fit to (so the model reproduces it at the design point). chips say where each
+   number comes from: REPORTED (published), DERIVED (worked out from published numbers), ESTIMATE, ASSUMED. */
+const SCEN = {
+  f1lox:  { name:'F-1 · liquid oxygen pump', fluid:'lox', N:5500, Q:24811*GPM, dp:9.7e6,  eta:0.70, pinMode:'margin',
+            chips:{N:'rep', Q:'rep', dp:'est', P:'rep', n:'ass'},
+            datum:'F-1 (Apollo): 5,500 rpm, 24,811 gal/min of LOX; both pumps together take 41 MW (55,000 hp)' },
+  f1fuel: { name:'F-1 · kerosene pump',      fluid:'rp1', N:5500, Q:15471*GPM, dp:13.2e6, eta:0.70, pinMode:'margin',
+            chips:{N:'rep', Q:'rep', dp:'est', P:'rep', n:'ass'},
+            datum:'F-1 (Apollo): 5,500 rpm, 15,471 gal/min of RP-1; same shaft as the oxygen pump' },
+  ssme:   { name:'Space Shuttle main engine · hydrogen pump', fluid:'lh2', N:37000, Q:72/70.85, dp:41e6, eta:0.78, pin:1.9e6,
+            chips:{N:'rep', Q:'est', dp:'est', P:'rep', n:'rep'},
+            datum:'SSME high-pressure fuel pump: ~37,000 rpm, three stages, ~70,000 hp; inlet boosted to ~276 psia' },
+  raptor: { name:'Raptor · methane pump (estimate)', fluid:'ch4', N:30000, Q:156/422.6, dp:55e6, eta:0.75, pinMode:'margin',
+            chips:{N:'est', Q:'der', dp:'est', P:'der', n:'est'},
+            datum:'Raptor 2: ~300 bar chamber, ~230 tf, mixture ratio ~3.6. Pump speed, stages and discharge are NOT public — estimates' },
+  any:    { name:'F-1 oxygen impeller · any liquid', fluid:'lox', N:5500, Q:24811*GPM, dp:9.7e6, eta:0.70, pinMode:'margin',
+            chips:{N:'rep', Q:'rep', dp:'est', P:'rep', n:'ass'},
+            datum:'The tab-1 impeller, unchanged. Only the liquid is yours to choose' },
+};
+const CHIP = {
+  rep:['REPORTED','Published figure from a public source.','rep'],
+  der:['DERIVED','Worked out from published numbers with this model.','der'],
+  est:['ESTIMATE','A fit or an educated guess — treat as ±30% or worse.','est'],
+  ass:['ASSUMED','A modelling choice, not a measurement.',''],
+  off:['REFERENCE','Standard reference data (boiling-point fluid properties).','off'],
+};
+const chipHtml = k => { const c=CHIP[k]; return `<i class="tg ${c[2]}" title="${c[0]} — ${c[1]}">${c[0].slice(0,3)}</i>`; };
+
+/* ============================================================ state */
+const S = {
+  scen:'f1lox', playing:false, t:0, rate:1,
+  // controls
+  spd:5500, rho:1141, beta:25, pin:0.45e6,
+  ov:{pres:true, tri:true, trail:true, cav:true},
+  pan:{x:0,y:0},
+  R:null,              // the pump state at the current controls
+  _peak:null,
+};
+// Phone presentation. Chosen once at load (rotating a phone must not switch it); the controls
+// are proxies for the real ones in the rail, so there is still exactly one set of physics.
+// homes: nodes moved into the detail sheet → the comment that marks where they live.
+// baseline: the pressure trace kept with "Keep run", drawn dashed beside the live one.
+const E = { mode: matchMedia('(max-width:700px)').matches ? 'experiment' : 'lab', homes:new Map(), baseline:null };
+document.body.classList.toggle('experiment', E.mode==='experiment');
+
+/* ============================================================ the geometry kernel
+   buildGeom() turns a design point into an impeller. Everything on screen — the blades, the velocity
+   triangle, the parcel's path — comes from this one set of numbers, and the live kernel (pumpState)
+   uses the SAME geometry, so the prediction and the thing predicted cannot drift apart.            */
+let G = null;
+function buildGeom(sc){
+  const f = FLU[sc.fluid], beta = rad(BETA_D), sig = slip(beta);
+  const w = sc.N*RPM;
+  const k = ETA_H*(sig - PHI_D/Math.tan(beta));     // head = k·u²/g at the design flow
+  const Htot = sc.dp/(f.rho*G0);
+  let n = 1, u2 = 0;
+  for(; n<=8; n++){ u2 = Math.sqrt(G0*Htot/n/k); if(u2 <= U_CAP) break; }   // fewest stages that stay under the ceiling
+  const r2 = u2/w;
+  const b2 = sc.Q/(2*Math.PI*r2*PHI_D*u2);          // exit width so the design flow gives cm2 = φ·u2
+  // inducer eye radius that minimises the NPSH the inlet needs (capped by what fits in the impeller)
+  const K = Math.pow(sc.Q/(Math.PI*(1-HUB*HUB)), 2);
+  const rOpt = Math.pow(2*(LAM_C+LAM_W)*K/(LAM_W*w*w), 1/6);
+  const r1 = Math.min(R1_CAP*r2, rOpt);
+  const g = { key:null, sc, fluid:sc.fluid, pv:f.pv, rho0:f.rho, N0:sc.N, Q:sc.Q, n, r1, r2, r3:R3_RAT*r2, b2, eta:sc.eta, nStages:n,
+              Htot, u2d:u2 };
+  // time model: with constant width b2 the radius follows r² = r1² + c·t, through impeller and diffuser alike
+  g.c = sc.Q/(Math.PI*b2);
+  g.Ti = (g.r2*g.r2-g.r1*g.r1)/g.c;
+  g.Td = (g.r3*g.r3-g.r2*g.r2)/g.c;
+  g.Tx = n>1 ? 0.15*g.Ti : 0;
+  g.Ts = g.Ti+g.Td+g.Tx;
+  g.D  = n*g.Ts*1.12;                               // the whole journey plus a short linger at the end
+  // inlet pressure: the tab's own, or 30 % NPSH margin over what the inducer needs
+  const A1 = Math.PI*r1*r1*(1-HUB*HUB), c1 = sc.Q/A1, u1 = w*r1, w1 = Math.hypot(u1,c1);
+  const npshr = (LAM_C*c1*c1 + LAM_W*w1*w1)/(2*G0);
+  g.pinDesign = sc.pin != null ? sc.pin : f.pv + f.rho*G0*(1.3*npshr - c1*c1/(2*G0));
+  return g;
+}
+
+/* the live pump: one function of the controls (speed, density, blade angle, tank pressure) */
+function pumpState(P){
+  const w = P.N*RPM, b = rad(P.beta), sg = slip(b);
+  const u2 = w*G.r2, cm2 = G.Q/(2*Math.PI*G.r2*G.b2);
+  const cu2 = sg*u2 - cm2/Math.tan(b);               // swirl the liquid leaves with: Euler's pump equation
+  const Hst = Math.max(ETA_H*u2*cu2/G0, 0);          // head of one stage
+  const H = G.n*Hst, dp = P.rho*G0*H, dpSt = dp/G.n;
+  const hyd = G.Q*dp, shaft = hyd/G.eta;
+  // inducer eye
+  const A1 = Math.PI*G.r1*G.r1*(1-HUB*HUB), c1 = G.Q/A1, u1 = w*G.r1, w1 = Math.hypot(u1,c1);
+  const npshr = (LAM_C*c1*c1 + LAM_W*w1*w1)/(2*G0);
+  const npsha = (P.pin-G.pv)/(P.rho*G0) + c1*c1/(2*G0);
+  const pDip  = P.pin + 0.5*P.rho*c1*c1*(1-LAM_C) - 0.5*P.rho*LAM_W*w1*w1;   // lowest pressure on the blade tip
+  const rhs = 2*G0*npsha - (LAM_C+LAM_W)*c1*c1;
+  const Ncav = rhs>0 ? Math.sqrt(rhs/(LAM_W*G.r1*G.r1))/RPM : 0;       // speed at which the margin runs out
+  const Hcap = ETA_H*U_CAP*(sg*U_CAP - cm2/Math.tan(b))/G0;      // most head one stage can build at the tip-speed ceiling
+  const cr2 = Math.atan2(cm2, u2-cu2);                // actual flow angle at the exit (differs from the blade angle: slip)
+  return { N:P.N, rho:P.rho, beta:P.beta, pin:P.pin, w, sg, u2, cm2, cu2, flow2:cr2, Hth:u2*cu2/G0, Hst, H, dp, dpSt, hyd, shaft,
+           c1, u1, w1, npshr, npsha, margin:npsha/npshr, pDip, cav: pDip < G.pv, Ncav,
+           tip:u2, Hcap, stagesNeeded: Math.max(1, Math.ceil(H/Math.max(Hcap,1e-9) - 1e-9)) };
+}
+const curP = () => ({N:S.spd, rho:S.rho, beta:S.beta, pin:S.pin});
+
+/* ---- one drop of liquid through the pump, as a pure function of time ----
+   Inside the impeller the drop rides a blade channel (a logarithmic spiral: the angle to the
+   tangent is β₂ everywhere). In the diffuser angular momentum is conserved. The pressure is the
+   rotating-frame Bernoulli sum, scaled so the stage lands exactly on its pressure rise.        */
+function impIdeal(r, R){                              // ideal rotating-frame pressure rise at radius r (per unit ρ=1 → Pa)
+  const b = rad(R.beta), cm = G.Q/(2*Math.PI*r*G.b2), cm1 = G.Q/(2*Math.PI*G.r1*G.b2);
+  const wv = cm/Math.sin(b), w1v = cm1/Math.sin(b);
+  return 0.5*R.rho*(R.w*R.w*(r*r-G.r1*G.r1) - (wv*wv - w1v*w1v));
+}
+function stageScale(R){
+  const ide = impIdeal(G.r2, R);
+  return (ide>0 && R.dpSt>0) ? Math.min(1, 0.98*R.dpSt/ide) : 0;
+}
+function parcelAt(t, R){
+  R = R || S.R;
+  const k = clamp(Math.floor(t/G.Ts), 0, G.n-1);
+  const tau = t - k*G.Ts, pb = R.pin + k*R.dpSt;
+  const s = stageScale(R), pEx = pb + s*impIdeal(G.r2, R), pDis = pb + R.dpSt;
+  const b = rad(R.beta), th0 = Math.PI/Z_BL;
+  const out = { k, tau, hidden:false, phase:'impeller', r:G.r1, th:0, p:pb, done:false };
+  const thRot = tt => R.w*tt + th0;                   // the rotor angle at global time tt, plus the parcel's channel offset
+  if(tau < G.Ti){
+    const r = Math.sqrt(G.r1*G.r1 + G.c*tau);
+    out.r = r; out.th = thRot(t) - Math.log(r/G.r1)/Math.tan(b);
+    out.p = pb + s*impIdeal(r, R);
+    out.phase = tau < 0.10*G.Ti ? 'inducer' : 'impeller';
+    if(k===0 && tau < 0.10*G.Ti){                     // the suction dip at the inducer blade tips
+      const x = tau/(0.10*G.Ti);
+      out.p -= (R.pin - R.pDip)*Math.pow(Math.sin(Math.PI*x),2);
+    }
+  } else if(tau < G.Ti+G.Td || (k===G.n-1 && tau >= G.Ti+G.Td)){
+    const td = Math.min(tau-G.Ti, G.Td);
+    const r = Math.sqrt(G.r2*G.r2 + G.c*td);
+    const tExit = k*G.Ts + G.Ti, thEx = thRot(tExit) - Math.log(G.r2/G.r1)/Math.tan(b);
+    const Gam = G.r2*Math.max(R.cu2, 0);
+    out.r = r; out.th = thEx + (Gam/G.c)*Math.log(r*r/(G.r2*G.r2));
+    const f = (1/(G.r2*G.r2) - 1/(r*r))/(1/(G.r2*G.r2) - 1/(G.r3*G.r3));
+    out.p = pEx + (pDis-pEx)*f;
+    out.phase = 'diffuser';
+    out.done = k===G.n-1 && tau >= G.Ti+G.Td;
+    if(out.done) out.phase = 'done';
+  } else {
+    out.hidden = true; out.phase = 'crossover'; out.p = pDis; out.r = G.r3;
+  }
+  return out;
+}
+const simDuration = () => G.D;
+function parcelP(t){ return parcelAt(t).p; }
+
+/* ============================================================ canvases */
+const main2d=document.getElementById('main2d'), g2=main2d.getContext('2d');
+const c3d=document.getElementById('c3d'), g3=c3d.getContext('2d');
+const cTr=document.getElementById('cTrace'), gTr=cTr.getContext('2d');
+const cRl=document.getElementById('cRel'), gRl=cRl.getContext('2d');
+let DPR=1, W=0,H=0, W3=0,H3=0, WT=0,HT=0, WR=0,HR=0;
+function fit(cv,ctx){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.max(1,Math.round(r.width*DPR));
+  cv.height=Math.max(1,Math.round(r.height*DPR));
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return [r.width,r.height];
+}
+function resize(){
+  [W,H]=fit(main2d,g2); [W3,H3]=fit(c3d,g3);
+  [WT,HT]=fit(cTr,gTr); [WR,HR]=fit(cRl,gRl);
+  draw();
+}
+window.addEventListener('resize',resize);
+const cssMono=()=>getComputedStyle(document.body).getPropertyValue('--mono');
+
+/* ---- world <-> screen for the impeller, isotropic so angles are true: the blade angle you see
+   IS the blade angle. World units are metres, the centre is the shaft. ---- */
+let cam={s:1,cx:0,cy:0};
+function updateCam(){
+  const compact=E.mode==='experiment';
+  cam.s=Math.min(W*(compact?0.40:0.36), H*0.40)/G.r3;       // keeps the knob arc (1.12 r3) inside the stage
+  cam.cx=W*(compact?0.5:0.40)+S.pan.x;
+  cam.cy=H*0.5+S.pan.y;
+}
+const sp=(r,th)=>[cam.cx+r*cam.s*Math.cos(th), cam.cy-r*cam.s*Math.sin(th)];
+const bladeAng=(k,r,t,R)=>R.w*t + k*2*Math.PI/Z_BL - Math.log(r/G.r1)/Math.tan(rad(R.beta));
+// pressure at radius r inside the CURRENT stage, as a 0..1 fraction of that stage's rise
+function stageFrac(r,R){
+  if(!(R.dpSt>0)) return 0;
+  const s=stageScale(R), pEx=s*impIdeal(G.r2,R);
+  if(r<=G.r2) return clamp(s*impIdeal(Math.max(r,G.r1),R)/R.dpSt,0,1);
+  const f=(1/(G.r2*G.r2)-1/(r*r))/(1/(G.r2*G.r2)-1/(G.r3*G.r3));
+  return clamp((pEx+(R.dpSt-pEx)*f)/R.dpSt,0,1);
+}
+const mix=(a,b,t)=>a.map((v,i)=>Math.round(lerp(v,b[i],t)));
+const LOWC=[56,120,200], HIGHC=[251,191,36];
+
+/* ============================================================ 2D DRAW */
+// the knob that sets the shaft speed sits on an arc just outside the casing
+const KNOB={a0:150, sweep:240};
+function knobPos(){
+  const frac=clamp((S.spd-spdMin())/(spdMax()-spdMin()),0,1), a=rad(KNOB.a0-frac*KNOB.sweep);
+  return sp(1.12*G.r3,a);
+}
+const spdMin=()=>parseFloat($('spd').min), spdMax=()=>parseFloat($('spd').max);
+
+function draw(){
+  updateCam();
+  const R=S.R, t=S.t, par=parcelAt(t,R), compact=E.mode==='experiment';
+  S._peak=R;
+
+  g2.fillStyle='#04060b'; g2.fillRect(0,0,W,H);
+  const [ox,oy]=[cam.cx,cam.cy], s=cam.s;
+  // casing and diffuser annulus
+  g2.fillStyle='rgba(20,28,44,.55)'; g2.beginPath(); g2.arc(ox,oy,G.r3*s,0,7); g2.fill();
+  g2.strokeStyle='rgba(120,150,190,.35)'; g2.lineWidth=2; g2.beginPath(); g2.arc(ox,oy,G.r3*s,0,7); g2.stroke();
+  // the pressure map: a ring of colour per radius, low (blue) to the stage's full rise (amber)
+  if(S.ov.pres){
+    const NR=48;
+    for(let i=0;i<NR;i++){
+      const r0=G.r1+(G.r3-G.r1)*i/NR, r1=G.r1+(G.r3-G.r1)*(i+1)/NR, rm=(r0+r1)/2;
+      const col=mix(LOWC,HIGHC,smooth(stageFrac(rm,R)));
+      g2.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${rm<=G.r2?.55:.38})`;
+      g2.lineWidth=(r1-r0)*s*1.5+1; g2.beginPath(); g2.arc(ox,oy,rm*s,0,7); g2.stroke();
+    }
+  }
+  // impeller rim and inducer eye
+  g2.strokeStyle='rgba(201,212,227,.45)'; g2.lineWidth=1.5; g2.beginPath(); g2.arc(ox,oy,G.r2*s,0,7); g2.stroke();
+  g2.strokeStyle='rgba(150,170,200,.5)'; g2.setLineDash([4,4]); g2.lineWidth=1;
+  g2.beginPath(); g2.arc(ox,oy,G.r1*s,0,7); g2.stroke(); g2.setLineDash([]);
+  g2.fillStyle='rgba(14,20,36,.95)'; g2.beginPath(); g2.arc(ox,oy,G.r1*HUB*s,0,7); g2.fill();
+  // the blades: logarithmic spirals, true angle β to the tangent
+  g2.strokeStyle='rgba(215,225,240,.88)'; g2.lineWidth=Math.max(1.6,0.012*G.r2*s);
+  for(let k=0;k<Z_BL;k++){
+    g2.beginPath();
+    for(let i=0;i<=40;i++){
+      const r=G.r1+(G.r2-G.r1)*i/40, [x,y]=sp(r,bladeAng(k,r,t,R));
+      i?g2.lineTo(x,y):g2.moveTo(x,y);
+    }
+    g2.stroke();
+  }
+  // cavitation: vapour pockets grow from the blade tips when the inlet margin is gone
+  if(S.ov.cav && R.cav){
+    const ratio=R.npshr/Math.max(R.npsha,1e-9), L=(G.r2-G.r1)*clamp((ratio-1)*2,0.10,0.7);
+    for(let k=0;k<Z_BL;k++){
+      g2.strokeStyle='rgba(255,235,235,.55)'; g2.lineWidth=Math.max(4,0.03*G.r2*s); g2.lineCap='round';
+      g2.beginPath();
+      for(let i=0;i<=10;i++){ const r=G.r1+L*i/10, [x,y]=sp(r,bladeAng(k,r,t,R)); i?g2.lineTo(x,y):g2.moveTo(x,y); }
+      g2.stroke(); g2.lineCap='butt';
+      for(let j=0;j<4;j++){
+        const r=G.r1+L*(0.3+0.7*Math.abs(Math.sin(k*7.1+j*3.3))), [x,y]=sp(r,bladeAng(k,r,t,R)+0.05*Math.sin(k+j*2));
+        g2.strokeStyle='rgba(248,113,113,.9)'; g2.lineWidth=1.2; g2.beginPath(); g2.arc(x,y,2+2.5*Math.abs(Math.sin(k*3+j)),0,7); g2.stroke();
+      }
+    }
+  } else if(S.ov.cav){
+    const [x,y]=sp(G.r1,bladeAng(0,G.r1,t,R));
+    g2.strokeStyle='rgba(248,113,113,.8)'; g2.setLineDash([3,3]); g2.lineWidth=1.3;
+    g2.beginPath(); g2.arc(x,y,9,0,7); g2.stroke(); g2.setLineDash([]);
+  }
+  // the drop: where it has been, and where it is now
+  if(S.ov.trail){
+    g2.strokeStyle='rgba(52,211,153,.75)'; g2.lineWidth=1.8; g2.beginPath();
+    let pen=false;
+    for(let i=0;i<=120;i++){
+      const tt=t*i/120, q=parcelAt(tt,R);
+      if(q.hidden){ pen=false; continue; }
+      const [x,y]=sp(q.r,q.th); pen?g2.lineTo(x,y):g2.moveTo(x,y); pen=true;
+    }
+    g2.stroke();
+  }
+  if(!par.hidden){
+    const [x,y]=sp(par.r,par.th);
+    g2.fillStyle=R.cav&&par.phase==='inducer'?'rgba(248,113,113,.95)':'rgba(52,211,153,.98)';
+    g2.beginPath(); g2.arc(x,y,5,0,7); g2.fill();
+    g2.strokeStyle='#fff'; g2.lineWidth=1.5; g2.beginPath(); g2.arc(x,y,8,0,7); g2.stroke();
+  }
+  // velocity triangle at the rim: u (rim speed) + w (relative flow, along the blade) = c (what the casing sees)
+  if(S.ov.tri && !compact) drawTriangle(R);
+  // the speed knob
+  const [kx,ky]=knobPos();
+  g2.strokeStyle='rgba(56,189,248,.25)'; g2.lineWidth=1.5; g2.beginPath();
+  g2.arc(ox,oy,1.12*G.r3*s,-rad(KNOB.a0),-rad(KNOB.a0-KNOB.sweep),false); g2.stroke();
+  g2.fillStyle='rgba(56,189,248,.95)'; g2.beginPath(); g2.arc(kx,ky,7,0,7); g2.fill();
+  g2.strokeStyle='#fff'; g2.lineWidth=1.5; g2.beginPath(); g2.arc(kx,ky,10,0,7); g2.stroke();
+  g2.font='10px '+cssMono(); g2.fillStyle='rgba(56,189,248,.95)';
+  if(compact){ g2.textAlign='right'; g2.fillText(`${comma(S.spd)} rpm`, kx-14, ky+3); g2.textAlign='left'; }
+  else g2.fillText(`${comma(S.spd)} rpm`, kx+14, ky+3);
+  // stage text
+  g2.font='9px '+cssMono(); g2.fillStyle='rgba(150,170,200,.5)';
+  if(!compact){
+    g2.fillText('IMPELLER', ox-G.r2*s*0.55, oy-G.r1*s-6);
+    g2.fillText('DIFFUSER', ox-26, oy+G.r3*s+13);
+    g2.fillText(`isotropic · tip radius ${(G.r2*100).toFixed(0)} cm · drawn angles are true`, 14, H-12);
+    if(S.ov.cav && !R.cav){
+      g2.fillStyle='rgba(248,113,113,.8)';
+      g2.fillText(R.Ncav>0?`red ring · where cavitation starts first · above ${comma(R.Ncav)} rpm`:'red ring · no margin left — it cavitates at any speed', 14, 34);
+    }
+    let ev=null, evc='rgba(251,191,36,.95)';
+    if(R.cav){ ev='CAVITATING — vapour pockets on the inducer blade tips'; evc='rgba(248,113,113,.95)'; }
+    else if(par.done) ev=`DISCHARGED — ${mpa(R.dp)} above the inlet`;
+    else if(S.t>0) ev=`STAGE ${par.k+1} OF ${G.n} — ${par.phase.toUpperCase()}`;
+    if(ev){ g2.font='11px '+cssMono(); g2.fillStyle=evc; g2.fillText(ev,14,20); }
+  } else {
+    g2.fillText(`stage ${par.k+1}/${G.n}`, 12, H-10);
+  }
+  drawTrace();
+  if(compact){
+    // the inset, relation plot and readouts are only on screen while the detail sheet is open
+    if($('experimentDetails').open){ drawTower(); drawRel(); updateReadouts(); }
+    updateExperiment();
+    return;
+  }
+  drawTower(); drawRel(); updateReadouts();
+}
+function arrow(x,y,dx,dy,col,label,ox,oy){
+  g2.strokeStyle=col; g2.fillStyle=col; g2.lineWidth=2;
+  g2.beginPath(); g2.moveTo(x,y); g2.lineTo(x+dx,y+dy); g2.stroke();
+  const a=Math.atan2(dy,dx);
+  g2.beginPath(); g2.moveTo(x+dx,y+dy);
+  g2.lineTo(x+dx-9*Math.cos(a-0.4),y+dy-9*Math.sin(a-0.4)); g2.lineTo(x+dx-9*Math.cos(a+0.4),y+dy-9*Math.sin(a+0.4)); g2.closePath(); g2.fill();
+  g2.font='10px '+cssMono(); g2.fillText(label,x+dx/2+ox,y+dy/2+oy);
+}
+function drawTriangle(R){
+  const k=Math.min(W,H)*0.22/R.u2, [ox,oy]=sp(G.r2,0);          // the rim point at 3 o'clock: radial = right, tangential = up
+  const u=[0,R.u2], c=[R.cm2,R.cu2], w=[c[0]-u[0],c[1]-u[1]];
+  arrow(ox,oy,u[0]*k,-u[1]*k,'rgba(56,189,248,.95)',`u₂ ${R.u2.toFixed(0)} m/s`,8,0);
+  arrow(ox+u[0]*k,oy-u[1]*k,w[0]*k,-w[1]*k,'rgba(52,211,153,.95)',`w₂ ${Math.hypot(w[0],w[1]).toFixed(0)}`,8,14);
+  arrow(ox,oy,c[0]*k,-c[1]*k,'rgba(251,191,36,.98)',`c₂ ${Math.hypot(c[0],c[1]).toFixed(0)}`,-52,-8);
+  g2.fillStyle='rgba(150,170,200,.75)'; g2.font='10px '+cssMono();
+  g2.fillText(`β₂ blade ${R.beta.toFixed(1)}° · flow ${deg(R.flow2).toFixed(1)}° (slip)`, ox+6, oy+18);
+}
+
+/* ============================================================ PLOT 1 — what one drop feels (the lived signal) */
+function logAxis(v0,v1){ return v=>Math.log(v/v0)/Math.log(v1/v0); }
+function drawTrace(){
+  const R=S.R, compact=E.mode==='experiment';
+  gTr.clearRect(0,0,WT,HT); gTr.fillStyle='#070a12'; gTr.fillRect(0,0,WT,HT);
+  const padL=compact?44:50, padR=14, padT=compact?40:34, padB=compact?34:36;
+  const x0=padL, x1=WT-padR, y0=HT-padB, y1=padT;
+  gTr.strokeStyle='rgba(120,150,190,.18)'; gTr.lineWidth=1;
+  gTr.beginPath(); gTr.moveTo(x0,y1); gTr.lineTo(x0,y0); gTr.lineTo(x1,y0); gTr.stroke();
+  gTr.font='9px '+cssMono();
+  const pTop=(R.pin+G.n*R.dpSt)*1.15, pBot=clamp(Math.min(G.pv,R.pDip)*0.5, 2e4, 1e5);
+  const L=logAxis(pBot,Math.max(pTop,pBot*10)), Y=p=>y0-clamp(L(Math.max(p,pBot)),0,1)*(y0-y1);
+  const X=tt=>x0+clamp(tt/G.D,0,1)*(x1-x0);
+  for(const dec of [0.01,0.1,1,10,100]){
+    const pp=dec*1e6; if(pp<pBot||pp>pTop) continue;
+    gTr.strokeStyle='rgba(120,150,190,.10)'; gTr.beginPath(); gTr.moveTo(x0,Y(pp)); gTr.lineTo(x1,Y(pp)); gTr.stroke();
+    gTr.fillStyle='rgba(150,170,200,.45)'; gTr.fillText(dec>=1?String(dec):String(dec),6,Y(pp)+3);
+  }
+  gTr.fillStyle='rgba(150,170,200,.5)'; gTr.fillText('MPa (log)',6,y1-6);
+  if(!compact) gTr.fillText('time through the pump, ms →',x1-150,HT-7);
+  // vapour pressure: touch it and the liquid boils
+  if(G.pv>=pBot){
+    gTr.strokeStyle='rgba(248,113,113,.55)'; gTr.setLineDash([4,4]); gTr.beginPath(); gTr.moveTo(x0,Y(G.pv)); gTr.lineTo(x1,Y(G.pv)); gTr.stroke(); gTr.setLineDash([]);
+    gTr.fillStyle='rgba(248,113,113,.75)'; gTr.fillText(compact?'vapour pressure':'vapour pressure — the liquid boils here',x0+6,Y(G.pv)-4);
+  } else { gTr.fillStyle='rgba(248,113,113,.6)'; gTr.fillText(`vapour pressure ${(G.pv/1e6).toFixed(4)} MPa — off the bottom`,x0+6,y0-6); }
+  // the kept run, dashed
+  if(E.baseline){
+    gTr.strokeStyle='rgba(56,189,248,.85)'; gTr.lineWidth=1.4; gTr.setLineDash([5,3]); gTr.beginPath();
+    E.baseline.pts.forEach((q,i)=>{ const x=X(q[0]), y=Y(q[1]); i?gTr.lineTo(x,y):gTr.moveTo(x,y); });
+    gTr.stroke(); gTr.setLineDash([]);
+    gTr.fillStyle='rgba(56,189,248,.85)'; gTr.fillText('held',x1-28,y1+10);
+  }
+  // the live trace up to now
+  const NP=300; gTr.strokeStyle='rgba(251,191,36,.95)'; gTr.lineWidth=1.8; gTr.beginPath();
+  let drew=false;
+  for(let i=0;i<=NP;i++){ const tt=G.D*i/NP; if(tt>S.t) break; const x=X(tt), y=Y(parcelP(tt)); i?gTr.lineTo(x,y):gTr.moveTo(x,y); drew=true; }
+  gTr.stroke();
+  const cur=parcelP(S.t), xn=X(S.t), yn=Y(cur);
+  gTr.strokeStyle='rgba(255,255,255,.5)'; gTr.lineWidth=1; gTr.beginPath(); gTr.moveTo(xn,y1); gTr.lineTo(xn,y0); gTr.stroke();
+  gTr.fillStyle=(R.cav&&S.t<G.Ti*0.12)?'#f87171':'#34d399'; gTr.beginPath(); gTr.arc(xn,yn,3.6,0,7); gTr.fill();
+  gTr.fillStyle='rgba(150,170,200,.7)';
+  gTr.fillText(`drop at ${mpa(cur)}`+(compact?'':`  ·  ${(S.t*1000).toFixed(2)} ms`), x0+8, HT-(compact?5:7));
+  if(!drew||S.t<=0){ gTr.fillStyle='rgba(150,170,200,.5)'; gTr.fillText('press play — a drop of liquid enters at the inlet', x0+10,(y0+y1)/2); }
+  // time ticks
+  gTr.fillStyle='rgba(150,170,200,.4)';
+  for(let f=0;f<=1.0001;f+=0.25){ const x=x0+f*(x1-x0); gTr.fillText(`${(f*G.D*1000).toFixed(f*G.D*1000<10?1:0)}`, x-(f>0.99?18:8), y0+12); }
+}
+
+/* ============================================================ PLOT 2 — pressure rise vs density (log–log, slope 1) */
+function drawRel(){
+  const R=S.R;
+  gRl.clearRect(0,0,WR,HR); gRl.fillStyle='#070a12'; gRl.fillRect(0,0,WR,HR);
+  const padL=50,padR=14,padT=34,padB=26, x0=padL,x1=WR-padR,y0=HR-padB,y1=padT;
+  gRl.strokeStyle='rgba(120,150,190,.18)'; gRl.lineWidth=1;
+  gRl.beginPath(); gRl.moveTo(x0,y1); gRl.lineTo(x0,y0); gRl.lineTo(x1,y0); gRl.stroke();
+  gRl.font='9px '+cssMono();
+  const r0=50, r1=1500, dpOf=r=>r*G0*R.H;
+  const dLo=Math.max(dpOf(r0)*0.6,1e3), dHi=dpOf(r1)*1.6;
+  const X=r=>x0+logAxis(r0,r1)(r)*(x1-x0), Y=d=>y0-clamp(logAxis(dLo,Math.max(dHi,dLo*10))(Math.max(d,dLo)),0,1)*(y0-y1);
+  gRl.fillStyle='rgba(150,170,200,.42)';
+  for(const r of [100,300,1000]){ gRl.strokeStyle='rgba(120,150,190,.10)'; gRl.beginPath(); gRl.moveTo(X(r),y1); gRl.lineTo(X(r),y0); gRl.stroke(); gRl.fillText(String(r),X(r)-8,y0+12); }
+  for(const d of [0.01,0.1,1,10,100]){ const dd=d*1e6; if(dd<dLo||dd>dHi) continue; gRl.strokeStyle='rgba(120,150,190,.10)'; gRl.beginPath(); gRl.moveTo(x0,Y(dd)); gRl.lineTo(x1,Y(dd)); gRl.stroke(); gRl.fillText(String(d),6,Y(dd)+3); }
+  gRl.fillText('Δp, MPa',6,y1-6); gRl.fillText('density ρ, kg/m³ →',x1-100,HR-7);
+  // the law: Δp = ρ·g·H — a straight line of slope 1; the head H is the same for every liquid
+  gRl.strokeStyle='rgba(251,191,36,.9)'; gRl.lineWidth=1.8; gRl.beginPath(); gRl.moveTo(X(r0),Y(dpOf(r0))); gRl.lineTo(X(r1),Y(dpOf(r1))); gRl.stroke();
+  gRl.fillStyle='rgba(251,191,36,.8)'; gRl.fillText(`slope 1 · every liquid on this pump gets the same head, ${comma(R.H)} m`, x0+8, y1-6+0);
+  for(const k of FLU_LIST){
+    const f=FLU[k], px=X(f.rho), py=Y(dpOf(f.rho));
+    gRl.fillStyle='rgba(251,191,36,.85)'; gRl.beginPath(); gRl.arc(px,py,3,0,7); gRl.fill();
+    gRl.fillStyle='rgba(200,215,235,.75)'; gRl.fillText(f.short,px-10,py-8);
+  }
+  // you
+  const px=X(S.rho), py=Y(R.dp>0?R.dp:dLo);
+  gRl.strokeStyle='rgba(52,211,153,.5)'; gRl.beginPath(); gRl.moveTo(px,y1); gRl.lineTo(px,y0); gRl.stroke();
+  gRl.fillStyle='#34d399'; gRl.beginPath(); gRl.arc(px,py,4.5,0,7); gRl.fill();
+  gRl.fillStyle='rgba(230,238,247,.9)'; gRl.fillText(`you: ${S.rho.toFixed(0)} kg/m³ → ${mpa(R.dp)}`,x0+8,HR-7);
+}
+
+/* ============================================================ INSET — the tower of liquid (schematic) */
+function drawTower(){
+  const R=S.R;
+  g3.clearRect(0,0,W3,H3); g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
+  const colW=Math.min(34,(W3-30)/4-8), gap=(W3-colW*4)/5, top=44, base=H3-34, hh=base-top;
+  const near=nearFluid(S.rho);
+  g3.font='9px '+cssMono();
+  FLU_LIST.forEach((k,i)=>{
+    const f=FLU[k], x=gap+i*(colW+gap), a=0.10+0.78*f.rho/1141;
+    g3.fillStyle=`rgba(251,191,36,${a})`; g3.fillRect(x,top,colW,hh);
+    g3.strokeStyle=near===k?'#34d399':'rgba(150,170,200,.35)'; g3.lineWidth=near===k?2:1; g3.strokeRect(x,top,colW,hh);
+    g3.fillStyle='rgba(200,215,235,.85)'; g3.fillText(f.short,x+colW/2-9,H3-20);
+    g3.fillStyle='rgba(251,191,36,.9)'; g3.fillText(`${(f.rho*G0*R.H/1e6).toFixed(f.rho*G0*R.H<1e7?1:0)}`,x+colW/2-7,H3-8);
+  });
+  g3.fillStyle='rgba(150,170,200,.55)';
+  g3.fillText(`all four: same height H = ${comma(R.H)} m`,8,34);
+  g3.fillText('MPa',W3-26,H3-8);
+}
+
+/* ============================================================ READOUTS */
+function readRow(k,v,cls,tip){
+  const t=tip?` title="${tip}"`:'';
+  return `<dt${t}>${k}</dt><dd class="${cls||''}"${t}>${v}</dd>`;
+}
+function updateReadouts(){
+  const R=S.R, sc=SCEN[S.scen], par=parcelAt(S.t,R), f=FLU[sc.fluid], near=nearFluid(S.rho);
+  let rows='';
+  rows+=readRow('⌖ Predicted rise', `≈ ${mpa(R.dp)}`, 'hi',
+    'Worked out from the speed, density and blade angle alone, before the drop has travelled. The same kernel draws the blades, the triangle and the trace.');
+  rows+=readRow('   shaft power', `≈ ${fmt(R.shaft/1e6,1)} MW`, '',
+    'Flow × pressure rise ÷ pump efficiency. The F-1 reported 41 MW for both its pumps together; the shuttle hydrogen pump about 52 MW.');
+  rows+=readRow('   cavitates above', R.Ncav>0?`${comma(R.Ncav)} rpm`:'any speed', R.margin<1.3?'warn':'ok',
+    'The shaft speed at which the inducer tips reach the vapour pressure with the current tank pressure and liquid.');
+  rows+='<div class="sep"></div>';
+  const stage = S.t<=0 ? '—' : par.phase==='done' ? 'discharged' : `${par.phase} · stage ${par.k+1} of ${G.n}`;
+  rows+=readRow('The drop', stage, par.phase==='done'?'ok':'');
+  rows+=readRow('   pressure now', mpa(parcelP(S.t)), '', 'Static pressure of the drop at this instant, rotating-frame Bernoulli scaled to the stage rise.');
+  rows+=readRow('   rise so far', S.t>0?mpa(parcelP(S.t)-R.pin):'—', '');
+  rows+=readRow('Measured rise', par.done?mpa(parcelP(G.D)-R.pin):'—', par.done?'hi':'',
+    'Read off the drop once it has left the last diffuser. Never shown before it arrives.');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Head H', `${comma(R.H)} m of liquid`, 'hi', 'The height of the tower of liquid the pump holds up. Same for every liquid.');
+  rows+=readRow('Liquid', `${S.rho.toFixed(0)} kg/m³${near?' · '+FLU[near].name:''}`);
+  rows+=readRow('Pressure = ρ·g·H', mpa(R.dp), '', 'Weight of the tower over its base.');
+  rows+=readRow('Tip speed u₂', `${R.u2.toFixed(0)} m/s`, R.u2>U_CAP?'warn':'', 'Speed of the impeller rim. The ceiling used here is ~700 m/s (estimate).');
+  rows+=readRow('Stages needed', `${R.stagesNeeded} (pump has ${G.n})`, R.stagesNeeded>G.n?'warn':'ok',
+    'Fewest stages that keep the rim under the tip-speed ceiling for the head being delivered.');
+  rows+=readRow('Blade vs flow angle', `${R.beta.toFixed(1)}° vs ${deg(R.flow2).toFixed(1)}°`, '', 'The liquid leaves the impeller lagging the blade: that is slip, and it costs head.');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('NPSH available', `${comma(R.npsha)} m`, '', '(p − p_v)/(ρ·g) + c²/2g at the inducer eye: metres of liquid above boiling.');
+  rows+=readRow('NPSH required', `${comma(R.npshr)} m`, '', 'What the inducer needs to keep its blade tips from boiling the liquid.');
+  rows+=readRow('Cavitation margin', `×${R.margin.toFixed(2)}${R.cav?' · CAVITATING':''}`, R.cav?'warn':R.margin<1.3?'warn':'ok', 'Available ÷ required. Below 1 the tips are full of vapour.');
+  rows+=readRow('Lowest pressure', mpa(R.pDip), R.cav?'warn':'', 'On the blade tip; compare with the vapour pressure.');
+  rows+='<div class="sep"></div>';
+  rows+=readRow('Design point', sc.name);
+  const gline=(k,v,chip,tip)=>readRow(k,`${v}${chipHtml(chip)}`,'',tip);
+  rows+=gline('Design speed',`${comma(G.N0)} rpm`,sc.chips.N);
+  rows+=gline('Design flow',`${G.Q.toFixed(3)} m³/s`,sc.chips.Q,'Volume flow the engine demands.');
+  rows+=gline('Design rise',mpa(sc.dp),sc.chips.dp,'Pump discharge pressure is not published in the sources found; derived from reported power and flow, with an assumed efficiency.');
+  rows+=gline('Design power',`${fmt(G.Q*sc.dp/sc.eta/1e6,1)} MW`,sc.chips.P);
+  rows+=gline('Stages',String(G.n),sc.chips.n);
+  rows+=gline('Liquid density',`${f.rho} kg/m³`,'off','Boiling-point properties of the tab liquid.');
+  rows+=readRow('Source', sc.datum);
+  rdl.innerHTML=rows;
+}
+
+/* ============================================================ LOOP */
+const RUN_WALL=8;                    // s of wall clock for one full journey at rate 1×
+let lastTS=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dtReal=Math.min((ts-lastTS)/1000||0, 0.05); lastTS=ts;
+  if(S.playing){
+    S.t=Math.min(S.t+dtReal*S.rate*(G.D/RUN_WALL), G.D);
+    if(S.t>=G.D){ S.playing=false; playBtn.textContent='▶ Play'; }
+    syncProg();
+  }
+  draw();
+}
+
+/* ============================================================ UI WIRING */
+const $=id=>document.getElementById(id);
+const playBtn=$('playBtn'), rdl=$('rdl');
+function syncProg(){
+  $('prog').value=clamp(S.t/G.D,0,1);
+  $('progV').textContent=`${(S.t*1000).toFixed(2)} / ${(G.D*1000).toFixed(1)} ms`;
+  $('experimentProgress').value=$('prog').value;
+  $('experimentTime').textContent=$('progV').textContent;
+}
+playBtn.onclick=()=>{ S.playing=!S.playing; playBtn.textContent=S.playing?'❚❚ Pause':'▶ Play'; };
+$('restartBtn').onclick=()=>{ S.t=0; S.playing=false; playBtn.textContent='▶ Play'; syncProg(); draw(); };
+// Scrubbing equals playing: the drop's position and pressure are closed-form functions of the clock.
+$('prog').oninput=e=>{ S.playing=false; playBtn.textContent='▶ Play'; S.t=parseFloat(e.target.value)*G.D; syncProg(); draw(); };
+function reparam(){ S.R=pumpState(curP()); syncProg(); if(!S.playing) draw(); }
+function refreshSliderLabels(){
+  const near=nearFluid(S.rho);
+  $('rateV').textContent=S.rate.toFixed(2)+'×';
+  $('spdV').textContent=comma(S.spd)+' rpm';
+  $('rhoV').textContent=S.rho.toFixed(0)+' kg/m³'+(near?' · '+FLU[near].short:'');
+  $('betaV').textContent=S.beta.toFixed(1)+'°';
+  $('pinV').textContent=(S.pin/1e6).toFixed(2)+' MPa';
+}
+$('rate').oninput=e=>{S.rate=parseFloat(e.target.value);refreshSliderLabels();};
+$('spd').oninput =e=>{S.spd=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('rho').oninput =e=>{S.rho=Math.pow(10,parseFloat(e.target.value));refreshSliderLabels();reparam();};
+$('beta').oninput=e=>{S.beta=parseFloat(e.target.value);refreshSliderLabels();reparam();};
+$('pin').oninput =e=>{S.pin=parseFloat(e.target.value)*1e6;refreshSliderLabels();reparam();};
+$('oPres').onchange=e=>{S.ov.pres=e.target.checked;draw();};
+$('oTri').onchange =e=>{S.ov.tri =e.target.checked;draw();};
+$('oTrail').onchange=e=>{S.ov.trail=e.target.checked;draw();};
+$('oCav').onchange =e=>{S.ov.cav =e.target.checked;draw();};
+
+/* tabs re-key everything: build the impeller for that pump, set the controls to its design point, reset */
+document.querySelectorAll('#tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.scen=b.dataset.s;
+    document.querySelectorAll('[data-scen]').forEach(el=>{
+      el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+    });
+    const sc=SCEN[S.scen]; G=buildGeom(sc); G.key=S.scen;
+    $('spd').min=Math.round(0.2*sc.N/50)*50; $('spd').max=Math.round(1.5*sc.N/50)*50;
+    $('spd').value=sc.N; S.spd=parseFloat($('spd').value);
+    S.rho=FLU[sc.fluid].rho; $('rho').value=Math.log10(S.rho).toFixed(3);
+    S.beta=BETA_D; $('beta').value=BETA_D;
+    $('pin').value=(G.pinDesign/1e6).toFixed(2); S.pin=parseFloat($('pin').value)*1e6;
+    refreshSliderLabels();
+    S.t=0; S.playing=false; S.pan.x=0; S.pan.y=0; E.baseline=null;
+    playBtn.textContent='▶ Play';
+    S.R=pumpState(curP()); syncProg(); draw();
+  };
+});
+
+/* the stage is directly manipulable: drag the cyan knob to spin the pump, drag elsewhere to pan */
+let dragMode=null, lastMx=0, lastMy=0;
+main2d.addEventListener('pointerdown',e=>{
+  if(!e.isPrimary || e.button!==0) return;
+  const r=main2d.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+  lastMx=e.clientX; lastMy=e.clientY;
+  const [kx,ky]=knobPos(), reach=e.pointerType==='touch'?32:16;     // a fingertip needs a wider target than a cursor
+  dragMode = Math.hypot(px-kx,py-ky)<reach ? 'knob' : 'pan';
+  main2d.setPointerCapture(e.pointerId);
+  document.body.style.cursor = dragMode==='pan'?'grabbing':'grab';
+});
+main2d.addEventListener('pointermove',e=>{
+  if(!dragMode) return;
+  const r=main2d.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+  if(dragMode==='knob'){
+    const ang=deg(Math.atan2(cam.cy-py, px-cam.cx));
+    let d=((KNOB.a0-ang)%360+360)%360;                 // degrees swept clockwise from the start of the arc
+    d = d<=KNOB.sweep ? d : (d<KNOB.sweep+(360-KNOB.sweep)/2 ? KNOB.sweep : 0);
+    const n=Math.round((spdMin()+d/KNOB.sweep*(spdMax()-spdMin()))/50)*50;
+    S.spd=n; $('spd').value=n; refreshSliderLabels(); reparam();
+  } else {
+    S.pan.x+=e.clientX-lastMx; S.pan.y+=e.clientY-lastMy;
+    if(!S.playing) draw();
+  }
+  lastMx=e.clientX; lastMy=e.clientY;
+});
+for(const type of ['pointerup','pointercancel','lostpointercapture']) main2d.addEventListener(type,()=>{ dragMode=null; document.body.style.cursor=''; });
+main2d.addEventListener('dblclick',()=>{ S.pan.x=0; S.pan.y=0; if(!S.playing) draw(); });
+$('panL').onclick=()=>{ S.pan.x+=0.2*W; if(!S.playing)draw(); };
+$('panR').onclick=()=>{ S.pan.x-=0.2*W; if(!S.playing)draw(); };
+$('recenter').onclick=()=>{ S.pan.x=0; S.pan.y=0; if(!S.playing)draw(); };
+
+/* ---- verification hook: the geometry and the live state, so an independent re-computation can be
+   compared against what the page shows (it is only ever read by the harness) ---- */
+window.__pump=()=>({ G:{r1:G.r1,r2:G.r2,r3:G.r3,b2:G.b2,n:G.n,Q:G.Q,pv:G.pv,eta:G.eta,Ti:G.Ti,Td:G.Td,Tx:G.Tx,Ts:G.Ts,D:G.D,N0:G.N0,rho0:G.rho0,dp0:SCEN[G.key].dp,pinDesign:G.pinDesign},
+  K:{G0,ETA_H,Z_BL,LAM_C,LAM_W,HUB,U_CAP,PHI_D,BETA_D}, R:S.R, t:S.t, scen:S.scen });
+window.__parcel=t=>parcelAt(t,S.R);
+
+/* ============================================================ phone presentation ("Experiment")
+ * Every control here is a proxy: it writes the real control in the rail and fires its event, so
+ * reparam() and the kernel run exactly as on the desktop. The one lever is the liquid's density —
+ * the number that decides how much pressure the same tower of liquid makes.                     */
+function updateExperiment(){
+  const R=S.R, par=parcelAt(S.t,R), done=par.done;
+  const status = S.t<=0 ? 'Ready — press play'
+               : (R.cav && par.phase==='inducer') ? 'Cavitating at the inlet'
+               : done ? 'Discharged'
+               : par.phase==='inducer' ? 'At the inducer'
+               : `${par.phase==='diffuser'?'In the diffuser':'In the impeller'} · stage ${par.k+1}/${G.n}`;
+  $('experimentStatus').textContent=status;
+  $('experimentStatus').classList.toggle('warn', R.cav && S.t>0 && !done);
+  $('experimentHeadline').textContent = done ? `+${mpa(R.dp)}` : '';
+  $('experimentForecast').textContent = `Predicted: ≈ ${mpa(R.dp)} · ≈ ${fmt(R.shaft/1e6,0)} MW${R.cav?' · cavitates':''}`;
+  $('experimentKeep').disabled=!E.baseline && !done;
+  $('experimentKeep').textContent=E.baseline?'Clear held':'Keep run';
+  $('experimentComparison').hidden=!E.baseline;
+  if(E.baseline) $('experimentComparison').textContent=`Held: ${E.baseline.label} · now ${mpa(R.dp)}`;
+  $('experimentPlay').innerHTML=S.playing?'&#10074;&#10074;':'&#9654;';
+  $('experimentPlay').title=S.playing?'Pause':'Play';
+  $('experimentPlay').setAttribute('aria-label',S.playing?'Pause':'Play');
+  $('experimentScenario').value=S.scen;
+  const lev=$('experimentLever'), source=$('rho');
+  for(const attribute of ['min','max','step']) if(lev.getAttribute(attribute)!==source.getAttribute(attribute)) lev.setAttribute(attribute,source.getAttribute(attribute));
+  if(lev.value!==source.value) lev.value=source.value;
+  $('experimentParameterValue').textContent=$('rhoV').textContent;
+}
+function restoreDetails(){
+  for(const [element,home] of E.homes) home.replaceWith(element);
+  E.homes.clear();
+}
+function openDetails(panel){
+  S.playing=false; playBtn.textContent='▶ Play';
+  restoreDetails();
+  const elements=panel==='parameters'?[document.querySelector('main>aside')]
+    :panel==='measurements'?[$('inset3d'),$('readouts'),$('cRel').parentElement]:[$('explain')];
+  for(const element of elements){
+    const home=document.createComment(''); element.before(home); E.homes.set(element,home);
+    $('detailContent').append(element);
+  }
+  document.querySelectorAll('[data-detail]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.detail===panel));
+  if(!$('experimentDetails').open) $('experimentDetails').showModal();
+  $('experimentDetails').scrollTop=0;
+  resize();
+}
+function setView(mode){
+  if($('experimentDetails').open) $('experimentDetails').close();
+  restoreDetails();
+  E.mode=mode;
+  document.body.classList.toggle('experiment',mode==='experiment');
+  $('signalCaption').textContent=mode==='experiment'?'One drop · pressure vs time · drag the knob':'What one drop of liquid feels — pressure vs time';
+  document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.view===mode));
+  resize();
+}
+document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>setView(button.dataset.view));
+document.querySelectorAll('[data-detail]').forEach(button=>button.onclick=()=>openDetails(button.dataset.detail));
+$('experimentScenario').onchange=event=>document.querySelector(`#tabs button[data-s="${event.target.value}"]`).click();
+$('experimentPlay').onclick=()=>playBtn.click();
+$('experimentRestart').onclick=()=>$('restartBtn').click();
+$('experimentProgress').oninput=event=>{$('prog').value=event.target.value;$('prog').dispatchEvent(new Event('input'));};
+$('experimentLever').oninput=event=>{$('rho').value=event.target.value;$('rho').dispatchEvent(new Event('input'));};
+$('experimentSettings').onclick=()=>openDetails('parameters');
+$('experimentWhy').onclick=()=>openDetails('why');
+$('experimentKeep').onclick=()=>{
+  S.playing=false; playBtn.textContent='▶ Play';
+  const R=S.R, near=nearFluid(S.rho), pts=[];
+  for(let i=0;i<=160;i++){ const tt=G.D*i/160; pts.push([tt,parcelP(tt)]); }
+  E.baseline = E.baseline ? null : { pts, dp:R.dp, label:`${near?FLU[near].short+' ':''}${S.rho.toFixed(0)} kg/m³ · ${mpa(R.dp)}` };
+  draw();
+};
+$('detailClose').onclick=()=>$('experimentDetails').close();
+$('experimentDetails').addEventListener('close',()=>{restoreDetails();resize();});
+new ResizeObserver(resize).observe($('stage'));
+
+/* ============================================================ go */
+document.querySelectorAll('[data-scen]').forEach(el=>{
+  el.style.display = el.dataset.scen.split(' ').includes(S.scen)?'':'none';
+});
+G=buildGeom(SCEN[S.scen]); G.key=S.scen; S.R=pumpState(curP());
+setView(E.mode);
+document.querySelector('#tabs button.on').click();   // first paint runs the tab-switch path
+requestAnimationFrame(frame);
+</script>

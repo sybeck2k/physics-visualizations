@@ -76,6 +76,11 @@
     position:absolute; left:9px; top:7px; font-family:var(--mono); font-size:9px;
     letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:1;
   }
+  #insetView{
+    position:absolute; right:6px; top:4px; z-index:2; min-height:22px; padding:0 8px;
+    font:9px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--cyan);
+    background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.4); border-radius:5px; cursor:pointer;
+  }
   #readouts{
     position:absolute; top:192px; right:10px; bottom:8px; width:314px; z-index:3;
     border:1px solid var(--line); border-radius:9px; background:rgba(7,10,18,.97);
@@ -153,6 +158,7 @@
   #detailContent #readouts dt{white-space:normal; min-width:0}
   #detailContent #readouts dd{max-width:23ch; overflow-wrap:anywhere}
   #detailContent .plot{height:210px; margin-top:20px}
+  body.experiment #insetView{min-height:44px; padding:0 12px; font-size:10px}
   #detailContent #inset3d{position:relative; top:auto; right:auto; width:100%; height:200px; margin-top:20px}
   #detailContent #explain{display:block; max-height:none; padding:0; border:0; overflow:visible}
   #detailContent #explain .ex{max-height:none; overflow:visible; border:0; border-radius:0; background:none; padding:0 0 18px}
@@ -292,6 +298,7 @@
         <div id="inset3d">
           <span class="cap">The tower of liquid (schematic)</span>
           <canvas id="c3d"></canvas>
+          <button type="button" id="insetView" aria-pressed="false" title="Switch this inset between the tower of liquid and an orbitable 3-D impeller">3-D impeller</button>
         </div>
         <div id="readouts">
           <h3>Live readout</h3>
@@ -868,6 +875,7 @@ function drawRel(){
 /* ============================================================ INSET — the tower of liquid (schematic) */
 function drawTower(){
   const R=S.R;
+  if(V3.on){ drawImpeller3D(R); return; }
   g3.clearRect(0,0,W3,H3); g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
   const colW=Math.min(34,(W3-30)/4-8), gap=(W3-colW*4)/5, top=44, base=H3-34, hh=base-top;
   const near=nearFluid(S.rho);
@@ -882,6 +890,76 @@ function drawTower(){
   g3.fillStyle='rgba(150,170,200,.55)';
   g3.fillText(`all four: same height H = ${comma(R.H)} m`,8,34);
   g3.fillText('MPa',W3-26,H3-8);
+}
+
+/* ============================================================ INSET — the impeller in 3-D (schematic)
+   Orthographic, hand-projected. The blades are the SAME logarithmic spirals as the 2-D stage (bladeAng), extruded
+   by the real passage width b₂; the backplate carries the same pressure colours; the green drop is parcelAt().
+   The axial inlet bend is not drawn — this is the radial slice of the stage.                                   */
+const V3={on:false, yaw:-0.55, pit:0.95};
+function p3(x,y,z){                                    // world (x,y,z metres) -> [screen x, screen up, toward-viewer]
+  const c=Math.cos(V3.yaw), sn=Math.sin(V3.yaw), x1=x*c-y*sn, y1=x*sn+y*c, cp=Math.cos(V3.pit), sp_=Math.sin(V3.pit);
+  return [x1, y1*sp_+z*cp, z*sp_-y1*cp];
+}
+function bladePt3(k,r,z,t,R){ const a=bladeAng(k,r,t,R); return [r*Math.cos(a), r*Math.sin(a), z]; }
+function drawImpeller3D(R){
+  const t=S.t, sc=Math.min(W3*0.5, H3*0.46)/G.r3, cx=W3/2, cy=H3*0.54+8;
+  const P=(x,y,z)=>{ const q=p3(x,y,z); return [cx+q[0]*sc, cy-q[1]*sc, q[2]]; };
+  g3.clearRect(0,0,W3,H3); g3.fillStyle='#070b14'; g3.fillRect(0,0,W3,H3);
+  const top=Math.sin(V3.pit)>=0, zFar=top?0:G.b2, zNear=top?G.b2:0;
+  const ring=(r,z,n=72)=>{ const o=[]; for(let i=0;i<n;i++){ const a=2*Math.PI*i/n; o.push(P(r*Math.cos(a),r*Math.sin(a),z)); } return o; };
+  const poly=(pts,close)=>{ g3.beginPath(); pts.forEach((q,i)=>i?g3.lineTo(q[0],q[1]):g3.moveTo(q[0],q[1])); if(close) g3.closePath(); };
+  // casing outline and the far plate, coloured by the same pressure map as the 2-D stage
+  g3.strokeStyle='rgba(120,150,190,.35)'; g3.lineWidth=1; poly(ring(G.r3,G.b2/2),true); g3.stroke();
+  const NR=16;
+  for(let i=0;i<NR;i++){
+    const r0=G.r1+(G.r2-G.r1)*i/NR, r1=G.r1+(G.r2-G.r1)*(i+1)/NR, col=mix(LOWC,HIGHC,smooth(stageFrac((r0+r1)/2,R)));
+    const o=ring(r1,zFar), n=ring(r0,zFar).reverse();
+    g3.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},.55)`; poly(o.concat(n),true); g3.fill('evenodd');
+  }
+  g3.strokeStyle='rgba(201,212,227,.45)'; g3.lineWidth=1; poly(ring(G.r2,zFar),true); g3.stroke();
+  // blades: one quad strip each (bottom edge on one plate, top edge on the other), far ones first
+  const bl=[];
+  for(let k=0;k<Z_BL;k++){
+    const lo=[], hi=[]; let d=0;
+    for(let i=0;i<=24;i++){ const r=G.r1+(G.r2-G.r1)*i/24, a=bladePt3(k,r,0,t,R), b=bladePt3(k,r,G.b2,t,R); lo.push(P(a[0],a[1],a[2])); hi.push(P(b[0],b[1],b[2])); d+=lo[i][2]; }
+    bl.push({lo,hi,d:d/25});
+  }
+  bl.sort((a,b)=>a.d-b.d);
+  for(const b of bl){
+    g3.fillStyle='rgba(150,170,205,.30)'; poly(b.lo.concat(b.hi.slice().reverse()),true); g3.fill();
+    g3.strokeStyle='rgba(215,225,240,.9)'; g3.lineWidth=1.3; poly(b.lo,false); g3.stroke(); poly(b.hi,false); g3.stroke();
+  }
+  // near plate (the shroud when seen from above): a translucent rim so the blades read through it
+  g3.strokeStyle='rgba(201,212,227,.55)'; g3.lineWidth=1.2; poly(ring(G.r2,zNear),true); g3.stroke();
+  g3.strokeStyle='rgba(150,170,200,.6)'; g3.setLineDash([3,3]); poly(ring(G.r1,zNear),true); g3.stroke(); g3.setLineDash([]);
+  // the drop, mid-passage
+  const par=parcelAt(t,R);
+  if(!par.hidden && S.ov.trail){
+    const q=P(par.r*Math.cos(par.th), par.r*Math.sin(par.th), G.b2/2);
+    g3.fillStyle='#34d399'; g3.beginPath(); g3.arc(q[0],q[1],4,0,7); g3.fill();
+    g3.strokeStyle='rgba(52,211,153,.6)'; g3.lineWidth=1; g3.beginPath(); g3.arc(q[0],q[1],7,0,7); g3.stroke();
+  }
+  g3.font='9px '+cssMono(); g3.fillStyle='rgba(150,170,200,.55)';
+  g3.fillText('drag to orbit · blades true to scale',8,H3-8);
+  g3.fillText(`passage width b₂ = ${(G.b2*1000).toFixed(0)} mm`,8,H3-20);
+}
+(function(){
+  let drag=null;
+  c3d.addEventListener('pointerdown',e=>{ if(!V3.on||!e.isPrimary) return; drag={x:e.clientX,y:e.clientY}; c3d.setPointerCapture(e.pointerId); });
+  c3d.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    V3.yaw+=(e.clientX-drag.x)*0.012; V3.pit=clamp(V3.pit+(e.clientY-drag.y)*0.01,0.15,1.5);
+    drag={x:e.clientX,y:e.clientY}; drawTower();
+  });
+  const end=()=>{ drag=null; };
+  c3d.addEventListener('pointerup',end); c3d.addEventListener('pointercancel',end); c3d.addEventListener('lostpointercapture',end);
+})();
+function setInsetView(on){
+  V3.on=on; const b=$('insetView');
+  b.textContent=on?'Tower':'3-D impeller'; b.setAttribute('aria-pressed',on?'true':'false');
+  $('inset3d').querySelector('.cap').textContent=on?'Impeller in 3-D (schematic)':'The tower of liquid (schematic)';
+  drawTower();
 }
 
 /* ============================================================ READOUTS */
@@ -972,6 +1050,7 @@ $('spd').oninput =e=>{S.spd=parseFloat(e.target.value);refreshSliderLabels();rep
 $('rho').oninput =e=>{S.rho=Math.pow(10,parseFloat(e.target.value));refreshSliderLabels();reparam();};
 $('beta').oninput=e=>{S.beta=parseFloat(e.target.value);applySpdFloor();refreshSliderLabels();reparam();};
 $('pin').oninput =e=>{S.pin=parseFloat(e.target.value)*1e6;refreshSliderLabels();reparam();};
+$('insetView').onclick=()=>setInsetView(!V3.on);
 $('oPres').onchange=e=>{S.ov.pres=e.target.checked;draw();};
 $('oTri').onchange =e=>{S.ov.tri =e.target.checked;draw();};
 $('oTrail').onchange=e=>{S.ov.trail=e.target.checked;draw();};
@@ -1037,6 +1116,7 @@ $('recenter').onclick=()=>{ S.pan.x=0; S.pan.y=0; if(!S.playing)draw(); };
 window.__pump=()=>({ G:{r1:G.r1,r2:G.r2,r3:G.r3,b2:G.b2,n:G.n,Q:G.Q,pv:G.pv,eta:G.eta,Ti:G.Ti,Td:G.Td,Tx:G.Tx,Ts:G.Ts,D:G.D,N0:G.N0,rho0:G.rho0,dp0:SCEN[G.key].dp,pinDesign:G.pinDesign},
   K:{G0,ETA_H,Z_BL,LAM_C,LAM_W,HUB,U_CAP,PHI_D,BETA_D}, R:S.R, t:S.t, scen:S.scen });
 window.__parcel=t=>parcelAt(t,S.R);
+window.__blade3d=(k,r,t)=>bladePt3(k,r,0,t,S.R).concat(bladePt3(k,r,G.b2,t,S.R));
 
 /* ============================================================ phone presentation ("Experiment")
  * Every control here is a proxy: it writes the real control in the rail and fires its event, so

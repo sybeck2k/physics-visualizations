@@ -388,6 +388,7 @@ the same `t`; width `min(100% − 16px, 560px)`, `max-height: calc(100dvh − 32
   because the live numbers are always this model's output. The Raptor tab is entirely ESTIMATE.
 - Keep run stores 161 samples of the drop's pressure trace (log-pressure axis, so the inducer dip and the
   vapour-pressure line stay visible) and draws it dashed cyan; the strip compares the two pressure rises.
+- The inset has a **3-D impeller** view (toggle `#insetView`; drag to orbit): the same log-spiral blades extruded by b₂, same pressure colours, same drop.
 - The phone drops the velocity triangle and the text captions from the stage; the cavitation marker and the
   bubbles stay.
 
